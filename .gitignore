@@ -1,0 +1,31 @@
+# IDE
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.pytest_cache/
+.mypy_cache/
+
+# Virtualenvs
+.venv/
+venv/
+
+# Logs and runtime artifacts
+logs/
+*.log
+
+# Local env
+local.env
+local.test.env
+
+# Local data exports (can be huge / private)
+health_log/services/watchData.xml
+*.backup.dump
+
+# OS
+.DS_Store

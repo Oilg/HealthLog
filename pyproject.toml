@@ -1,0 +1,32 @@
+[tool.poetry]
+name = "healthlog"
+version = "0.1.0"
+description = ""
+authors = ["loginov-ea <loginov-ea@zvuk.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+requests = "^2.32.5"
+fastapi = "0.88.0"
+uvicorn = "0.20.0"
+sqlalchemy = "1.4.45"
+envparse = "0.2.0"
+psycopg2-binary = "^2.9.9"
+asyncpg = "0.27.0"
+alembic = "1.9.0"
+greenlet = "^3.0.3"
+pydantic = ">=1.10.13,<1.11.0"
+aiopg = ">=1.4.0,<1.5.0"
+starlette = ">=0.22.0,<0.23.0"
+xmltodict = "^1.0.2"
+python-dotenv = "^1.1.1"
+python-multipart = "^0.0.20"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.4.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

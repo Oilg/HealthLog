@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<HealthData locale="ru_RU">
+  <Record type="HKQuantityTypeIdentifierHeartRateVariabilitySDNN" sourceName="Apple Watch — Егор" sourceVersion="26.0.2" unit="ms" creationDate="2025-10-12 13:22:39 +0300" startDate="2025-10-12 13:21:40 +0300" endDate="2025-10-12 13:22:25 +0300" value="71.148">
+    <MetadataEntry key="HKAlgorithmVersion" value="2"/>
+    <HeartRateVariabilityMetadataList>
+      <InstantaneousBeatsPerMinute bpm="63" time="13:21:41,88"/>
+      <InstantaneousBeatsPerMinute bpm="67" time="13:21:42,78"/>
+      <InstantaneousBeatsPerMinute bpm="69" time="13:21:45,49"/>
+    </HeartRateVariabilityMetadataList>
+  </Record>
+  <Record type="HKQuantityTypeIdentifierRespiratoryRate" sourceName="Apple Watch — Егор" unit="count/min" creationDate="2025-10-12 13:22:10 +0300" startDate="2025-10-12 13:22:00 +0300" endDate="2025-10-12 13:22:10 +0300" value="8"/>
+  <Record type="HKQuantityTypeIdentifierHeartRate" sourceName="Apple Watch — Егор" unit="count/min" creationDate="2025-10-12 13:22:12 +0300" startDate="2025-10-12 13:22:12 +0300" endDate="2025-10-12 13:22:12 +0300" value="102"/>
+</HealthData>
