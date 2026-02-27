@@ -4,8 +4,9 @@ from importlib.util import find_spec
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 
-from health_log.api.v1.error_handler import ErrorResponse, EXCEPTION_HANDLERS, error_handler
+from health_log.api.v1.error_handler import ErrorResponse, error_handler
 from health_log.api.v1.handlers import request_exception_handler
+from health_log.errors import BaseError
 
 SERVICE_NAME = "health-log"
 
@@ -13,13 +14,13 @@ SERVICE_NAME = "health-log"
 def create_app() -> FastAPI:
     app = FastAPI(
         title=SERVICE_NAME,
-        exception_handlers=EXCEPTION_HANDLERS,
         responses={
             500: {"model": ErrorResponse},
             400: {"model": ErrorResponse},
         }
     )
 
+    app.add_exception_handler(BaseError, error_handler)
     app.add_exception_handler(500, error_handler)
     app.add_exception_handler(RequestValidationError, request_exception_handler)
     if find_spec("multipart"):

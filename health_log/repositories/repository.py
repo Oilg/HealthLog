@@ -57,7 +57,7 @@ class RecordsRepository(BaseRepository):
             if key not in attrs:
                 continue
 
-            value = attrs[key]
+            value: Any = attrs[key]
             if key in {"creationDate", "startDate", "endDate"}:
                 value = parse_datetime(value)
             values[key] = value
