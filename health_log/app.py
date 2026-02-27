@@ -1,6 +1,6 @@
-import uvicorn
 from importlib.util import find_spec
 
+import uvicorn
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 

@@ -4,7 +4,7 @@ from datetime import datetime
 from hashlib import sha256
 from typing import Any
 
-from sqlalchemy import insert, select, tuple_
+from sqlalchemy import select, tuple_
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncConnection
 

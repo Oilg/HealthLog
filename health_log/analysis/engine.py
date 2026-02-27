@@ -5,13 +5,14 @@ from datetime import datetime
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-from health_log.analysis.models import RiskAssessment, TimeWindow
-from health_log.analysis.rules import (
+from health_log.analysis.detectors import (
+    assess_illness_onset_risk,
     assess_sleep_apnea_risk,
     assess_tachycardia_risk,
     build_sleep_apnea_event_rows,
-    resolve_window_range,
 )
+from health_log.analysis.models import RiskAssessment, TimeWindow
+from health_log.analysis.windows import resolve_window_range
 from health_log.repositories.repository import RecordsRepository
 from health_log.repositories.v1 import tables
 
@@ -44,6 +45,7 @@ class HealthRiskAnalyzer:
             window=window,
         )
         tachycardia_result = assess_tachycardia_risk(heart_rows, window=window)
+        illness_onset_result = assess_illness_onset_risk(heart_rows, hrv_rows, window=window)
 
         inserted_events = 0
         if window == TimeWindow.NIGHT:
@@ -54,7 +56,7 @@ class HealthRiskAnalyzer:
             "window": window,
             "start": start,
             "end": end,
-            "assessments": [sleep_apnea_result, tachycardia_result],
+            "assessments": [sleep_apnea_result, tachycardia_result, illness_onset_result],
             "inserted_sleep_apnea_events": inserted_events,
         }
 
@@ -69,6 +71,7 @@ def serialize_assessment(assessment: RiskAssessment) -> dict[str, object]:
     condition_label = {
         "sleep_apnea_risk": "Подозрение на апноэ сна",
         "tachycardia_risk": "Подозрение на тахикардию",
+        "illness_onset_risk": "Подозрение на начало простуды/воспалительного процесса",
     }.get(assessment.condition, assessment.condition)
     final_message = (
         f"{condition_label}. Уровень риска: {assessment.score:.2f}, "

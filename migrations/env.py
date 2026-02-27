@@ -1,8 +1,7 @@
 from logging.config import fileConfig
 
-from sqlalchemy import create_engine
-
 from alembic import context
+from sqlalchemy import create_engine
 
 from health_log.repositories.v1 import tables
 from health_log.settings import Settings
