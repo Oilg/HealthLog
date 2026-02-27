@@ -1,17 +1,19 @@
 .PHONY: test-db-up test-db-down test-db-reset test-db-logs cron-install cron-uninstall logs-tail run-daily
 
+TEST_COMPOSE=docker compose -p healthlog_test -f docker-compose.test.yml
+
 test-db-up:
-	docker compose -f docker-compose.test.yml up -d
+	$(TEST_COMPOSE) up -d --remove-orphans
 
 test-db-down:
-	docker compose -f docker-compose.test.yml down
+	$(TEST_COMPOSE) down --remove-orphans
 
 test-db-reset:
-	docker compose -f docker-compose.test.yml down -v
-	docker compose -f docker-compose.test.yml up -d
+	$(TEST_COMPOSE) down -v --remove-orphans
+	$(TEST_COMPOSE) up -d --remove-orphans
 
 test-db-logs:
-	docker compose -f docker-compose.test.yml logs -f db_test
+	$(TEST_COMPOSE) logs -f db_test
 
 cron-install:
 	bash scripts/install_daily_cron.sh

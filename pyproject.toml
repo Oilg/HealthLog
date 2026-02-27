@@ -4,6 +4,7 @@ version = "0.1.0"
 description = ""
 authors = ["loginov-ea <loginov-ea@zvuk.com>"]
 readme = "README.md"
+packages = [{ include = "health_log" }]
 
 [tool.poetry.dependencies]
 python = "^3.11"
