@@ -37,15 +37,18 @@ class RecordsRepository(BaseRepository):
         rows: list[dict[str, Any]],
         conflict_columns: list[str],
         batch_size: int = BATCH_SIZE,
-    ) -> None:
+    ) -> int:
         if not rows:
-            return
+            return 0
 
+        inserted_total = 0
         for i in range(0, len(rows), batch_size):
             batch = rows[i : i + batch_size]
-            stmt = pg_insert(table).values(batch)
+            stmt = pg_insert(table).values(batch).returning(table.c.id)
             stmt = stmt.on_conflict_do_nothing(index_elements=conflict_columns)
-            await self._connection.execute(stmt)
+            result = await self._connection.execute(stmt)
+            inserted_total += len(result.fetchall())
+        return inserted_total
 
     @staticmethod
     def _record_to_table_values(record: ParsedRecord, table) -> dict[str, Any]:
@@ -74,8 +77,8 @@ class RecordsRepository(BaseRepository):
             if values:
                 rows.append(values)
 
-        await self._upsert_in_batches(table, rows, UPSERT_KEYS[table.name])
-        return len(rows)
+        inserted = await self._upsert_in_batches(table, rows, UPSERT_KEYS[table.name])
+        return inserted
 
     async def insert_hr_variability_records(self, records: list[ParsedRecord]) -> tuple[int, int]:
         hrv_table = tables.heart_rate_variability
@@ -98,10 +101,10 @@ class RecordsRepository(BaseRepository):
             hrv_rows.append(values)
             hrv_keys.append((source_name, start_date, end_date))
 
-        await self._upsert_in_batches(hrv_table, hrv_rows, UPSERT_KEYS[hrv_table.name])
+        inserted_hrv = await self._upsert_in_batches(hrv_table, hrv_rows, UPSERT_KEYS[hrv_table.name])
 
         if not hrv_keys:
-            return (len(hrv_rows), 0)
+            return (inserted_hrv, 0)
 
         existing_rows = (
             await self._connection.execute(
@@ -147,16 +150,16 @@ class RecordsRepository(BaseRepository):
                     }
                 )
 
-        await self._upsert_in_batches(bpm_table, bpm_rows, UPSERT_KEYS[bpm_table.name])
-        return (len(hrv_rows), len(bpm_rows))
+        inserted_bpm = await self._upsert_in_batches(bpm_table, bpm_rows, UPSERT_KEYS[bpm_table.name])
+        return (inserted_hrv, inserted_bpm)
 
     async def insert_sleep_apnea_events(self, events: list[dict[str, Any]]) -> int:
-        await self._upsert_in_batches(
+        inserted = await self._upsert_in_batches(
             tables.sleep_apnea_events,
             events,
             UPSERT_KEYS[tables.sleep_apnea_events.name],
         )
-        return len(events)
+        return inserted
 
 
 class IngestionRepository(BaseRepository):
@@ -236,7 +239,8 @@ class IngestionRepository(BaseRepository):
             )
 
         if rows:
-            stmt = pg_insert(tables.raw_health_records).values(rows)
+            stmt = pg_insert(tables.raw_health_records).values(rows).returning(tables.raw_health_records.c.id)
             stmt = stmt.on_conflict_do_nothing(index_elements=["provider", "record_fingerprint"])
-            await self._connection.execute(stmt)
-        return len(rows)
+            result = await self._connection.execute(stmt)
+            return len(result.fetchall())
+        return 0
