@@ -1,7 +1,12 @@
 from datetime import datetime, timedelta
 
 from health_log.analysis.models import TimeWindow
-from health_log.analysis.rules import assess_sleep_apnea_risk, assess_tachycardia_risk, build_sleep_apnea_event_rows
+from health_log.analysis.rules import (
+    assess_illness_onset_risk,
+    assess_sleep_apnea_risk,
+    assess_tachycardia_risk,
+    build_sleep_apnea_event_rows,
+)
 
 
 def test_sleep_apnea_risk_uses_multi_signal_evidence():
@@ -59,3 +64,26 @@ def test_sleep_apnea_event_builder_returns_insertable_rows():
     assert event["start_time"] == base
     assert event["end_time"] == base + timedelta(seconds=15)
     assert event["detected_by"] == "rule_engine_v1"
+
+
+def test_illness_onset_risk_detects_hr_up_and_hrv_down_trend():
+    now = datetime(2026, 2, 26, 10, 0, 0)
+    heart = []
+    hrv = []
+
+    for i in range(120):
+        ts = now - timedelta(minutes=120 - i)
+        if i < 84:
+            heart_val = 62 + (i % 3)
+            hrv_val = 58 - (i % 2)
+        else:
+            heart_val = 73 + (i % 3)
+            hrv_val = 40 - (i % 2)
+        heart.append((ts, heart_val))
+        hrv.append((ts, hrv_val))
+
+    assessment = assess_illness_onset_risk(heart, hrv, window=TimeWindow.WEEK)
+
+    assert assessment.score >= 0.5
+    assert assessment.confidence > 0.5
+    assert assessment.severity in {"medium", "high"}

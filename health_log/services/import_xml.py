@@ -4,7 +4,6 @@ from pathlib import Path
 from health_log.db import engine
 from health_log.services.ingestion import ingest_xml_file
 
-
 DEFAULT_XML_PATH = Path(__file__).with_name("watchData.xml")
 
 

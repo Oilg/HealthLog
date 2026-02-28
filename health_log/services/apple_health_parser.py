@@ -1,9 +1,8 @@
 from __future__ import annotations
 
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from datetime import datetime
-import xml.etree.ElementTree as ET
-
 
 DATE_FORMATS = ("%Y-%m-%d %H:%M:%S %z", "%Y-%m-%d %H:%M:%S")
 
