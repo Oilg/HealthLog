@@ -21,6 +21,7 @@ UPSERT_KEYS: dict[str, list[str]] = {
     "heart_rate_variability_bpm": ["hr_variability_id", "time"],
     "respiratory_rate": ["user_id", "sourceName", "startDate", "endDate"],
     "vo_2_max": ["user_id", "sourceName", "startDate", "endDate"],
+    "menstrual_flow": ["user_id", "sourceName", "startDate", "endDate"],
     "sleep_apnea_events": ["user_id", "start_time", "end_time", "detected_by"],
 }
 

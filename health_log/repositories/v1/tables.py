@@ -9,6 +9,7 @@ users = sqlalchemy.Table(
     sqlalchemy.Column("id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True),
     sqlalchemy.Column("first_name", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("last_name", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("sex", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("email", sqlalchemy.String, nullable=False, unique=True),
     sqlalchemy.Column("phone", sqlalchemy.String, nullable=False, unique=True),
     sqlalchemy.Column("password_hash", sqlalchemy.String, nullable=False),
@@ -21,6 +22,7 @@ users = sqlalchemy.Table(
         onupdate=func.now(),
         nullable=False,
     ),
+    sqlalchemy.CheckConstraint("sex in ('male', 'female')", name="ck_users_sex"),
 )
 
 auth_tokens = sqlalchemy.Table(
@@ -170,6 +172,19 @@ vo_2_max = sqlalchemy.Table(
     sqlalchemy.UniqueConstraint("user_id", "sourceName", "startDate", "endDate", name="uq_vo2max_record"),
 )
 
+menstrual_flow = sqlalchemy.Table(
+    "menstrual_flow",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True),
+    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False),
+    sqlalchemy.Column("sourceName", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("value", sqlalchemy.String, nullable=True),
+    sqlalchemy.Column("creationDate", sqlalchemy.DateTime, nullable=False),
+    sqlalchemy.Column("startDate", sqlalchemy.DateTime, nullable=False),
+    sqlalchemy.Column("endDate", sqlalchemy.DateTime, nullable=False),
+    sqlalchemy.UniqueConstraint("user_id", "sourceName", "startDate", "endDate", name="uq_menstrual_flow_record"),
+)
+
 sleep_apnea_events = sqlalchemy.Table(
     "sleep_apnea_events",
     metadata,
@@ -193,4 +208,5 @@ TYPE_TABLE_MAP = {
     "HKQuantityTypeIdentifierHeartRate": heart_rate,
     "HKQuantityTypeIdentifierRespiratoryRate": respiratory_rate,
     "HKQuantityTypeIdentifierVO2Max": vo_2_max,
+    "HKCategoryTypeIdentifierMenstrualFlow": menstrual_flow,
 }

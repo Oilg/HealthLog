@@ -1,6 +1,7 @@
 import asyncio
 from datetime import datetime, timedelta
 
+import health_log.api.v1.users as users_api
 from health_log.analysis.engine import HealthRiskAnalyzer
 from health_log.analysis.models import TimeWindow
 from health_log.analysis.rules import (
@@ -9,6 +10,7 @@ from health_log.analysis.rules import (
     assess_tachycardia_risk,
     build_sleep_apnea_event_rows,
 )
+from health_log.repositories.auth import AuthUser, PublicUser
 from health_log.repositories.v1 import tables
 
 
@@ -135,6 +137,7 @@ def test_health_risk_analyzer_uses_extended_history_for_illness_onset():
             resp.append((ts, resp_val))
 
     analyzer = HealthRiskAnalyzer(connection=None, user_id=1)  # type: ignore[arg-type]
+    analyzer._user_sex = "female"
     call_ranges: list[tuple[str, datetime, datetime]] = []
 
     async def fake_fetch_rows(table, start: datetime, end: datetime):
@@ -162,3 +165,129 @@ def test_health_risk_analyzer_uses_extended_history_for_illness_onset():
         name == tables.heart_rate.name and start <= min_required_start for name, start, _ in call_ranges
     )
     assert illness.severity in {"medium", "high"}
+
+
+def test_health_risk_analyzer_skips_menstrual_signal_for_male() -> None:
+    now = datetime(2026, 2, 26, 10, 0, 0)
+    analyzer = HealthRiskAnalyzer(connection=None, user_id=1)  # type: ignore[arg-type]
+    analyzer._user_sex = "male"
+
+    async def fake_fetch_rows(table, start: datetime, end: datetime):
+        return []
+
+    async def fake_sleep_segments(start: datetime, end: datetime):
+        return []
+
+    analyzer._fetch_rows = fake_fetch_rows  # type: ignore[assignment]
+    analyzer._fetch_sleep_segments = fake_sleep_segments  # type: ignore[assignment]
+
+    result = asyncio.run(analyzer.analyze_window(TimeWindow.WEEK, now=now))
+    conditions = {assessment.condition for assessment in result["assessments"]}
+    assert "menstrual_cycle_forecast" not in conditions
+
+
+def test_health_risk_analyzer_adds_menstrual_signal_for_female() -> None:
+    now = datetime(2026, 2, 26, 10, 0, 0)
+    analyzer = HealthRiskAnalyzer(connection=None, user_id=1)  # type: ignore[arg-type]
+    analyzer._user_sex = "female"
+
+    period_starts = [
+        datetime(2025, 10, 1, 8, 0, 0),
+        datetime(2025, 10, 29, 8, 0, 0),
+        datetime(2025, 11, 26, 8, 0, 0),
+        datetime(2025, 12, 24, 8, 0, 0),
+    ]
+    menstrual_rows = [(start + timedelta(hours=12), 1) for start in period_starts]
+
+    async def fake_fetch_rows(table, start: datetime, end: datetime):
+        if table.name == tables.menstrual_flow.name:
+            return menstrual_rows
+        return []
+
+    async def fake_sleep_segments(start: datetime, end: datetime):
+        return []
+
+    analyzer._fetch_rows = fake_fetch_rows  # type: ignore[assignment]
+    analyzer._fetch_sleep_segments = fake_sleep_segments  # type: ignore[assignment]
+
+    result = asyncio.run(analyzer.analyze_window(TimeWindow.MONTH, now=now))
+    conditions = {assessment.condition for assessment in result["assessments"]}
+    assert "menstrual_cycle_forecast" in conditions
+
+
+def test_patch_me_sex_enables_menstrual_forecast(monkeypatch) -> None:
+    state = {"sex": "male"}
+    now = datetime(2026, 2, 26, 10, 0, 0)
+
+    class FakeUsersRepository:
+        def __init__(self, conn) -> None:
+            self.conn = conn
+
+        async def update_me(self, user_id: int, **kwargs):
+            if kwargs.get("sex") is not None:
+                state["sex"] = kwargs["sex"]
+            return PublicUser(
+                id=user_id,
+                first_name="Jane",
+                last_name="Doe",
+                sex=state["sex"],
+                email="jane@example.com",
+                phone="+70000000001",
+                is_active=True,
+                created_at=datetime(2026, 1, 1, 10, 0, 0),
+            )
+
+    class FakeConnection:
+        async def execute(self, query):
+            class Result:
+                def scalar_one_or_none(self):
+                    return state["sex"]
+
+            return Result()
+
+    async def fake_sleep_segments(start: datetime, end: datetime):
+        return []
+
+    period_starts = [
+        datetime(2025, 10, 1, 8, 0, 0),
+        datetime(2025, 10, 29, 8, 0, 0),
+        datetime(2025, 11, 26, 8, 0, 0),
+        datetime(2025, 12, 24, 8, 0, 0),
+    ]
+    menstrual_rows = [(start + timedelta(hours=12), 1) for start in period_starts]
+
+    async def fake_fetch_rows(table, start: datetime, end: datetime):
+        if table.name == tables.menstrual_flow.name:
+            return menstrual_rows
+        return []
+
+    fake_conn = FakeConnection()
+    analyzer_before = HealthRiskAnalyzer(connection=fake_conn, user_id=1)  # type: ignore[arg-type]
+    analyzer_before._fetch_rows = fake_fetch_rows  # type: ignore[assignment]
+    analyzer_before._fetch_sleep_segments = fake_sleep_segments  # type: ignore[assignment]
+
+    before_result = asyncio.run(analyzer_before.analyze_window(TimeWindow.MONTH, now=now))
+    before_conditions = {assessment.condition for assessment in before_result["assessments"]}
+    assert "menstrual_cycle_forecast" not in before_conditions
+
+    monkeypatch.setattr(users_api, "UsersRepository", FakeUsersRepository)
+    current_user = AuthUser(
+        id=1,
+        first_name="Jane",
+        last_name="Doe",
+        sex="male",
+        email="jane@example.com",
+        phone="+70000000001",
+        password_hash="hash",
+        is_active=True,
+    )
+    payload = users_api.UpdateMeRequest(sex="female")
+    updated = asyncio.run(users_api.update_me(payload, current_user=current_user, conn=fake_conn))
+    assert updated.sex == "female"
+
+    analyzer_after = HealthRiskAnalyzer(connection=fake_conn, user_id=1)  # type: ignore[arg-type]
+    analyzer_after._fetch_rows = fake_fetch_rows  # type: ignore[assignment]
+    analyzer_after._fetch_sleep_segments = fake_sleep_segments  # type: ignore[assignment]
+    after_result = asyncio.run(analyzer_after.analyze_window(TimeWindow.MONTH, now=now))
+    after_conditions = {assessment.condition for assessment in after_result["assessments"]}
+    assert "menstrual_cycle_forecast" in after_conditions

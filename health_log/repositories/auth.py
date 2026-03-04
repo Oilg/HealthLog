@@ -15,6 +15,7 @@ class AuthUser:
     id: int
     first_name: str
     last_name: str
+    sex: str
     email: str
     phone: str
     password_hash: str
@@ -26,6 +27,7 @@ class PublicUser:
     id: int
     first_name: str
     last_name: str
+    sex: str
     email: str
     phone: str
     is_active: bool
@@ -41,6 +43,7 @@ class UsersRepository:
         *,
         first_name: str,
         last_name: str,
+        sex: str,
         email: str,
         phone: str,
         password_hash: str,
@@ -50,6 +53,7 @@ class UsersRepository:
             .values(
                 first_name=first_name,
                 last_name=last_name,
+                sex=sex,
                 email=email,
                 phone=phone,
                 password_hash=password_hash,
@@ -59,6 +63,7 @@ class UsersRepository:
                 tables.users.c.id,
                 tables.users.c.first_name,
                 tables.users.c.last_name,
+                tables.users.c.sex,
                 tables.users.c.email,
                 tables.users.c.phone,
                 tables.users.c.is_active,
@@ -70,6 +75,7 @@ class UsersRepository:
             id=row.id,
             first_name=row.first_name,
             last_name=row.last_name,
+            sex=row.sex,
             email=row.email,
             phone=row.phone,
             is_active=row.is_active,
@@ -83,6 +89,7 @@ class UsersRepository:
                     tables.users.c.id,
                     tables.users.c.first_name,
                     tables.users.c.last_name,
+                    tables.users.c.sex,
                     tables.users.c.email,
                     tables.users.c.phone,
                     tables.users.c.password_hash,
@@ -98,6 +105,7 @@ class UsersRepository:
             id=row.id,
             first_name=row.first_name,
             last_name=row.last_name,
+            sex=row.sex,
             email=row.email,
             phone=row.phone,
             password_hash=row.password_hash,
@@ -129,6 +137,7 @@ class UsersRepository:
                     tables.users.c.id,
                     tables.users.c.first_name,
                     tables.users.c.last_name,
+                    tables.users.c.sex,
                     tables.users.c.email,
                     tables.users.c.phone,
                     tables.users.c.is_active,
@@ -142,6 +151,7 @@ class UsersRepository:
             id=row.id,
             first_name=row.first_name,
             last_name=row.last_name,
+            sex=row.sex,
             email=row.email,
             phone=row.phone,
             is_active=row.is_active,
@@ -154,6 +164,7 @@ class UsersRepository:
         *,
         first_name: str | None = None,
         last_name: str | None = None,
+        sex: str | None = None,
         email: str | None = None,
         phone: str | None = None,
     ) -> PublicUser:
@@ -162,6 +173,8 @@ class UsersRepository:
             values["first_name"] = first_name
         if last_name is not None:
             values["last_name"] = last_name
+        if sex is not None:
+            values["sex"] = sex
         if email is not None:
             values["email"] = email
         if phone is not None:
@@ -192,6 +205,7 @@ class UsersRepository:
         *,
         first_name: str,
         last_name: str,
+        sex: str,
         email: str,
         phone: str,
         password_hash: str,
@@ -202,6 +216,7 @@ class UsersRepository:
             .values(
                 first_name=first_name,
                 last_name=last_name,
+                sex=sex,
                 email=email,
                 phone=phone,
                 password_hash=password_hash,
@@ -283,6 +298,7 @@ class AuthTokenRepository:
                     tables.users.c.id,
                     tables.users.c.first_name,
                     tables.users.c.last_name,
+                    tables.users.c.sex,
                     tables.users.c.email,
                     tables.users.c.phone,
                     tables.users.c.password_hash,
@@ -309,6 +325,7 @@ class AuthTokenRepository:
             id=row.id,
             first_name=row.first_name,
             last_name=row.last_name,
+            sex=row.sex,
             email=row.email,
             phone=row.phone,
             password_hash=row.password_hash,

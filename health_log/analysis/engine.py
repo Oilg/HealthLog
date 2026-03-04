@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 
 from health_log.analysis.detectors import (
     assess_illness_onset_risk,
+    assess_menstrual_cycle_risk,
     assess_sleep_apnea_risk,
     assess_tachycardia_risk,
     build_sleep_apnea_event_rows,
@@ -25,6 +26,7 @@ class HealthRiskAnalyzer:
     def __init__(self, connection: AsyncConnection, user_id: int):
         self._connection = connection
         self._user_id = user_id
+        self._user_sex: str | None = None
         self._records_repo = RecordsRepository(connection)
 
     async def _fetch_rows(self, table, start: datetime, end: datetime):
@@ -55,10 +57,20 @@ class HealthRiskAnalyzer:
         )
         return list((await self._connection.execute(query)).all())
 
+    async def _fetch_user_sex(self) -> str:
+        if self._user_sex is not None:
+            return self._user_sex
+        query = select(tables.users.c.sex).where(tables.users.c.id == self._user_id)
+        sex = (await self._connection.execute(query)).scalar_one_or_none() or "male"
+        self._user_sex = str(sex)
+        return self._user_sex
+
     async def analyze_window(self, window: TimeWindow, now: datetime | None = None) -> dict[str, object]:
         now = now or datetime.utcnow()
         start, end = resolve_window_range(window, now)
         illness_start = end - timedelta(days=max(ILLNESS_TREND_LOOKBACK_DAYS, MIN_DAYS_FOR_TREND))
+        cycle_start = end - timedelta(days=180)
+        user_sex = await self._fetch_user_sex()
 
         respiratory_rows = await self._fetch_rows(tables.respiratory_rate, start, end)
         heart_rows = await self._fetch_rows(tables.heart_rate, start, end)
@@ -68,6 +80,9 @@ class HealthRiskAnalyzer:
         illness_hrv_rows = await self._fetch_rows(tables.heart_rate_variability, illness_start, end)
         illness_respiratory_rows = await self._fetch_rows(tables.respiratory_rate, illness_start, end)
         illness_sleep_segments = await self._fetch_sleep_segments(illness_start, end)
+        menstrual_rows = []
+        if user_sex == "female":
+            menstrual_rows = await self._fetch_rows(tables.menstrual_flow, cycle_start, end)
 
         sleep_apnea_result = assess_sleep_apnea_risk(
             respiratory_rows,
@@ -84,6 +99,13 @@ class HealthRiskAnalyzer:
             sleep_rows=illness_sleep_segments,
             window=window,
         )
+        menstrual_cycle_result = None
+        if user_sex == "female":
+            menstrual_cycle_result = assess_menstrual_cycle_risk(
+                menstrual_rows,
+                window=window,
+                now=now,
+            )
 
         inserted_events = 0
         if window == TimeWindow.NIGHT:
@@ -95,11 +117,15 @@ class HealthRiskAnalyzer:
             )
             inserted_events = await self._records_repo.insert_sleep_apnea_events(self._user_id, events)
 
+        assessments = [sleep_apnea_result, tachycardia_result, illness_onset_result]
+        if menstrual_cycle_result is not None:
+            assessments.append(menstrual_cycle_result)
+
         return {
             "window": window,
             "start": start,
             "end": end,
-            "assessments": [sleep_apnea_result, tachycardia_result, illness_onset_result],
+            "assessments": assessments,
             "inserted_sleep_apnea_events": inserted_events,
         }
 
@@ -115,6 +141,7 @@ def serialize_assessment(assessment: RiskAssessment) -> dict[str, object]:
         "sleep_apnea_risk": "Подозрение на апноэ сна",
         "tachycardia_risk": "Подозрение на тахикардию",
         "illness_onset_risk": "Подозрение на начало простуды/воспалительного процесса",
+        "menstrual_cycle_forecast": "Прогноз менструального цикла",
     }.get(assessment.condition, assessment.condition)
     final_message = (
         f"{condition_label}. Уровень риска: {assessment.score:.2f}, "
