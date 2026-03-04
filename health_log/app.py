@@ -4,8 +4,10 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 
+from health_log.api.v1.auth import router as auth_router
 from health_log.api.v1.error_handler import ErrorResponse, error_handler
 from health_log.api.v1.handlers import request_exception_handler
+from health_log.api.v1.users import router as users_router
 from health_log.errors import BaseError
 
 SERVICE_NAME = "health-log"
@@ -23,6 +25,8 @@ def create_app() -> FastAPI:
     app.add_exception_handler(BaseError, error_handler)
     app.add_exception_handler(500, error_handler)
     app.add_exception_handler(RequestValidationError, request_exception_handler)
+    app.include_router(auth_router)
+    app.include_router(users_router)
     if find_spec("multipart"):
         from health_log.api.v1.uploads import router as uploads_router
 

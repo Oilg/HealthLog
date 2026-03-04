@@ -22,14 +22,21 @@ from health_log.repositories.v1 import tables
 
 
 class HealthRiskAnalyzer:
-    def __init__(self, connection: AsyncConnection):
+    def __init__(self, connection: AsyncConnection, user_id: int):
         self._connection = connection
+        self._user_id = user_id
         self._records_repo = RecordsRepository(connection)
 
     async def _fetch_rows(self, table, start: datetime, end: datetime):
         query = (
             select(table.c.startDate, table.c.value)
-            .where(and_(table.c.startDate >= start, table.c.startDate <= end))
+            .where(
+                and_(
+                    table.c.user_id == self._user_id,
+                    table.c.startDate >= start,
+                    table.c.startDate <= end,
+                )
+            )
             .order_by(table.c.startDate)
         )
         return (await self._connection.execute(query)).all()
@@ -37,7 +44,13 @@ class HealthRiskAnalyzer:
     async def _fetch_sleep_segments(self, start: datetime, end: datetime) -> list[tuple[datetime, datetime]]:
         query = (
             select(tables.sleep_analysis.c.startDate, tables.sleep_analysis.c.endDate)
-            .where(and_(tables.sleep_analysis.c.startDate <= end, tables.sleep_analysis.c.endDate >= start))
+            .where(
+                and_(
+                    tables.sleep_analysis.c.user_id == self._user_id,
+                    tables.sleep_analysis.c.startDate <= end,
+                    tables.sleep_analysis.c.endDate >= start,
+                )
+            )
             .order_by(tables.sleep_analysis.c.startDate)
         )
         return list((await self._connection.execute(query)).all())
@@ -80,7 +93,7 @@ class HealthRiskAnalyzer:
                 hrv_rows,
                 sleep_segments=sleep_segments,
             )
-            inserted_events = await self._records_repo.insert_sleep_apnea_events(events)
+            inserted_events = await self._records_repo.insert_sleep_apnea_events(self._user_id, events)
 
         return {
             "window": window,
