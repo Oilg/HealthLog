@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, validator
@@ -67,7 +67,7 @@ async def me(
         id=user.id,
         first_name=user.first_name,
         last_name=user.last_name,
-        sex=user.sex,
+        sex=cast(Literal["male", "female"], user.sex),
         email=user.email,
         phone=user.phone,
         is_active=user.is_active,
@@ -99,7 +99,7 @@ async def update_me(
         id=user.id,
         first_name=user.first_name,
         last_name=user.last_name,
-        sex=user.sex,
+        sex=cast(Literal["male", "female"], user.sex),
         email=user.email,
         phone=user.phone,
         is_active=user.is_active,
