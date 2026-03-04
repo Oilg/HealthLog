@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, validator
@@ -27,6 +28,7 @@ settings = Settings()
 class RegisterRequest(BaseModel):
     first_name: str
     last_name: str
+    sex: Literal["male", "female"]
     email: str
     phone: str
     password: str = Field(min_length=8, max_length=128)
@@ -52,6 +54,7 @@ class UserResponse(BaseModel):
     id: int
     first_name: str
     last_name: str
+    sex: Literal["male", "female"]
     email: str
     phone: str
     is_active: bool
@@ -82,6 +85,7 @@ def _to_user_response(user: PublicUser) -> UserResponse:
         id=user.id,
         first_name=user.first_name,
         last_name=user.last_name,
+        sex=cast(Literal["male", "female"], user.sex),
         email=user.email,
         phone=user.phone,
         is_active=user.is_active,
@@ -120,6 +124,7 @@ async def register(payload: RegisterRequest, conn: AsyncConnection = Depends(db_
     password_hash = hash_password(payload.password)
     first_name = payload.first_name.strip()
     last_name = payload.last_name.strip()
+    sex = payload.sex
 
     email_user = await users_repo.get_auth_user_by_email(email, include_inactive=True)
     phone_user = await users_repo.get_auth_user_by_phone(phone, include_inactive=True)
@@ -147,6 +152,7 @@ async def register(payload: RegisterRequest, conn: AsyncConnection = Depends(db_
                 restore_candidate_id,
                 first_name=first_name,
                 last_name=last_name,
+                sex=sex,
                 email=email,
                 phone=phone,
                 password_hash=password_hash,
@@ -155,6 +161,7 @@ async def register(payload: RegisterRequest, conn: AsyncConnection = Depends(db_
             public_user = await users_repo.create_user(
                 first_name=first_name,
                 last_name=last_name,
+                sex=sex,
                 email=email,
                 phone=phone,
                 password_hash=password_hash,
@@ -166,6 +173,7 @@ async def register(payload: RegisterRequest, conn: AsyncConnection = Depends(db_
         id=public_user.id,
         first_name=public_user.first_name,
         last_name=public_user.last_name,
+        sex=public_user.sex,
         email=public_user.email,
         phone=public_user.phone,
         password_hash=password_hash,

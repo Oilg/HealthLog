@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, validator
@@ -17,6 +18,7 @@ class UserResponse(BaseModel):
     id: int
     first_name: str
     last_name: str
+    sex: Literal["male", "female"]
     email: str
     phone: str
     is_active: bool
@@ -26,6 +28,7 @@ class UserResponse(BaseModel):
 class UpdateMeRequest(BaseModel):
     first_name: str | None = None
     last_name: str | None = None
+    sex: Literal["male", "female"] | None = None
     email: str | None = None
     phone: str | None = None
 
@@ -64,6 +67,7 @@ async def me(
         id=user.id,
         first_name=user.first_name,
         last_name=user.last_name,
+        sex=cast(Literal["male", "female"], user.sex),
         email=user.email,
         phone=user.phone,
         is_active=user.is_active,
@@ -84,6 +88,7 @@ async def update_me(
             current_user.id,
             first_name=payload.first_name.strip() if payload.first_name else None,
             last_name=payload.last_name.strip() if payload.last_name else None,
+            sex=payload.sex,
             email=_normalize_email(payload.email),
             phone=_normalize_phone(payload.phone),
         )
@@ -94,6 +99,7 @@ async def update_me(
         id=user.id,
         first_name=user.first_name,
         last_name=user.last_name,
+        sex=cast(Literal["male", "female"], user.sex),
         email=user.email,
         phone=user.phone,
         is_active=user.is_active,
