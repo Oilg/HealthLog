@@ -1,5 +1,7 @@
+import asyncio
 from datetime import datetime, timedelta
 
+from health_log.analysis.engine import HealthRiskAnalyzer
 from health_log.analysis.models import TimeWindow
 from health_log.analysis.rules import (
     assess_illness_onset_risk,
@@ -7,6 +9,7 @@ from health_log.analysis.rules import (
     assess_tachycardia_risk,
     build_sleep_apnea_event_rows,
 )
+from health_log.repositories.v1 import tables
 
 
 def test_sleep_apnea_risk_uses_multi_signal_evidence():
@@ -70,20 +73,92 @@ def test_illness_onset_risk_detects_hr_up_and_hrv_down_trend():
     now = datetime(2026, 2, 26, 10, 0, 0)
     heart = []
     hrv = []
+    resp = []
+    sleep = []
 
-    for i in range(120):
-        ts = now - timedelta(minutes=120 - i)
-        if i < 84:
-            heart_val = 62 + (i % 3)
-            hrv_val = 58 - (i % 2)
-        else:
-            heart_val = 73 + (i % 3)
-            hrv_val = 40 - (i % 2)
-        heart.append((ts, heart_val))
-        hrv.append((ts, hrv_val))
+    for day_idx in range(70):
+        day = now - timedelta(days=69 - day_idx)
+        sleep_start = day.replace(hour=23, minute=0, second=0, microsecond=0) - timedelta(days=1)
+        sleep_end = day.replace(hour=7, minute=0, second=0, microsecond=0)
+        sleep.append((sleep_start, sleep_end))
+        for m in range(24):
+            ts = day + timedelta(minutes=20 * m)
+            if day_idx < 67:
+                heart_val = 62 + (m % 3)
+                hrv_val = 58 - (m % 2)
+                resp_val = 13 + (m % 2) * 0.2
+            else:
+                heart_val = 72 + (m % 3)
+                hrv_val = 40 - (m % 2)
+                resp_val = 15 + (m % 2) * 0.2
+            heart.append((ts, heart_val))
+            hrv.append((ts, hrv_val))
+            resp.append((ts, resp_val))
 
-    assessment = assess_illness_onset_risk(heart, hrv, window=TimeWindow.WEEK)
+    assessment = assess_illness_onset_risk(
+        heart,
+        hrv,
+        respiratory_rows=resp,
+        sleep_rows=sleep,
+        window=TimeWindow.WEEK,
+    )
 
     assert assessment.score >= 0.5
     assert assessment.confidence > 0.5
     assert assessment.severity in {"medium", "high"}
+
+
+def test_health_risk_analyzer_uses_extended_history_for_illness_onset():
+    now = datetime(2026, 2, 26, 10, 0, 0)
+    heart = []
+    hrv = []
+    resp = []
+    sleep = []
+
+    for day_idx in range(70):
+        day = now - timedelta(days=69 - day_idx)
+        sleep_start = day.replace(hour=23, minute=0, second=0, microsecond=0) - timedelta(days=1)
+        sleep_end = day.replace(hour=7, minute=0, second=0, microsecond=0)
+        sleep.append((sleep_start, sleep_end))
+        for m in range(24):
+            ts = day + timedelta(minutes=20 * m)
+            if day_idx < 67:
+                heart_val = 62 + (m % 3)
+                hrv_val = 58 - (m % 2)
+                resp_val = 13 + (m % 2) * 0.2
+            else:
+                heart_val = 72 + (m % 3)
+                hrv_val = 40 - (m % 2)
+                resp_val = 15 + (m % 2) * 0.2
+            heart.append((ts, heart_val))
+            hrv.append((ts, hrv_val))
+            resp.append((ts, resp_val))
+
+    analyzer = HealthRiskAnalyzer(connection=None)  # type: ignore[arg-type]
+    call_ranges: list[tuple[str, datetime, datetime]] = []
+
+    async def fake_fetch_rows(table, start: datetime, end: datetime):
+        call_ranges.append((table.name, start, end))
+        if table.name == tables.heart_rate.name:
+            return heart
+        if table.name == tables.heart_rate_variability.name:
+            return hrv
+        if table.name == tables.respiratory_rate.name:
+            return resp
+        return []
+
+    async def fake_sleep_segments(start: datetime, end: datetime):
+        call_ranges.append((tables.sleep_analysis.name, start, end))
+        return sleep
+
+    analyzer._fetch_rows = fake_fetch_rows  # type: ignore[assignment]
+    analyzer._fetch_sleep_segments = fake_sleep_segments  # type: ignore[assignment]
+
+    result = asyncio.run(analyzer.analyze_window(TimeWindow.WEEK, now=now))
+    illness = next(a for a in result["assessments"] if a.condition == "illness_onset_risk")
+
+    min_required_start = now - timedelta(days=63)
+    assert any(
+        name == tables.heart_rate.name and start <= min_required_start for name, start, _ in call_ranges
+    )
+    assert illness.severity in {"medium", "high"}

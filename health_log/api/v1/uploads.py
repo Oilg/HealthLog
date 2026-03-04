@@ -16,11 +16,15 @@ async def upload_health_data(
     conn: AsyncConnection = Depends(db_connect),
 ):
     content_length = file.headers.get("content-length")
-    if content_length and int(content_length) > MAX_UPLOAD_BYTES:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"Файл слишком большой. Лимит: {MAX_UPLOAD_BYTES // (1024 * 1024)} МБ",
-        )
+    if content_length:
+        try:
+            if int(content_length) > MAX_UPLOAD_BYTES:
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail=f"Файл слишком большой. Лимит: {MAX_UPLOAD_BYTES // (1024 * 1024)} МБ",
+                )
+        except ValueError:
+            pass
 
     raw_bytes = await file.read(MAX_UPLOAD_BYTES + 1)
     if not raw_bytes:
