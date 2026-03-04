@@ -19,6 +19,19 @@ def assess_illness_onset_risk(
     *,
     window: TimeWindow,
 ) -> RiskAssessment:
+    if window == TimeWindow.NIGHT:
+        return RiskAssessment(
+            condition="illness_onset_risk",
+            window=window,
+            score=0.0,
+            confidence=0.0,
+            severity="not_applicable",
+            interpretation="Для этого сигнала нужно минимум несколько дней данных, а не только одна ночь.",
+            summary="Окно 'ночь' не подходит для оценки раннего риска болезни по тренду пульса и HRV.",
+            recommendation="Смотри оценки по окнам 'week' и 'month'.",
+            clinical_safety_note=CLINICAL_SAFETY_NOTE,
+        )
+
     heart = to_points(heart_rows)
     hrv = to_points(hrv_rows)
 

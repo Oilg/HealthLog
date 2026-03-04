@@ -30,6 +30,14 @@ class HealthRiskAnalyzer:
         )
         return (await self._connection.execute(query)).all()
 
+    async def _fetch_sleep_segments(self, start: datetime, end: datetime) -> list[tuple[datetime, datetime]]:
+        query = (
+            select(tables.sleep_analysis.c.startDate, tables.sleep_analysis.c.endDate)
+            .where(and_(tables.sleep_analysis.c.startDate <= end, tables.sleep_analysis.c.endDate >= start))
+            .order_by(tables.sleep_analysis.c.startDate)
+        )
+        return list((await self._connection.execute(query)).all())
+
     async def analyze_window(self, window: TimeWindow, now: datetime | None = None) -> dict[str, object]:
         now = now or datetime.utcnow()
         start, end = resolve_window_range(window, now)
@@ -37,11 +45,13 @@ class HealthRiskAnalyzer:
         respiratory_rows = await self._fetch_rows(tables.respiratory_rate, start, end)
         heart_rows = await self._fetch_rows(tables.heart_rate, start, end)
         hrv_rows = await self._fetch_rows(tables.heart_rate_variability, start, end)
+        sleep_segments = await self._fetch_sleep_segments(start, end)
 
         sleep_apnea_result = assess_sleep_apnea_risk(
             respiratory_rows,
             heart_rows,
             hrv_rows,
+            sleep_segments=sleep_segments,
             window=window,
         )
         tachycardia_result = assess_tachycardia_risk(heart_rows, window=window)
@@ -49,7 +59,12 @@ class HealthRiskAnalyzer:
 
         inserted_events = 0
         if window == TimeWindow.NIGHT:
-            events = build_sleep_apnea_event_rows(respiratory_rows, heart_rows, hrv_rows)
+            events = build_sleep_apnea_event_rows(
+                respiratory_rows,
+                heart_rows,
+                hrv_rows,
+                sleep_segments=sleep_segments,
+            )
             inserted_events = await self._records_repo.insert_sleep_apnea_events(events)
 
         return {

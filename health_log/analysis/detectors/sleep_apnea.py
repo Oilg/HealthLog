@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from statistics import median
 from typing import Iterable
 
@@ -12,16 +13,30 @@ from health_log.analysis.utils import (
 )
 
 
+def _in_sleep_segments(ts: datetime, segments: list[tuple[datetime, datetime]]) -> bool:
+    for start, end in segments:
+        if start <= ts <= end:
+            return True
+    return False
+
+
 def build_sleep_apnea_event_rows(
     respiratory_rows: Iterable[tuple],
     heart_rows: Iterable[tuple],
     hrv_rows: Iterable[tuple],
+    sleep_segments: list[tuple[datetime, datetime]] | None = None,
     *,
     detected_by: str = "rule_engine_v1",
 ) -> list[dict[str, object]]:
     respiratory = to_points(respiratory_rows)
     heart = to_points(heart_rows)
     hrv = to_points(hrv_rows)
+    segments = sleep_segments or []
+
+    if segments:
+        respiratory = [p for p in respiratory if _in_sleep_segments(p.timestamp, segments)]
+        heart = [p for p in heart if _in_sleep_segments(p.timestamp, segments)]
+        hrv = [p for p in hrv if _in_sleep_segments(p.timestamp, segments)]
 
     if len(respiratory) < 2:
         return []
@@ -83,12 +98,19 @@ def assess_sleep_apnea_risk(
     respiratory_rows: Iterable[tuple],
     heart_rows: Iterable[tuple],
     hrv_rows: Iterable[tuple],
+    sleep_segments: list[tuple[datetime, datetime]] | None = None,
     *,
     window: TimeWindow,
 ) -> RiskAssessment:
     respiratory = to_points(respiratory_rows)
     heart = to_points(heart_rows)
     hrv = to_points(hrv_rows)
+    segments = sleep_segments or []
+
+    if segments:
+        respiratory = [p for p in respiratory if _in_sleep_segments(p.timestamp, segments)]
+        heart = [p for p in heart if _in_sleep_segments(p.timestamp, segments)]
+        hrv = [p for p in hrv if _in_sleep_segments(p.timestamp, segments)]
 
     evidence = SignalEvidence(data_points=len(respiratory))
 
