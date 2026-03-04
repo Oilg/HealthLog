@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncConnection
@@ -10,6 +10,10 @@ from health_log.analysis.detectors import (
     assess_sleep_apnea_risk,
     assess_tachycardia_risk,
     build_sleep_apnea_event_rows,
+)
+from health_log.analysis.detectors.illness.constants import (
+    ILLNESS_TREND_LOOKBACK_DAYS,
+    MIN_DAYS_FOR_TREND,
 )
 from health_log.analysis.models import RiskAssessment, TimeWindow
 from health_log.analysis.windows import resolve_window_range
@@ -41,11 +45,16 @@ class HealthRiskAnalyzer:
     async def analyze_window(self, window: TimeWindow, now: datetime | None = None) -> dict[str, object]:
         now = now or datetime.utcnow()
         start, end = resolve_window_range(window, now)
+        illness_start = end - timedelta(days=max(ILLNESS_TREND_LOOKBACK_DAYS, MIN_DAYS_FOR_TREND))
 
         respiratory_rows = await self._fetch_rows(tables.respiratory_rate, start, end)
         heart_rows = await self._fetch_rows(tables.heart_rate, start, end)
         hrv_rows = await self._fetch_rows(tables.heart_rate_variability, start, end)
         sleep_segments = await self._fetch_sleep_segments(start, end)
+        illness_heart_rows = await self._fetch_rows(tables.heart_rate, illness_start, end)
+        illness_hrv_rows = await self._fetch_rows(tables.heart_rate_variability, illness_start, end)
+        illness_respiratory_rows = await self._fetch_rows(tables.respiratory_rate, illness_start, end)
+        illness_sleep_segments = await self._fetch_sleep_segments(illness_start, end)
 
         sleep_apnea_result = assess_sleep_apnea_risk(
             respiratory_rows,
@@ -55,7 +64,13 @@ class HealthRiskAnalyzer:
             window=window,
         )
         tachycardia_result = assess_tachycardia_risk(heart_rows, window=window)
-        illness_onset_result = assess_illness_onset_risk(heart_rows, hrv_rows, window=window)
+        illness_onset_result = assess_illness_onset_risk(
+            illness_heart_rows,
+            illness_hrv_rows,
+            respiratory_rows=illness_respiratory_rows,
+            sleep_rows=illness_sleep_segments,
+            window=window,
+        )
 
         inserted_events = 0
         if window == TimeWindow.NIGHT:

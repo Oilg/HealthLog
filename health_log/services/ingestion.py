@@ -14,6 +14,16 @@ SUPPORTED_PARSERS: dict[tuple[str, str], str] = {
 }
 
 
+def _ensure_supported(provider: str, data_format: str) -> str:
+    parser_name = SUPPORTED_PARSERS.get((provider, data_format))
+    if parser_name is None:
+        raise ValueError(
+            f"Формат '{data_format}' для провайдера '{provider}' пока не поддерживается. "
+            "Сейчас доступно: provider='apple_health', data_format='xml'."
+        )
+    return parser_name
+
+
 @dataclass(slots=True)
 class IngestionResult:
     upload_id: int
@@ -25,15 +35,10 @@ class IngestionResult:
 
 
 def _parse_records(provider: str, data_format: str, content: str):
-    parser_key = (provider, data_format)
-    parser_name = SUPPORTED_PARSERS.get(parser_key)
+    parser_name = _ensure_supported(provider, data_format)
     if parser_name == "apple_health_xml":
         return AppleHealthXmlParser.parse_xml_content(content)
-
-    raise ValueError(
-        f"Формат '{data_format}' для провайдера '{provider}' пока не поддерживается. "
-        "Сейчас доступно: provider='apple_health', data_format='xml'."
-    )
+    return []
 
 
 async def ingest_content(
@@ -44,7 +49,7 @@ async def ingest_content(
     filename: str,
     content: str,
 ) -> IngestionResult:
-    parser_records = _parse_records(provider=provider, data_format=data_format, content=content)
+    _ensure_supported(provider, data_format)
 
     ingestion_repo = IngestionRepository(connection)
     records_repo = RecordsRepository(connection)
@@ -62,6 +67,7 @@ async def ingest_content(
     hrv_bpm_count = 0
 
     if is_new_upload:
+        parser_records = _parse_records(provider=provider, data_format=data_format, content=content)
         raw_records_count = await ingestion_repo.insert_raw_records(
             upload_id=upload_id,
             provider=provider,

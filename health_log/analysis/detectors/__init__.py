@@ -1,4 +1,4 @@
-from health_log.analysis.detectors.illness_onset import assess_illness_onset_risk
+from health_log.analysis.detectors.illness import assess_illness_onset_risk
 from health_log.analysis.detectors.sleep_apnea import (
     assess_sleep_apnea_risk,
     build_sleep_apnea_event_rows,
