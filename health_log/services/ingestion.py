@@ -44,6 +44,7 @@ def _parse_records(provider: str, data_format: str, content: str):
 async def ingest_content(
     connection: AsyncConnection,
     *,
+    user_id: int,
     provider: str,
     data_format: str,
     filename: str,
@@ -55,6 +56,7 @@ async def ingest_content(
     records_repo = RecordsRepository(connection)
 
     upload_id, is_new_upload = await ingestion_repo.create_upload(
+        user_id=user_id,
         provider=provider,
         data_format=data_format,
         filename=filename,
@@ -70,6 +72,7 @@ async def ingest_content(
         parser_records = _parse_records(provider=provider, data_format=data_format, content=content)
         raw_records_count = await ingestion_repo.insert_raw_records(
             upload_id=upload_id,
+            user_id=user_id,
             provider=provider,
             data_format=data_format,
             records=parser_records,
@@ -77,10 +80,18 @@ async def ingest_content(
 
         if provider == "apple_health" and data_format == "xml":
             for record_type, table in TYPE_TABLE_MAP.items():
-                inserted_count = await records_repo.insert_records_for_type(record_type, table, parser_records)
+                inserted_count = await records_repo.insert_records_for_type(
+                    user_id=user_id,
+                    record_type=record_type,
+                    table=table,
+                    record_list=parser_records,
+                )
                 normalized_counts[record_type] = inserted_count
 
-            hrv_records_count, hrv_bpm_count = await records_repo.insert_hr_variability_records(parser_records)
+            hrv_records_count, hrv_bpm_count = await records_repo.insert_hr_variability_records(
+                user_id=user_id,
+                records=parser_records,
+            )
 
     return IngestionResult(
         upload_id=upload_id,
@@ -96,6 +107,7 @@ async def ingest_xml_file(
     connection: AsyncConnection,
     file_path: str,
     *,
+    user_id: int = 1,
     provider: str = "apple_health",
     data_format: str = "xml",
 ) -> IngestionResult:
@@ -105,6 +117,7 @@ async def ingest_xml_file(
 
     return await ingest_content(
         connection,
+        user_id=user_id,
         provider=provider,
         data_format=data_format,
         filename=path.name,

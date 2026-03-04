@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     pg_pool_size: PositiveInt = 10
     pg_log_queries: bool = False
     pg_connection_timeout: PositiveInt = 60
+    auth_access_ttl_minutes: PositiveInt = 30
+    auth_refresh_ttl_days: PositiveInt = 14
 
     @validator("postgres_dsn", pre=True)
     def validate_postgres_dsn(cls, value):

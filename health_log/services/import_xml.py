@@ -11,7 +11,7 @@ async def async_main(file_path: str | None = None):
     target_path = Path(file_path) if file_path else DEFAULT_XML_PATH
 
     async with engine.begin() as conn:
-        result = await ingest_xml_file(conn, str(target_path))
+        result = await ingest_xml_file(conn, str(target_path), user_id=1)
 
     print(f"upload_id={result.upload_id} is_new_upload={result.is_new_upload}")
     print(f"raw_records={result.raw_records_count}")

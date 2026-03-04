@@ -4,7 +4,7 @@ from datetime import datetime
 from hashlib import sha256
 from typing import Any
 
-from sqlalchemy import select, tuple_
+from sqlalchemy import and_, select, tuple_
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncConnection
 
@@ -14,14 +14,14 @@ from health_log.services.apple_health_parser import ParsedRecord, parse_datetime
 BATCH_SIZE = 500
 
 UPSERT_KEYS: dict[str, list[str]] = {
-    "sleep_analysis": ["sourceName", "startDate", "endDate"],
-    "sleep_duration_goal": ["sourceName", "startDate", "endDate"],
-    "heart_rate": ["sourceName", "startDate", "endDate"],
-    "heart_rate_variability": ["sourceName", "startDate", "endDate"],
+    "sleep_analysis": ["user_id", "sourceName", "startDate", "endDate"],
+    "sleep_duration_goal": ["user_id", "sourceName", "startDate", "endDate"],
+    "heart_rate": ["user_id", "sourceName", "startDate", "endDate"],
+    "heart_rate_variability": ["user_id", "sourceName", "startDate", "endDate"],
     "heart_rate_variability_bpm": ["hr_variability_id", "time"],
-    "respiratory_rate": ["sourceName", "startDate", "endDate"],
-    "vo_2_max": ["sourceName", "startDate", "endDate"],
-    "sleep_apnea_events": ["start_time", "end_time", "detected_by"],
+    "respiratory_rate": ["user_id", "sourceName", "startDate", "endDate"],
+    "vo_2_max": ["user_id", "sourceName", "startDate", "endDate"],
+    "sleep_apnea_events": ["user_id", "start_time", "end_time", "detected_by"],
 }
 
 
@@ -51,8 +51,8 @@ class RecordsRepository(BaseRepository):
         return inserted_total
 
     @staticmethod
-    def _record_to_table_values(record: ParsedRecord, table) -> dict[str, Any]:
-        values: dict[str, Any] = {}
+    def _record_to_table_values(record: ParsedRecord, table, *, user_id: int) -> dict[str, Any]:
+        values: dict[str, Any] = {"user_id": user_id} if "user_id" in table.c else {}
         attrs = record.attrs
 
         for col in table.columns:
@@ -67,31 +67,38 @@ class RecordsRepository(BaseRepository):
 
         return values
 
-    async def insert_records_for_type(self, record_type: str, table, record_list: list[ParsedRecord]) -> int:
+    async def insert_records_for_type(
+        self,
+        *,
+        user_id: int,
+        record_type: str,
+        table,
+        record_list: list[ParsedRecord],
+    ) -> int:
         rows: list[dict[str, Any]] = []
         for record in record_list:
             if record.record_type != record_type:
                 continue
 
-            values = self._record_to_table_values(record, table)
+            values = self._record_to_table_values(record, table, user_id=user_id)
             if values:
                 rows.append(values)
 
         inserted = await self._upsert_in_batches(table, rows, UPSERT_KEYS[table.name])
         return inserted
 
-    async def insert_hr_variability_records(self, records: list[ParsedRecord]) -> tuple[int, int]:
+    async def insert_hr_variability_records(self, *, user_id: int, records: list[ParsedRecord]) -> tuple[int, int]:
         hrv_table = tables.heart_rate_variability
         bpm_table = tables.instantaneous_bpm
 
         hrv_rows: list[dict[str, Any]] = []
-        hrv_keys: list[tuple[str, datetime, datetime]] = []
+        hrv_keys: list[tuple[int, str, datetime, datetime]] = []
 
         for record in records:
             if record.record_type != "HKQuantityTypeIdentifierHeartRateVariabilitySDNN":
                 continue
 
-            values = self._record_to_table_values(record, hrv_table)
+            values = self._record_to_table_values(record, hrv_table, user_id=user_id)
             source_name = values.get("sourceName")
             start_date = values.get("startDate")
             end_date = values.get("endDate")
@@ -99,7 +106,7 @@ class RecordsRepository(BaseRepository):
                 continue
 
             hrv_rows.append(values)
-            hrv_keys.append((source_name, start_date, end_date))
+            hrv_keys.append((user_id, source_name, start_date, end_date))
 
         inserted_hrv = await self._upsert_in_batches(hrv_table, hrv_rows, UPSERT_KEYS[hrv_table.name])
 
@@ -110,14 +117,22 @@ class RecordsRepository(BaseRepository):
             await self._connection.execute(
                 select(
                     hrv_table.c.id,
+                    hrv_table.c.user_id,
                     hrv_table.c.sourceName,
                     hrv_table.c.startDate,
                     hrv_table.c.endDate,
-                ).where(tuple_(hrv_table.c.sourceName, hrv_table.c.startDate, hrv_table.c.endDate).in_(hrv_keys))
+                ).where(
+                    tuple_(
+                        hrv_table.c.user_id,
+                        hrv_table.c.sourceName,
+                        hrv_table.c.startDate,
+                        hrv_table.c.endDate,
+                    ).in_(hrv_keys)
+                )
             )
         ).fetchall()
 
-        hrv_map = {(r.sourceName, r.startDate, r.endDate): r.id for r in existing_rows}
+        hrv_map = {(r.user_id, r.sourceName, r.startDate, r.endDate): r.id for r in existing_rows}
 
         bpm_rows: list[dict[str, Any]] = []
         for record in records:
@@ -127,7 +142,7 @@ class RecordsRepository(BaseRepository):
             source_name = record.attrs.get("sourceName")
             start_date = parse_datetime(record.attrs.get("startDate"))
             end_date = parse_datetime(record.attrs.get("endDate"))
-            hrv_id = hrv_map.get((source_name, start_date, end_date))
+            hrv_id = hrv_map.get((user_id, source_name, start_date, end_date))
             if not hrv_id:
                 continue
 
@@ -153,10 +168,16 @@ class RecordsRepository(BaseRepository):
         inserted_bpm = await self._upsert_in_batches(bpm_table, bpm_rows, UPSERT_KEYS[bpm_table.name])
         return (inserted_hrv, inserted_bpm)
 
-    async def insert_sleep_apnea_events(self, events: list[dict[str, Any]]) -> int:
+    async def insert_sleep_apnea_events(self, user_id: int, events: list[dict[str, Any]]) -> int:
+        rows = []
+        for event in events:
+            row = dict(event)
+            row["user_id"] = user_id
+            rows.append(row)
+
         inserted = await self._upsert_in_batches(
             tables.sleep_apnea_events,
-            events,
+            rows,
             UPSERT_KEYS[tables.sleep_apnea_events.name],
         )
         return inserted
@@ -166,17 +187,19 @@ class IngestionRepository(BaseRepository):
     async def create_upload(
         self,
         *,
+        user_id: int,
         provider: str,
         data_format: str,
         filename: str,
         raw_payload: str,
     ) -> tuple[int, bool]:
-        digest_src = f"{provider}:{data_format}:{raw_payload}"
+        digest_src = f"{user_id}:{provider}:{data_format}:{raw_payload}"
         digest = sha256(digest_src.encode("utf-8")).hexdigest()
 
         stmt = (
             pg_insert(tables.xml_uploads)
             .values(
+                user_id=user_id,
                 provider=provider,
                 data_format=data_format,
                 filename=filename,
@@ -194,7 +217,12 @@ class IngestionRepository(BaseRepository):
 
         existing_id = (
             await self._connection.execute(
-                select(tables.xml_uploads.c.id).where(tables.xml_uploads.c.sha256 == digest)
+                select(tables.xml_uploads.c.id).where(
+                    and_(
+                        tables.xml_uploads.c.user_id == user_id,
+                        tables.xml_uploads.c.sha256 == digest,
+                    )
+                )
             )
         ).scalar_one()
         return existing_id, False
@@ -203,6 +231,7 @@ class IngestionRepository(BaseRepository):
         self,
         *,
         upload_id: int,
+        user_id: int,
         provider: str,
         data_format: str,
         records: list[ParsedRecord],
@@ -220,12 +249,15 @@ class IngestionRepository(BaseRepository):
             start_date_raw = attrs.get("startDate") or ""
             end_date_raw = attrs.get("endDate") or ""
             value_raw = attrs.get("value") or ""
-            fingerprint_src = f"{provider}|{record_type}|{source_name}|{start_date_raw}|{end_date_raw}|{value_raw}"
+            fingerprint_src = (
+                f"{user_id}|{provider}|{record_type}|{source_name}|{start_date_raw}|{end_date_raw}|{value_raw}"
+            )
             record_fingerprint = sha256(fingerprint_src.encode("utf-8")).hexdigest()
 
             rows.append(
                 {
                     "upload_id": upload_id,
+                    "user_id": user_id,
                     "provider": provider,
                     "data_format": data_format,
                     "record_type": record_type,
@@ -240,7 +272,7 @@ class IngestionRepository(BaseRepository):
 
         if rows:
             stmt = pg_insert(tables.raw_health_records).values(rows).returning(tables.raw_health_records.c.id)
-            stmt = stmt.on_conflict_do_nothing(index_elements=["provider", "record_fingerprint"])
+            stmt = stmt.on_conflict_do_nothing(index_elements=["user_id", "provider", "record_fingerprint"])
             result = await self._connection.execute(stmt)
             return len(result.fetchall())
         return 0

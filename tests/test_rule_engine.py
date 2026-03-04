@@ -134,7 +134,7 @@ def test_health_risk_analyzer_uses_extended_history_for_illness_onset():
             hrv.append((ts, hrv_val))
             resp.append((ts, resp_val))
 
-    analyzer = HealthRiskAnalyzer(connection=None)  # type: ignore[arg-type]
+    analyzer = HealthRiskAnalyzer(connection=None, user_id=1)  # type: ignore[arg-type]
     call_ranges: list[tuple[str, datetime, datetime]] = []
 
     async def fake_fetch_rows(table, start: datetime, end: datetime):

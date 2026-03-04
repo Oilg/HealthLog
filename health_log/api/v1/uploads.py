@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-from health_log.dependencies import db_connect
+from health_log.dependencies import db_connect, get_current_user
+from health_log.repositories.auth import AuthUser
 from health_log.services.ingestion import ingest_content
 
 router = APIRouter(prefix="/api/v1/uploads", tags=["uploads"])
@@ -13,6 +14,7 @@ async def upload_health_data(
     provider: str = Form(..., description="Источник данных, например apple_health или mifitness"),
     data_format: str = Form(..., description="Формат данных, например xml/json/csv"),
     file: UploadFile = File(...),
+    current_user: AuthUser = Depends(get_current_user),
     conn: AsyncConnection = Depends(db_connect),
 ):
     content_length = file.headers.get("content-length")
@@ -46,6 +48,7 @@ async def upload_health_data(
     try:
         result = await ingest_content(
             conn,
+            user_id=current_user.id,
             provider=provider.strip().lower(),
             data_format=data_format.strip().lower(),
             filename=file.filename or "upload.dat",
