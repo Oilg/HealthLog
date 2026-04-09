@@ -1,9 +1,9 @@
 from health_log.analysis.detectors.menstrual_cycle.constants import (
     MAX_CYCLE_LENGTH_DAYS,
+    MENSTRUAL_LOOKBACK_DAYS,
     MIN_CYCLE_LENGTH_DAYS,
     MIN_PERIOD_STARTS,
     MIN_VALID_CYCLE_INTERVALS,
-    MENSTRUAL_LOOKBACK_DAYS,
 )
 
 

@@ -4,7 +4,10 @@ from datetime import datetime, timedelta
 from typing import Iterable
 
 from health_log.analysis.constants import CLINICAL_SAFETY_NOTE
-from health_log.analysis.detectors.menstrual_cycle.constants import MIN_PERIOD_STARTS, MIN_VALID_CYCLE_INTERVALS
+from health_log.analysis.detectors.menstrual_cycle.constants import (
+    MIN_PERIOD_STARTS,
+    MIN_VALID_CYCLE_INTERVALS,
+)
 from health_log.analysis.detectors.menstrual_cycle.features import (
     MenstrualModel,
     build_cycle_lengths,
