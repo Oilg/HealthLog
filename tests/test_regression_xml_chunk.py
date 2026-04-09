@@ -1,3 +1,4 @@
+from datetime import timedelta
 from pathlib import Path
 
 from health_log.analysis.models import TimeWindow
@@ -32,7 +33,28 @@ def test_regression_real_xml_chunk_parses_and_scores():
         elif rec.record_type == "HKQuantityTypeIdentifierHeartRateVariabilitySDNN":
             hrv_values.append((ts, value))
 
-    assessment = assess_sleep_apnea_risk(respiratory, heart, hrv_values, window=TimeWindow.NIGHT)
+    anchor = parse_datetime(records[0].attrs.get("startDate"))
+    assert anchor is not None
+    sleep_start = anchor - timedelta(minutes=30)
+    sleep_end = anchor + timedelta(hours=5)
+    sleep_segments = [(sleep_start, sleep_end)]
+
+    extra_rr = []
+    extra_hr = []
+    extra_hrv = []
+    for i in range(25):
+        t = sleep_start + timedelta(minutes=i * 10)
+        extra_rr.append((t, 12.0))
+        extra_hr.append((t, 68.0))
+        extra_hrv.append((t, 45.0))
+
+    assessment = assess_sleep_apnea_risk(
+        respiratory + extra_rr,
+        heart + extra_hr,
+        hrv_values + extra_hrv,
+        sleep_segments=sleep_segments,
+        window=TimeWindow.NIGHT,
+    )
 
     assert assessment.score >= 0
     assert assessment.clinical_safety_note.startswith("Это не медицинский диагноз")

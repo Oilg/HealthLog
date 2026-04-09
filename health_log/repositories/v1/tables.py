@@ -198,6 +198,13 @@ sleep_apnea_events = sqlalchemy.Table(
     sqlalchemy.Column("hrv_change", sqlalchemy.Float, nullable=True),
     sqlalchemy.Column("severity", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("detected_by", sqlalchemy.String, nullable=True),
+    sqlalchemy.Column("point_count", sqlalchemy.Integer, nullable=True),
+    sqlalchemy.Column("support_level", sqlalchemy.String, nullable=True),
+    sqlalchemy.Column("confidence", sqlalchemy.Float, nullable=True),
+    sqlalchemy.Column("baseline_rr", sqlalchemy.Float, nullable=True),
+    sqlalchemy.Column("baseline_hr", sqlalchemy.Float, nullable=True),
+    sqlalchemy.Column("baseline_hrv", sqlalchemy.Float, nullable=True),
+    sqlalchemy.Column("sleep_hours_context", sqlalchemy.Float, nullable=True),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, server_default=func.now(), nullable=False),
     sqlalchemy.UniqueConstraint("user_id", "start_time", "end_time", "detected_by", name="uq_sleep_apnea_event"),
 )
