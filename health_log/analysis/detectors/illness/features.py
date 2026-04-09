@@ -7,86 +7,107 @@ from statistics import median
 from typing import Iterable
 
 from health_log.analysis.detectors.illness.constants import (
-    BASELINE_DAYS,
-    MIN_DAYS_FOR_TREND,
+    BASELINE_MAX_DAYS,
+    HR_POINTS_PER_DAY_MIN,
+    HRV_POINTS_PER_DAY_MIN,
+    MIN_RECENT_VALID_DAYS,
+    MIN_VALID_DAYS_FOR_SIGNAL,
     RECENT_DAYS,
 )
-from health_log.analysis.utils import EventPoint, resting_like_median
+from health_log.analysis.utils import EventPoint, merge_datetime_intervals
 
 
-def _clamp01(value: float) -> float:
-    return max(0.0, min(1.0, value))
-
-
-def _daily_resting_hr(points: list[EventPoint]) -> dict[date, float]:
-    grouped: dict[date, list[float]] = defaultdict(list)
+def _group_by_day(points: list[EventPoint]) -> dict[date, list[EventPoint]]:
+    grouped: dict[date, list[EventPoint]] = defaultdict(list)
     for point in points:
-        grouped[point.timestamp.date()].append(point.value)
-
-    daily: dict[date, float] = {}
-    for day, values in grouped.items():
-        resting = resting_like_median(values)
-        if resting is not None:
-            daily[day] = resting
-    return daily
+        grouped[point.timestamp.date()].append(point)
+    return grouped
 
 
-def _daily_median(points: list[EventPoint]) -> dict[date, float]:
-    grouped: dict[date, list[float]] = defaultdict(list)
-    for point in points:
-        grouped[point.timestamp.date()].append(point.value)
-
-    daily: dict[date, float] = {}
-    for day, values in grouped.items():
-        if values:
-            daily[day] = median(values)
-    return daily
+def _merged_sleep(sleep_rows: Iterable[tuple[datetime, datetime]]) -> list[tuple[datetime, datetime]]:
+    intervals = [(s, e) for s, e in sleep_rows if s and e and e > s]
+    return merge_datetime_intervals(intervals)
 
 
-def _merge_intervals(intervals: list[tuple[datetime, datetime]]) -> list[tuple[datetime, datetime]]:
-    if not intervals:
-        return []
-
-    intervals_sorted = sorted(intervals, key=lambda item: item[0])
-    merged: list[tuple[datetime, datetime]] = [intervals_sorted[0]]
-    for start, end in intervals_sorted[1:]:
-        prev_start, prev_end = merged[-1]
-        if start <= prev_end:
-            merged[-1] = (prev_start, max(prev_end, end))
-        else:
-            merged.append((start, end))
-    return merged
+def _in_sleep(ts: datetime, merged: list[tuple[datetime, datetime]]) -> bool:
+    for start, end in merged:
+        if start <= ts <= end:
+            return True
+    return False
 
 
-def _daily_sleep_stats(sleep_rows: Iterable[tuple[datetime, datetime]]) -> tuple[dict[date, float], dict[date, int]]:
-    by_day: dict[date, list[tuple[datetime, datetime]]] = defaultdict(list)
+def _day_has_sleep(d: date, sleep_rows: Iterable[tuple[datetime, datetime]]) -> bool:
+    # Bind each sleep segment to the single date when the sleeper wakes up
+    # (end.date()), so an overnight session 23:00→07:00 is counted once,
+    # not for both calendar days.
     for start, end in sleep_rows:
-        if start is None or end is None or end <= start:
-            continue
-        by_day[end.date()].append((start, end))
+        if start and end and end > start and end.date() == d:
+            return True
+    return False
 
-    duration_hours: dict[date, float] = {}
-    fragments: dict[date, int] = {}
-    for day, intervals in by_day.items():
-        merged = _merge_intervals(intervals)
-        total_seconds = sum((end - start).total_seconds() for start, end in merged)
-        duration_hours[day] = total_seconds / 3600.0
-        fragments[day] = len(merged)
 
-    return duration_hours, fragments
+def _bottom_fraction_median(values: list[float], fraction: float) -> float | None:
+    if not values:
+        return None
+    s = sorted(values)
+    n = max(1, int(len(s) * fraction))
+    low = s[:n]
+    return float(median(low))
+
+
+def _day_rest_hr(
+    day: date,
+    heart_day: list[EventPoint],
+    merged_sleep: list[tuple[datetime, datetime]],
+) -> float | None:
+    in_bed = [p.value for p in heart_day if _in_sleep(p.timestamp, merged_sleep)]
+    if in_bed:
+        return float(median(in_bed))
+    if not heart_day:
+        return None
+    return _bottom_fraction_median([p.value for p in heart_day], 0.2)
+
+
+def _day_median_hrv_night_else_all(
+    day: date,
+    hrv_day: list[EventPoint],
+    merged_sleep: list[tuple[datetime, datetime]],
+) -> float | None:
+    night = [p.value for p in hrv_day if _in_sleep(p.timestamp, merged_sleep)]
+    if night:
+        return float(median(night))
+    if not hrv_day:
+        return None
+    return float(median([p.value for p in hrv_day]))
+
+
+def _day_median_rr_night_else_all(
+    day: date,
+    rr_day: list[EventPoint],
+    merged_sleep: list[tuple[datetime, datetime]],
+) -> float | None:
+    night = [p.value for p in rr_day if _in_sleep(p.timestamp, merged_sleep)]
+    if night:
+        return float(median(night))
+    if not rr_day:
+        return None
+    return float(median([p.value for p in rr_day]))
 
 
 @dataclass(slots=True)
 class TrendSnapshot:
-    selected_days: list[date]
-    hr_increase: float
-    hrv_drop_pct: float
-    hrv_change_pct: float
+    baseline_rest_hr: float
+    recent_rest_hr: float
+    baseline_hrv: float
+    recent_hrv: float
+    baseline_rr: float | None
+    recent_rr: float | None
     resp_increase_pct: float
-    sleep_disruption: float
     confirmed_days: int
-    heart_points_count: int
-    hrv_points_count: int
+    valid_days_count: int
+    total_hr_points: int
+    total_hrv_points: int
+    days_with_sleep: int
 
 
 def build_trend_snapshot(
@@ -95,85 +116,92 @@ def build_trend_snapshot(
     respiratory: list[EventPoint],
     sleep_rows: Iterable[tuple[datetime, datetime]],
 ) -> TrendSnapshot | None:
-    heart_by_day = _daily_resting_hr(heart)
-    hrv_by_day = _daily_median(hrv)
-    resp_by_day = _daily_median(respiratory)
-    sleep_duration_by_day, sleep_fragments_by_day = _daily_sleep_stats(sleep_rows)
+    merged = _merged_sleep(sleep_rows)
+    heart_by_day = _group_by_day(heart)
+    hrv_by_day = _group_by_day(hrv)
+    resp_by_day = _group_by_day(respiratory)
 
-    trend_days = sorted(set(heart_by_day) & set(hrv_by_day))
-    if len(trend_days) < MIN_DAYS_FOR_TREND:
+    all_days = sorted(set(heart_by_day) | set(hrv_by_day))
+    valid_days: list[date] = []
+    for d in all_days:
+        if (
+            len(heart_by_day.get(d, [])) >= HR_POINTS_PER_DAY_MIN
+            and len(hrv_by_day.get(d, [])) >= HRV_POINTS_PER_DAY_MIN
+        ):
+            valid_days.append(d)
+
+    if len(valid_days) < MIN_VALID_DAYS_FOR_SIGNAL:
         return None
 
-    selected_days = trend_days[-MIN_DAYS_FOR_TREND:]
-    baseline_days = selected_days[:BASELINE_DAYS]
-    recent_days = selected_days[-RECENT_DAYS:]
+    recent_days = valid_days[-RECENT_DAYS:]
+    if len(recent_days) < MIN_RECENT_VALID_DAYS:
+        return None
 
-    baseline_rest_hr = median([heart_by_day[d] for d in baseline_days])
-    baseline_hrv = median([hrv_by_day[d] for d in baseline_days])
-    recent_rest_hr = median([heart_by_day[d] for d in recent_days])
-    recent_hrv = median([hrv_by_day[d] for d in recent_days])
+    baseline_days = valid_days[:-RECENT_DAYS]
+    if len(baseline_days) > BASELINE_MAX_DAYS:
+        baseline_days = baseline_days[-BASELINE_MAX_DAYS:]
+
+    day_hr: dict[date, float] = {}
+    day_hrv: dict[date, float] = {}
+    day_rr: dict[date, float] = {}
+    for d in valid_days:
+        rh = _day_rest_hr(d, heart_by_day.get(d, []), merged)
+        hv = _day_median_hrv_night_else_all(d, hrv_by_day.get(d, []), merged)
+        if rh is None or hv is None:
+            continue
+        day_hr[d] = rh
+        day_hrv[d] = hv
+        rr = _day_median_rr_night_else_all(d, resp_by_day.get(d, []), merged)
+        if rr is not None:
+            day_rr[d] = rr
+
+    baseline_rest_hr = float(median([day_hr[d] for d in baseline_days if d in day_hr]))
+    recent_rest_hr = float(median([day_hr[d] for d in recent_days if d in day_hr]))
+    baseline_hrv = float(median([day_hrv[d] for d in baseline_days if d in day_hrv]))
+    recent_hrv = float(median([day_hrv[d] for d in recent_days if d in day_hrv]))
+
+    baseline_rr_list = [day_rr[d] for d in baseline_days if d in day_rr]
+    baseline_rr = float(median(baseline_rr_list)) if baseline_rr_list else None
+    recent_rr_list = [day_rr[d] for d in recent_days if d in day_rr]
+    recent_rr = float(median(recent_rr_list)) if recent_rr_list else None
+
     if baseline_hrv == 0:
         return None
 
-    hr_increase = recent_rest_hr - baseline_rest_hr
-    hrv_drop_pct = max(0.0, (baseline_hrv - recent_hrv) / baseline_hrv)
-    hrv_change_pct = ((recent_hrv - baseline_hrv) / baseline_hrv) * 100
-
-    baseline_resp = median([resp_by_day[d] for d in baseline_days if d in resp_by_day]) if resp_by_day else None
-    recent_resp = median([resp_by_day[d] for d in recent_days if d in resp_by_day]) if resp_by_day else None
     resp_increase_pct = 0.0
-    if baseline_resp is not None and recent_resp is not None and baseline_resp > 0:
-        resp_increase_pct = max(0.0, (recent_resp - baseline_resp) / baseline_resp)
-
-    baseline_sleep_hours = (
-        median([sleep_duration_by_day[d] for d in baseline_days if d in sleep_duration_by_day])
-        if sleep_duration_by_day
-        else None
-    )
-    recent_sleep_hours = (
-        median([sleep_duration_by_day[d] for d in recent_days if d in sleep_duration_by_day])
-        if sleep_duration_by_day
-        else None
-    )
-    baseline_fragments = (
-        median([sleep_fragments_by_day[d] for d in baseline_days if d in sleep_fragments_by_day])
-        if sleep_fragments_by_day
-        else None
-    )
-    recent_fragments = (
-        median([sleep_fragments_by_day[d] for d in recent_days if d in sleep_fragments_by_day])
-        if sleep_fragments_by_day
-        else None
-    )
-
-    sleep_disruption = 0.0
-    if baseline_sleep_hours is not None and recent_sleep_hours is not None:
-        sleep_disruption = max(sleep_disruption, _clamp01((baseline_sleep_hours - recent_sleep_hours) / 2.0))
-    if baseline_fragments is not None and recent_fragments is not None:
-        sleep_disruption = max(sleep_disruption, _clamp01((recent_fragments - baseline_fragments) / 2.0))
+    if baseline_rr is not None and recent_rr is not None and baseline_rr > 0:
+        resp_increase_pct = max(0.0, (recent_rr - baseline_rr) / baseline_rr)
 
     confirmed_days = 0
-    for day in recent_days:
-        day_hr = heart_by_day.get(day)
-        day_hrv = hrv_by_day.get(day)
-        day_resp = resp_by_day.get(day)
-
-        hr_flag = day_hr is not None and day_hr >= baseline_rest_hr + 4
-        hrv_flag = day_hrv is not None and day_hrv <= baseline_hrv * 0.9
-        resp_flag = day_resp is not None and baseline_resp is not None and day_resp >= baseline_resp * 1.08
+    for d in recent_days:
+        day_hr_v = day_hr.get(d)
+        day_hrv_v = day_hrv.get(d)
+        day_rr_v = day_rr.get(d)
+        hr_flag = day_hr_v is not None and day_hr_v >= baseline_rest_hr + 4
+        hrv_flag = day_hrv_v is not None and day_hrv_v <= baseline_hrv * 0.9
+        resp_flag = (
+            day_rr_v is not None
+            and baseline_rr is not None
+            and day_rr_v >= baseline_rr * 1.08
+        )
         if sum([hr_flag, hrv_flag, resp_flag]) >= 2:
             confirmed_days += 1
 
+    days_with_sleep = sum(1 for d in valid_days if _day_has_sleep(d, sleep_rows))
+
     return TrendSnapshot(
-        selected_days=selected_days,
-        hr_increase=hr_increase,
-        hrv_drop_pct=hrv_drop_pct,
-        hrv_change_pct=hrv_change_pct,
+        baseline_rest_hr=baseline_rest_hr,
+        recent_rest_hr=recent_rest_hr,
+        baseline_hrv=baseline_hrv,
+        recent_hrv=recent_hrv,
+        baseline_rr=baseline_rr,
+        recent_rr=recent_rr,
         resp_increase_pct=resp_increase_pct,
-        sleep_disruption=sleep_disruption,
         confirmed_days=confirmed_days,
-        heart_points_count=len(heart),
-        hrv_points_count=len(hrv),
+        valid_days_count=len(valid_days),
+        total_hr_points=len(heart),
+        total_hrv_points=len(hrv),
+        days_with_sleep=days_with_sleep,
     )
 
 
@@ -181,6 +209,14 @@ def trend_days_available(
     heart: list[EventPoint],
     hrv: list[EventPoint],
 ) -> int:
-    heart_by_day = _daily_resting_hr(heart)
-    hrv_by_day = _daily_median(hrv)
-    return len(set(heart_by_day) & set(hrv_by_day))
+    heart_by_day = _group_by_day(heart)
+    hrv_by_day = _group_by_day(hrv)
+    all_days = sorted(set(heart_by_day) | set(hrv_by_day))
+    n = 0
+    for d in all_days:
+        if (
+            len(heart_by_day.get(d, [])) >= HR_POINTS_PER_DAY_MIN
+            and len(hrv_by_day.get(d, [])) >= HRV_POINTS_PER_DAY_MIN
+        ):
+            n += 1
+    return n

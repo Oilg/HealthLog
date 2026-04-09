@@ -1,25 +1,24 @@
-from health_log.analysis.detectors.menstrual_cycle.constants import MENSTRUAL_LOOKBACK_DAYS
-from health_log.analysis.detectors.menstrual_cycle.features import MenstrualTrend
+from health_log.analysis.detectors.menstrual_cycle.constants import (
+    MAX_CYCLE_LENGTH_DAYS,
+    MIN_CYCLE_LENGTH_DAYS,
+    MIN_PERIOD_STARTS,
+    MIN_VALID_CYCLE_INTERVALS,
+    MENSTRUAL_LOOKBACK_DAYS,
+)
 
 
-def build_insufficient_cycles_summary(starts_count: int) -> str:
+def build_insufficient_starts_summary(starts_count: int) -> str:
     return (
-        f"Найдено циклов: {starts_count}. Для стабильного прогноза нужно минимум 3 цикла "
-        f"за последние {MENSTRUAL_LOOKBACK_DAYS} дней."
+        f"Найдено стартов менструации: {starts_count}. Нужно минимум {MIN_PERIOD_STARTS} "
+        f"за период до {MENSTRUAL_LOOKBACK_DAYS} дней."
     )
 
 
-def build_summary(trend: MenstrualTrend) -> str:
+def build_insufficient_intervals_summary() -> str:
     return (
-        f"Типичная длина цикла (с акцентом на последние месяцы): ~{trend.typical_cycle} дн.; "
-        f"ожидаемое окно начала следующих месячных: {trend.predicted_earliest.isoformat()} - "
-        f"{trend.predicted_latest.isoformat()}; "
-        f"ориентировочное окно овуляции: {trend.ovulation_from.isoformat()} - {trend.ovulation_to.isoformat()}."
+        f"Недостаточно валидных интервалов цикла ({MIN_CYCLE_LENGTH_DAYS}–{MAX_CYCLE_LENGTH_DAYS} дн.). "
+        f"Нужно минимум {MIN_VALID_CYCLE_INTERVALS}."
     )
 
 
-def build_recommendation() -> str:
-    return (
-        "Прогноз является ориентировочным. Если цикл заметно меняется, есть боль или длительные задержки, "
-        "обратись к гинекологу."
-    )
+CALENDAR_DISCLAIMER = "Прогноз календарный, а не диагностический."

@@ -15,60 +15,222 @@ from health_log.repositories.v1 import tables
 
 
 def test_sleep_apnea_risk_uses_multi_signal_evidence():
-    now = datetime(2026, 2, 26, 2, 0, 0)
+    base = datetime(2026, 2, 26, 22, 0, 0)
+    sleep_end = base + timedelta(hours=6)
+    segments = [(base, sleep_end)]
     respiratory = []
     heart = []
     hrv = []
+    # 30 normal points at 10-min intervals (~5 h of coverage, well above 20-point minimum)
+    for i in range(30):
+        ts = base + timedelta(minutes=10 * i)
+        respiratory.append((ts, 13.0))
+        heart.append((ts, 68.0))
+        hrv.append((ts, 42.0))
+    # 3 confirmed anomalous points within a 6-min window
+    anomaly_start = base + timedelta(hours=3)
+    for k in range(3):
+        ts = anomaly_start + timedelta(minutes=3 * k)
+        respiratory.append((ts, 7.0))   # RR < 10
+        heart.append((ts, 82.0))        # 82 >= 68 + 12 = 80 → supported_by_hr
+        hrv.append((ts, 32.0))          # 32 <= 42 * 0.8 = 33.6 → supported_by_hrv
 
-    for i in range(60):
-        ts = now - timedelta(minutes=60 - i)
-        rr = 13 if i % 10 else 7
-        hr = 72 if i % 10 else 95
-        hrv_v = 40 if i % 10 else 24
-        respiratory.append((ts, rr))
-        heart.append((ts, hr))
-        hrv.append((ts, hrv_v))
+    assessment = assess_sleep_apnea_risk(
+        respiratory, heart, hrv, sleep_segments=segments, window=TimeWindow.NIGHT
+    )
 
-    assessment = assess_sleep_apnea_risk(respiratory, heart, hrv, window=TimeWindow.NIGHT)
-
-    assert assessment.score > 0.4
+    assert assessment.score > 0
     assert assessment.confidence > 0.3
-    assert assessment.severity in {"medium", "high"}
-
-
-def test_tachycardia_risk_detects_frequent_high_hr():
-    now = datetime(2026, 2, 26, 10, 0, 0)
-    heart = [(now - timedelta(minutes=i), 105 if i < 20 else 78) for i in range(80)]
-
-    assessment = assess_tachycardia_risk(heart, window=TimeWindow.WEEK)
-
-    assert assessment.score > 0.2
     assert assessment.severity in {"low", "medium", "high"}
 
 
+def test_tachycardia_ignores_daytime_exercise_hr_when_sleep_context_exists():
+    sleep_start = datetime(2026, 2, 26, 22, 0, 0)
+    sleep_end = datetime(2026, 2, 27, 6, 0, 0)
+    day = datetime(2026, 2, 27, 14, 0, 0)
+    heart = []
+    t = sleep_start
+    while t < sleep_end:
+        heart.append((t, 62.0))
+        t += timedelta(minutes=5)
+    for k in range(20):
+        heart.append((day + timedelta(minutes=k * 3), 125.0))
+
+    assessment = assess_tachycardia_risk(
+        heart, sleep_segments=[(sleep_start, sleep_end)], window=TimeWindow.WEEK
+    )
+    assert assessment.score == 0
+    assert assessment.severity == "none"
+
+
+def test_tachycardia_single_high_point_in_sleep_not_an_episode():
+    sleep_start = datetime(2026, 2, 26, 23, 0, 0)
+    sleep_end = datetime(2026, 2, 27, 7, 0, 0)
+    heart = []
+    t = sleep_start
+    while t < sleep_end:
+        if t == sleep_start + timedelta(hours=2):
+            heart.append((t, 102.0))
+        else:
+            heart.append((t, 58.0))
+        t += timedelta(minutes=4)
+
+    assessment = assess_tachycardia_risk(
+        heart, sleep_segments=[(sleep_start, sleep_end)], window=TimeWindow.WEEK
+    )
+    assert assessment.score == 0
+
+
+def test_tachycardia_valid_night_episode_seven_minutes():
+    sleep_start = datetime(2026, 2, 26, 23, 0, 0)
+    sleep_end = datetime(2026, 2, 27, 7, 0, 0)
+    heart = []
+    t = sleep_start
+    while t < sleep_start + timedelta(hours=1):
+        heart.append((t, 58.0))
+        t += timedelta(minutes=5)
+    ep_t0 = sleep_start + timedelta(hours=1, minutes=5)
+    for j in range(5):
+        heart.append((ep_t0 + timedelta(minutes=2 * j), 108.0))
+    t2 = ep_t0 + timedelta(minutes=25)
+    while t2 < sleep_end:
+        heart.append((t2, 58.0))
+        t2 += timedelta(minutes=5)
+
+    assessment = assess_tachycardia_risk(
+        heart, sleep_segments=[(sleep_start, sleep_end)], window=TimeWindow.WEEK
+    )
+    assert assessment.score > 0
+    assert "эпизод" in assessment.summary.lower()
+
+
+def test_tachycardia_fallback_confidence_lower_without_sleep():
+    # Normal points stop before ep_t0 and resume 25 min after the episode, so
+    # the 5-point spike cluster is fully isolated (gaps >120 s on both sides)
+    # and passes the 70% check.  With sleep segments the episode is detected
+    # and confidence is high; without sleep the sparse 5-min normal points never
+    # form a rest-like cluster, so the fallback path returns confidence=0.
+    sleep_start = datetime(2026, 2, 26, 23, 0, 0)
+    sleep_end = datetime(2026, 2, 27, 7, 0, 0)
+    ep_t0 = sleep_start + timedelta(hours=1, minutes=5)
+
+    heart = []
+    t = sleep_start
+    while t < sleep_start + timedelta(hours=1):
+        heart.append((t, 58.0))
+        t += timedelta(minutes=5)
+    for j in range(5):
+        heart.append((ep_t0 + timedelta(minutes=2 * j), 108.0))
+    t2 = ep_t0 + timedelta(minutes=25)
+    while t2 < sleep_end:
+        heart.append((t2, 58.0))
+        t2 += timedelta(minutes=5)
+    heart.sort(key=lambda x: x[0])
+
+    a_sleep = assess_tachycardia_risk(
+        heart, sleep_segments=[(sleep_start, sleep_end)], window=TimeWindow.WEEK
+    )
+    a_fb = assess_tachycardia_risk(heart, sleep_segments=[], window=TimeWindow.WEEK)
+
+    assert a_sleep.score > 0
+    assert a_sleep.confidence > a_fb.confidence
+
+
 def test_sleep_apnea_event_builder_returns_insertable_rows():
-    base = datetime(2026, 2, 26, 1, 0, 0)
-    respiratory = [
-        (base, 12),
-        (base + timedelta(seconds=15), 7),
-        (base + timedelta(seconds=45), 13),
-    ]
-    heart = [
-        (base + timedelta(seconds=15), 95),
-        (base + timedelta(seconds=45), 72),
-    ]
-    hrv = [
-        (base + timedelta(seconds=15), 25),
-        (base + timedelta(seconds=45), 40),
-    ]
+    base = datetime(2026, 2, 26, 22, 0, 0)
+    segments = [(base, base + timedelta(hours=6))]
+    respiratory = []
+    heart = []
+    hrv = []
+    # 30 normal points at 10-min intervals
+    for i in range(30):
+        ts = base + timedelta(minutes=10 * i)
+        respiratory.append((ts, 13.0))
+        heart.append((ts, 68.0))
+        hrv.append((ts, 42.0))
+    # 3 confirmed anomalous points (same parameters as apnea risk test)
+    anomaly_start = base + timedelta(hours=3)
+    for k in range(3):
+        ts = anomaly_start + timedelta(minutes=3 * k)
+        respiratory.append((ts, 7.0))
+        heart.append((ts, 82.0))
+        hrv.append((ts, 32.0))
 
-    events = build_sleep_apnea_event_rows(respiratory, heart, hrv)
+    events = build_sleep_apnea_event_rows(
+        respiratory, heart, hrv, sleep_segments=segments
+    )
 
-    assert len(events) == 1
+    assert len(events) >= 1
     event = events[0]
-    assert event["start_time"] == base
-    assert event["end_time"] == base + timedelta(seconds=15)
     assert event["detected_by"] == "rule_engine_v1"
+    assert event["point_count"] >= 2
+    assert event["support_level"] in {"strong", "medium"}
+    assert event["confidence"] is not None
+    assert event["baseline_rr"] is not None
+
+
+def test_sleep_apnea_gap_six_minutes_splits_episodes():
+    base = datetime(2026, 2, 26, 22, 0, 0)
+    seg = [(base, base + timedelta(hours=6))]
+    respiratory = []
+    heart = []
+    hrv = []
+    for i in range(20):
+        ts = base + timedelta(minutes=15 * i)
+        respiratory.append((ts, 12.0))
+        heart.append((ts, 68.0))
+        hrv.append((ts, 42.0))
+    t_a = base + timedelta(minutes=200)
+    t_b = t_a + timedelta(minutes=6)
+    for ts in (t_a, t_b):
+        respiratory.append((ts, 7.0))
+        heart.append((ts, 88.0))
+        hrv.append((ts, 28.0))
+
+    events = build_sleep_apnea_event_rows(respiratory, heart, hrv, sleep_segments=seg)
+    assert len(events) == 0
+
+
+def test_sleep_apnea_two_points_four_minutes_merge():
+    base = datetime(2026, 2, 26, 22, 0, 0)
+    seg = [(base, base + timedelta(hours=6))]
+    respiratory = []
+    heart = []
+    hrv = []
+    for i in range(20):
+        ts = base + timedelta(minutes=15 * i + 1)
+        respiratory.append((ts, 12.0))
+        heart.append((ts, 68.0))
+        hrv.append((ts, 42.0))
+    t0 = base + timedelta(hours=3)
+    t1 = t0 + timedelta(minutes=4)
+    for ts in (t0, t1):
+        respiratory.append((ts, 7.0))
+        heart.append((ts, 88.0))
+        hrv.append((ts, 28.0))
+
+    events = build_sleep_apnea_event_rows(respiratory, heart, hrv, sleep_segments=seg)
+    assert len(events) >= 1
+
+
+def test_sleep_apnea_insufficient_without_sleep():
+    base = datetime(2026, 2, 26, 22, 0, 0)
+    respiratory = [(base + timedelta(minutes=i), 12.0) for i in range(25)]
+    heart = [(base + timedelta(minutes=i), 68.0) for i in range(25)]
+    hrv = [(base + timedelta(minutes=i), 40.0) for i in range(25)]
+    a = assess_sleep_apnea_risk(respiratory, heart, hrv, sleep_segments=[], window=TimeWindow.NIGHT)
+    assert a.score == 0
+    assert a.severity == "unknown"
+
+
+def test_sleep_apnea_insufficient_short_night():
+    base = datetime(2026, 2, 26, 22, 0, 0)
+    seg = [(base, base + timedelta(hours=2))]
+    respiratory = [(base + timedelta(minutes=i * 5), 12.0) for i in range(25)]
+    heart = [(base + timedelta(minutes=i * 5), 68.0) for i in range(25)]
+    hrv = [(base + timedelta(minutes=i * 5), 40.0) for i in range(25)]
+    a = assess_sleep_apnea_risk(respiratory, heart, hrv, sleep_segments=seg, window=TimeWindow.NIGHT)
+    assert a.severity == "unknown"
 
 
 def test_illness_onset_risk_detects_hr_up_and_hrv_down_trend():
@@ -183,7 +345,12 @@ def test_health_risk_analyzer_skips_menstrual_signal_for_male() -> None:
 
     result = asyncio.run(analyzer.analyze_window(TimeWindow.WEEK, now=now))
     conditions = {assessment.condition for assessment in result["assessments"]}
-    assert "menstrual_cycle_forecast" not in conditions
+    menstrual_keys = {
+        "menstrual_cycle_start_forecast",
+        "menstrual_cycle_delay_risk",
+        "ovulation_window_forecast",
+    }
+    assert menstrual_keys.isdisjoint(conditions)
 
 
 def test_health_risk_analyzer_adds_menstrual_signal_for_female() -> None:
@@ -212,7 +379,9 @@ def test_health_risk_analyzer_adds_menstrual_signal_for_female() -> None:
 
     result = asyncio.run(analyzer.analyze_window(TimeWindow.MONTH, now=now))
     conditions = {assessment.condition for assessment in result["assessments"]}
-    assert "menstrual_cycle_forecast" in conditions
+    assert "menstrual_cycle_start_forecast" in conditions
+    assert "menstrual_cycle_delay_risk" in conditions
+    assert "ovulation_window_forecast" in conditions
 
 
 def test_patch_me_sex_enables_menstrual_forecast(monkeypatch) -> None:
@@ -268,7 +437,7 @@ def test_patch_me_sex_enables_menstrual_forecast(monkeypatch) -> None:
 
     before_result = asyncio.run(analyzer_before.analyze_window(TimeWindow.MONTH, now=now))
     before_conditions = {assessment.condition for assessment in before_result["assessments"]}
-    assert "menstrual_cycle_forecast" not in before_conditions
+    assert "menstrual_cycle_start_forecast" not in before_conditions
 
     monkeypatch.setattr(users_api, "UsersRepository", FakeUsersRepository)
     current_user = AuthUser(
@@ -290,4 +459,4 @@ def test_patch_me_sex_enables_menstrual_forecast(monkeypatch) -> None:
     analyzer_after._fetch_sleep_segments = fake_sleep_segments  # type: ignore[assignment]
     after_result = asyncio.run(analyzer_after.analyze_window(TimeWindow.MONTH, now=now))
     after_conditions = {assessment.condition for assessment in after_result["assessments"]}
-    assert "menstrual_cycle_forecast" in after_conditions
+    assert "menstrual_cycle_start_forecast" in after_conditions

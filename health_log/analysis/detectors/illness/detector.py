@@ -9,6 +9,7 @@ from health_log.analysis.detectors.illness.features import (
     trend_days_available,
 )
 from health_log.analysis.detectors.illness.messages import (
+    build_data_quality_disclaimer,
     build_insufficient_data_summary,
     build_recommendation,
     build_summary,
@@ -61,19 +62,23 @@ def assess_illness_onset_risk(
             interpretation="Недостаточно данных для интерпретации уровня риска и достоверности сигнала.",
             summary=build_insufficient_data_summary(days_available),
             recommendation=(
-                "Продолжай синхронизацию данных. Сигнал станет надежнее после накопления 63+ дней HR и HRV."
+                "Продолжай синхронизацию данных. Нужны как минимум 45 валидных суток с достаточным числом точек HR и HRV."
             ),
             clinical_safety_note=CLINICAL_SAFETY_NOTE,
         )
 
     score_result = calculate_score(snapshot)
+    interpretation = (
+        f"{build_data_quality_disclaimer()} "
+        f"{build_score_confidence_interpretation(score_result.score, score_result.confidence)}"
+    )
     return RiskAssessment(
         condition="illness_onset_risk",
         window=window,
         score=round(score_result.score, 3),
         confidence=round(score_result.confidence, 3),
         severity=score_result.severity,
-        interpretation=build_score_confidence_interpretation(score_result.score, score_result.confidence),
+        interpretation=interpretation,
         summary=build_summary(snapshot),
         recommendation=build_recommendation(),
         clinical_safety_note=CLINICAL_SAFETY_NOTE,

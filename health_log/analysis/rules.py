@@ -7,7 +7,9 @@ This module re-exports public call sites to avoid breaking imports.
 
 from health_log.analysis.detectors import (
     assess_illness_onset_risk,
-    assess_menstrual_cycle_risk,
+    assess_menstrual_cycle_delay_risk,
+    assess_menstrual_cycle_start_forecast,
+    assess_ovulation_window_forecast,
     assess_sleep_apnea_risk,
     assess_tachycardia_risk,
     build_sleep_apnea_event_rows,
@@ -20,7 +22,9 @@ __all__ = [
     "build_sleep_apnea_event_rows",
     "assess_tachycardia_risk",
     "assess_illness_onset_risk",
-    "assess_menstrual_cycle_risk",
+    "assess_menstrual_cycle_start_forecast",
+    "assess_menstrual_cycle_delay_risk",
+    "assess_ovulation_window_forecast",
     "resolve_window_range",
     "build_score_confidence_interpretation",
 ]
