@@ -43,6 +43,24 @@ class _Episode:
     support_level: str
 
 
+@dataclass(slots=True)
+class _ApneaAnalysis:
+    score: float
+    confidence: float
+    sleep_hours: float
+    respiratory_count: int
+    heart_count: int
+    hrv_count: int
+    baseline_rr: float
+    baseline_hr: float
+    baseline_hrv: float
+    episodes: list[_Episode]
+    risk_episodes: list[_Episode]
+    valid_episode_count: int
+    strong_episode_count: int
+    median_resp_drop: float
+
+
 def _filter_sleep(
     respiratory: list[EventPoint],
     heart: list[EventPoint],
@@ -63,7 +81,7 @@ def _analyze_sleep_apnea(
     heart_rows: Iterable[tuple],
     hrv_rows: Iterable[tuple],
     sleep_segments: list[tuple[datetime, datetime]] | None,
-) -> dict[str, object] | None:
+) -> _ApneaAnalysis | None:
     respiratory = sorted(to_points(respiratory_rows), key=lambda p: p.timestamp)
     heart = sorted(to_points(heart_rows), key=lambda p: p.timestamp)
     hrv = sorted(to_points(hrv_rows), key=lambda p: p.timestamp)
@@ -171,22 +189,22 @@ def _analyze_sleep_apnea(
     sleep_h = min(1.0, sleep_hours / 7.0)
     confidence = 0.4 * rr_cov + 0.35 * cross + 0.25 * sleep_h
 
-    return {
-        "score": score,
-        "confidence": confidence,
-        "sleep_hours": sleep_hours,
-        "respiratory_count": len(respiratory),
-        "heart_count": len(heart),
-        "hrv_count": len(hrv),
-        "baseline_rr": baseline_rr,
-        "baseline_hr": baseline_hr,
-        "baseline_hrv": baseline_hrv,
-        "episodes": episodes,
-        "risk_episodes": risk_eps,
-        "valid_episode_count": valid_count,
-        "strong_episode_count": strong_count,
-        "median_resp_drop": median_resp_drop,
-    }
+    return _ApneaAnalysis(
+        score=score,
+        confidence=confidence,
+        sleep_hours=sleep_hours,
+        respiratory_count=len(respiratory),
+        heart_count=len(heart),
+        hrv_count=len(hrv),
+        baseline_rr=baseline_rr,
+        baseline_hr=baseline_hr,
+        baseline_hrv=baseline_hrv,
+        episodes=episodes,
+        risk_episodes=risk_eps,
+        valid_episode_count=valid_count,
+        strong_episode_count=strong_count,
+        median_resp_drop=median_resp_drop,
+    )
 
 
 def build_sleep_apnea_event_rows(
@@ -201,19 +219,19 @@ def build_sleep_apnea_event_rows(
     if result is None:
         return []
 
-    confidence = float(result["confidence"])
-    baseline_rr = float(result["baseline_rr"])
-    baseline_hr = float(result["baseline_hr"])
-    baseline_hrv = float(result["baseline_hrv"])
-    sleep_hours_context = float(result["sleep_hours"])
+    confidence = result.confidence
+    baseline_rr = result.baseline_rr
+    baseline_hr = result.baseline_hr
+    baseline_hrv = result.baseline_hrv
+    sleep_hours_context = result.sleep_hours
 
     heart_pts = sorted(to_points(heart_rows), key=lambda p: p.timestamp)
     hrv_pts = sorted(to_points(hrv_rows), key=lambda p: p.timestamp)
-    baseline_hr_v = float(result["baseline_hr"])
-    baseline_hrv_v = float(result["baseline_hrv"])
+    baseline_hr_v = result.baseline_hr
+    baseline_hrv_v = result.baseline_hrv
 
     rows: list[dict[str, object]] = []
-    for ep in result["risk_episodes"]:
+    for ep in result.risk_episodes:
         max_hr_spike = 0.0
         max_hrv_drop_pct = 0.0
         for p in ep.points:
@@ -268,9 +286,9 @@ def assess_sleep_apnea_risk(
             clinical_safety_note=CLINICAL_SAFETY_NOTE,
         )
 
-    score = float(result["score"])
-    confidence = float(result["confidence"])
-    valid_count = int(result["valid_episode_count"])
+    score = result.score
+    confidence = result.confidence
+    valid_count = result.valid_episode_count
 
     if score >= 0.75:
         severity = "high"
@@ -282,7 +300,7 @@ def assess_sleep_apnea_risk(
         severity = "none"
 
     summary = (
-        f"По данным ночного сна (~{result['sleep_hours']:.1f} ч): подтверждённых подозрительных эпизодов "
+        f"По данным ночного сна (~{result.sleep_hours:.1f} ч): подтверждённых подозрительных эпизодов "
         f"дыхания (RR<10 с поддержкой HR/HRV): {valid_count}."
     )
     recommendation = (
