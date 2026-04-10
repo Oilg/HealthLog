@@ -13,16 +13,40 @@ from health_log.services.apple_health_parser import ParsedRecord, parse_datetime
 
 BATCH_SIZE = 500
 
+_STANDARD_UPSERT_COLS = ["user_id", "sourceName", "startDate", "endDate"]
+
 UPSERT_KEYS: dict[str, list[str]] = {
-    "sleep_analysis": ["user_id", "sourceName", "startDate", "endDate"],
-    "sleep_duration_goal": ["user_id", "sourceName", "startDate", "endDate"],
-    "heart_rate": ["user_id", "sourceName", "startDate", "endDate"],
-    "heart_rate_variability": ["user_id", "sourceName", "startDate", "endDate"],
+    "sleep_analysis": _STANDARD_UPSERT_COLS,
+    "sleep_duration_goal": _STANDARD_UPSERT_COLS,
+    "heart_rate": _STANDARD_UPSERT_COLS,
+    "heart_rate_variability": _STANDARD_UPSERT_COLS,
     "heart_rate_variability_bpm": ["hr_variability_id", "time"],
-    "respiratory_rate": ["user_id", "sourceName", "startDate", "endDate"],
-    "vo_2_max": ["user_id", "sourceName", "startDate", "endDate"],
-    "menstrual_flow": ["user_id", "sourceName", "startDate", "endDate"],
+    "respiratory_rate": _STANDARD_UPSERT_COLS,
+    "vo_2_max": _STANDARD_UPSERT_COLS,
+    "menstrual_flow": _STANDARD_UPSERT_COLS,
     "sleep_apnea_events": ["user_id", "start_time", "end_time", "detected_by"],
+    "oxygen_saturation": _STANDARD_UPSERT_COLS,
+    "blood_pressure_systolic": _STANDARD_UPSERT_COLS,
+    "blood_pressure_diastolic": _STANDARD_UPSERT_COLS,
+    "apple_sleeping_wrist_temperature": _STANDARD_UPSERT_COLS,
+    "walking_heart_rate_average": _STANDARD_UPSERT_COLS,
+    "walking_speed": _STANDARD_UPSERT_COLS,
+    "walking_step_length": _STANDARD_UPSERT_COLS,
+    "walking_double_support_percentage": _STANDARD_UPSERT_COLS,
+    "walking_steadiness": _STANDARD_UPSERT_COLS,
+    "environmental_audio_exposure": _STANDARD_UPSERT_COLS,
+    "headphone_audio_exposure": _STANDARD_UPSERT_COLS,
+    "body_mass": _STANDARD_UPSERT_COLS,
+    "body_mass_index": _STANDARD_UPSERT_COLS,
+    "body_fat_percentage": _STANDARD_UPSERT_COLS,
+    "lean_body_mass": _STANDARD_UPSERT_COLS,
+    "waist_circumference": _STANDARD_UPSERT_COLS,
+    "step_count": _STANDARD_UPSERT_COLS,
+    "apple_exercise_time": _STANDARD_UPSERT_COLS,
+    "apple_afib_burden": _STANDARD_UPSERT_COLS,
+    "low_heart_rate_event": _STANDARD_UPSERT_COLS,
+    "irregular_heart_rhythm_event": _STANDARD_UPSERT_COLS,
+    "intermenstrual_bleeding": _STANDARD_UPSERT_COLS,
 }
 
 

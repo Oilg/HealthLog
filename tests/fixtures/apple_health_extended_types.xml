@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE HealthData [
+<!ELEMENT HealthData (Record*)>
+<!ATTLIST HealthData locale CDATA #REQUIRED>
+<!ELEMENT Record (MetadataEntry*)>
+<!ATTLIST Record type CDATA #REQUIRED
+                 sourceName CDATA #REQUIRED
+                 unit CDATA ""
+                 creationDate CDATA #REQUIRED
+                 startDate CDATA #REQUIRED
+                 endDate CDATA #REQUIRED
+                 value CDATA "">
+<!ELEMENT MetadataEntry EMPTY>
+<!ATTLIST MetadataEntry key CDATA #REQUIRED value CDATA #REQUIRED>
+]>
+<HealthData locale="ru_RU">
+
+  <!-- Quantity types -->
+  <Record type="HKQuantityTypeIdentifierOxygenSaturation"
+          sourceName="Apple Watch"
+          unit="%"
+          creationDate="2026-03-01 22:00:00"
+          startDate="2026-03-01 22:00:00"
+          endDate="2026-03-01 22:00:30"
+          value="97"/>
+
+  <Record type="HKQuantityTypeIdentifierBloodPressureSystolic"
+          sourceName="Health App"
+          unit="mmHg"
+          creationDate="2026-03-01 08:00:00"
+          startDate="2026-03-01 08:00:00"
+          endDate="2026-03-01 08:00:10"
+          value="120"/>
+
+  <Record type="HKQuantityTypeIdentifierBloodPressureDiastolic"
+          sourceName="Health App"
+          unit="mmHg"
+          creationDate="2026-03-01 08:00:00"
+          startDate="2026-03-01 08:00:00"
+          endDate="2026-03-01 08:00:10"
+          value="78"/>
+
+  <Record type="HKQuantityTypeIdentifierAppleSleepingWristTemperature"
+          sourceName="Apple Watch"
+          unit="degC"
+          creationDate="2026-03-01 06:00:00"
+          startDate="2026-03-01 06:00:00"
+          endDate="2026-03-01 06:00:10"
+          value="36.4"/>
+
+  <Record type="HKQuantityTypeIdentifierWalkingHeartRateAverage"
+          sourceName="Apple Watch"
+          unit="count/min"
+          creationDate="2026-03-01 10:00:00"
+          startDate="2026-03-01 10:00:00"
+          endDate="2026-03-01 10:30:00"
+          value="108"/>
+
+  <Record type="HKQuantityTypeIdentifierWalkingSpeed"
+          sourceName="Apple Watch"
+          unit="m/s"
+          creationDate="2026-03-01 10:00:00"
+          startDate="2026-03-01 10:00:00"
+          endDate="2026-03-01 10:30:00"
+          value="1.35"/>
+
+  <Record type="HKQuantityTypeIdentifierWalkingStepLength"
+          sourceName="Apple Watch"
+          unit="m"
+          creationDate="2026-03-01 10:00:00"
+          startDate="2026-03-01 10:00:00"
+          endDate="2026-03-01 10:30:00"
+          value="0.68"/>
+
+  <Record type="HKQuantityTypeIdentifierWalkingDoubleSupportPercentage"
+          sourceName="Apple Watch"
+          unit="%"
+          creationDate="2026-03-01 10:00:00"
+          startDate="2026-03-01 10:00:00"
+          endDate="2026-03-01 10:30:00"
+          value="27.5"/>
+
+  <Record type="HKQuantityTypeIdentifierWalkingSteadiness"
+          sourceName="Apple Watch"
+          unit=""
+          creationDate="2026-03-01 10:00:00"
+          startDate="2026-03-01 10:00:00"
+          endDate="2026-03-01 10:30:00"
+          value="0.88"/>
+
+  <Record type="HKQuantityTypeIdentifierEnvironmentalAudioExposure"
+          sourceName="Apple Watch"
+          unit="dBASPL"
+          creationDate="2026-03-01 14:00:00"
+          startDate="2026-03-01 14:00:00"
+          endDate="2026-03-01 14:30:00"
+          value="72.0"/>
+
+  <Record type="HKQuantityTypeIdentifierHeadphoneAudioExposure"
+          sourceName="Apple Watch"
+          unit="dBASPL"
+          creationDate="2026-03-01 16:00:00"
+          startDate="2026-03-01 16:00:00"
+          endDate="2026-03-01 16:30:00"
+          value="68.0"/>
+
+  <Record type="HKQuantityTypeIdentifierBodyMass"
+          sourceName="Health App"
+          unit="kg"
+          creationDate="2026-03-01 07:00:00"
+          startDate="2026-03-01 07:00:00"
+          endDate="2026-03-01 07:00:10"
+          value="80.5"/>
+
+  <Record type="HKQuantityTypeIdentifierBodyMassIndex"
+          sourceName="Health App"
+          unit="kg/m2"
+          creationDate="2026-03-01 07:00:00"
+          startDate="2026-03-01 07:00:00"
+          endDate="2026-03-01 07:00:10"
+          value="26.1"/>
+
+  <Record type="HKQuantityTypeIdentifierBodyFatPercentage"
+          sourceName="Smart Scale"
+          unit="%"
+          creationDate="2026-03-01 07:00:00"
+          startDate="2026-03-01 07:00:00"
+          endDate="2026-03-01 07:00:10"
+          value="22.5"/>
+
+  <Record type="HKQuantityTypeIdentifierLeanBodyMass"
+          sourceName="Smart Scale"
+          unit="kg"
+          creationDate="2026-03-01 07:00:00"
+          startDate="2026-03-01 07:00:00"
+          endDate="2026-03-01 07:00:10"
+          value="62.4"/>
+
+  <Record type="HKQuantityTypeIdentifierWaistCircumference"
+          sourceName="Manual Entry"
+          unit="cm"
+          creationDate="2026-03-01 07:30:00"
+          startDate="2026-03-01 07:30:00"
+          endDate="2026-03-01 07:30:10"
+          value="88.0"/>
+
+  <Record type="HKQuantityTypeIdentifierStepCount"
+          sourceName="iPhone"
+          unit="count"
+          creationDate="2026-03-01 23:59:00"
+          startDate="2026-03-01 00:00:00"
+          endDate="2026-03-01 23:59:59"
+          value="8450"/>
+
+  <Record type="HKQuantityTypeIdentifierAppleExerciseTime"
+          sourceName="Apple Watch"
+          unit="min"
+          creationDate="2026-03-01 23:59:00"
+          startDate="2026-03-01 00:00:00"
+          endDate="2026-03-01 23:59:59"
+          value="42"/>
+
+  <Record type="HKQuantityTypeIdentifierAppleAFibBurden"
+          sourceName="Apple Watch"
+          unit="%"
+          creationDate="2026-03-01 23:59:00"
+          startDate="2026-03-01 00:00:00"
+          endDate="2026-03-01 23:59:59"
+          value="0.5"/>
+
+  <!-- Category types -->
+  <Record type="HKCategoryTypeIdentifierLowHeartRateEvent"
+          sourceName="Apple Watch"
+          creationDate="2026-03-01 03:00:00"
+          startDate="2026-03-01 03:00:00"
+          endDate="2026-03-01 03:05:00"
+          value="HKCategoryValueSeverityUnspecified"/>
+
+  <Record type="HKCategoryTypeIdentifierIrregularHeartRhythmEvent"
+          sourceName="Apple Watch"
+          creationDate="2026-03-02 04:00:00"
+          startDate="2026-03-02 04:00:00"
+          endDate="2026-03-02 04:05:00"
+          value="HKCategoryValueSeverityUnspecified"/>
+
+  <Record type="HKCategoryTypeIdentifierIntermenstrualBleeding"
+          sourceName="Health App"
+          creationDate="2026-02-15 12:00:00"
+          startDate="2026-02-15 12:00:00"
+          endDate="2026-02-15 12:00:10"
+          value="HKCategoryValueNotApplicable"/>
+
+</HealthData>
