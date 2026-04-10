@@ -1,7 +1,7 @@
 import asyncio
 import json
 
-from health_log.analysis import HealthRiskAnalyzer, serialize_assessment
+from health_log.analysis.engine import HealthRiskAnalyzer, serialize_assessment
 from health_log.db import engine
 from health_log.repositories.auth import UsersRepository
 

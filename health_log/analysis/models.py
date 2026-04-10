@@ -30,4 +30,6 @@ class RiskAssessment:
     summary: str
     recommendation: str
     clinical_safety_note: str
+    supporting_metrics: dict = field(default_factory=dict)
+    lifestyle_recommendations: list = field(default_factory=list)
     created_at: datetime = field(default_factory=datetime.utcnow)

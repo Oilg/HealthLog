@@ -28,6 +28,7 @@ python-multipart = "^0.0.20"
 pytest = "^8.4.2"
 mypy = "^1.18.2"
 ruff = "^0.13.2"
+pytest-asyncio = "*"
 
 [tool.ruff]
 line-length = 100
@@ -39,6 +40,9 @@ ignore = ["E501", "B008"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["health_log"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
 
 [tool.mypy]
 python_version = "3.11"

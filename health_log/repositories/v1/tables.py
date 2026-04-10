@@ -185,6 +185,67 @@ menstrual_flow = sqlalchemy.Table(
     sqlalchemy.UniqueConstraint("user_id", "sourceName", "startDate", "endDate", name="uq_menstrual_flow_record"),
 )
 
+def _quantity_table(name: str, unique_name: str) -> sqlalchemy.Table:
+    return sqlalchemy.Table(
+        name,
+        metadata,
+        sqlalchemy.Column("id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True),
+        sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False),
+        sqlalchemy.Column("sourceName", sqlalchemy.String, nullable=False),
+        sqlalchemy.Column("unit", sqlalchemy.String, nullable=True),
+        sqlalchemy.Column("value", sqlalchemy.Text, nullable=True),
+        sqlalchemy.Column("creationDate", sqlalchemy.DateTime, nullable=False),
+        sqlalchemy.Column("startDate", sqlalchemy.DateTime, nullable=False),
+        sqlalchemy.Column("endDate", sqlalchemy.DateTime, nullable=False),
+        sqlalchemy.UniqueConstraint("user_id", "sourceName", "startDate", "endDate", name=unique_name),
+    )
+
+
+def _category_table(name: str, unique_name: str) -> sqlalchemy.Table:
+    return sqlalchemy.Table(
+        name,
+        metadata,
+        sqlalchemy.Column("id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True),
+        sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False),
+        sqlalchemy.Column("sourceName", sqlalchemy.String, nullable=False),
+        sqlalchemy.Column("value", sqlalchemy.String, nullable=True),
+        sqlalchemy.Column("creationDate", sqlalchemy.DateTime, nullable=False),
+        sqlalchemy.Column("startDate", sqlalchemy.DateTime, nullable=False),
+        sqlalchemy.Column("endDate", sqlalchemy.DateTime, nullable=False),
+        sqlalchemy.UniqueConstraint("user_id", "sourceName", "startDate", "endDate", name=unique_name),
+    )
+
+
+oxygen_saturation = _quantity_table("oxygen_saturation", "uq_oxygen_saturation_record")
+blood_pressure_systolic = _quantity_table("blood_pressure_systolic", "uq_blood_pressure_systolic_record")
+blood_pressure_diastolic = _quantity_table("blood_pressure_diastolic", "uq_blood_pressure_diastolic_record")
+apple_sleeping_wrist_temperature = _quantity_table(
+    "apple_sleeping_wrist_temperature", "uq_apple_sleeping_wrist_temperature_record"
+)
+walking_heart_rate_average = _quantity_table("walking_heart_rate_average", "uq_walking_heart_rate_average_record")
+walking_speed = _quantity_table("walking_speed", "uq_walking_speed_record")
+walking_step_length = _quantity_table("walking_step_length", "uq_walking_step_length_record")
+walking_double_support_percentage = _quantity_table(
+    "walking_double_support_percentage", "uq_walking_double_support_percentage_record"
+)
+walking_steadiness = _quantity_table("walking_steadiness", "uq_walking_steadiness_record")
+environmental_audio_exposure = _quantity_table("environmental_audio_exposure", "uq_environmental_audio_exposure_record")
+headphone_audio_exposure = _quantity_table("headphone_audio_exposure", "uq_headphone_audio_exposure_record")
+body_mass = _quantity_table("body_mass", "uq_body_mass_record")
+body_mass_index = _quantity_table("body_mass_index", "uq_body_mass_index_record")
+body_fat_percentage = _quantity_table("body_fat_percentage", "uq_body_fat_percentage_record")
+lean_body_mass = _quantity_table("lean_body_mass", "uq_lean_body_mass_record")
+waist_circumference = _quantity_table("waist_circumference", "uq_waist_circumference_record")
+step_count = _quantity_table("step_count", "uq_step_count_record")
+apple_exercise_time = _quantity_table("apple_exercise_time", "uq_apple_exercise_time_record")
+apple_afib_burden = _quantity_table("apple_afib_burden", "uq_apple_afib_burden_record")
+
+low_heart_rate_event = _category_table("low_heart_rate_event", "uq_low_heart_rate_event_record")
+irregular_heart_rhythm_event = _category_table(
+    "irregular_heart_rhythm_event", "uq_irregular_heart_rhythm_event_record"
+)
+intermenstrual_bleeding = _category_table("intermenstrual_bleeding", "uq_intermenstrual_bleeding_record")
+
 sleep_apnea_events = sqlalchemy.Table(
     "sleep_apnea_events",
     metadata,
@@ -216,4 +277,26 @@ TYPE_TABLE_MAP = {
     "HKQuantityTypeIdentifierRespiratoryRate": respiratory_rate,
     "HKQuantityTypeIdentifierVO2Max": vo_2_max,
     "HKCategoryTypeIdentifierMenstrualFlow": menstrual_flow,
+    "HKQuantityTypeIdentifierOxygenSaturation": oxygen_saturation,
+    "HKQuantityTypeIdentifierBloodPressureSystolic": blood_pressure_systolic,
+    "HKQuantityTypeIdentifierBloodPressureDiastolic": blood_pressure_diastolic,
+    "HKQuantityTypeIdentifierAppleSleepingWristTemperature": apple_sleeping_wrist_temperature,
+    "HKQuantityTypeIdentifierWalkingHeartRateAverage": walking_heart_rate_average,
+    "HKQuantityTypeIdentifierWalkingSpeed": walking_speed,
+    "HKQuantityTypeIdentifierWalkingStepLength": walking_step_length,
+    "HKQuantityTypeIdentifierWalkingDoubleSupportPercentage": walking_double_support_percentage,
+    "HKQuantityTypeIdentifierWalkingSteadiness": walking_steadiness,
+    "HKQuantityTypeIdentifierEnvironmentalAudioExposure": environmental_audio_exposure,
+    "HKQuantityTypeIdentifierHeadphoneAudioExposure": headphone_audio_exposure,
+    "HKQuantityTypeIdentifierBodyMass": body_mass,
+    "HKQuantityTypeIdentifierBodyMassIndex": body_mass_index,
+    "HKQuantityTypeIdentifierBodyFatPercentage": body_fat_percentage,
+    "HKQuantityTypeIdentifierLeanBodyMass": lean_body_mass,
+    "HKQuantityTypeIdentifierWaistCircumference": waist_circumference,
+    "HKQuantityTypeIdentifierStepCount": step_count,
+    "HKQuantityTypeIdentifierAppleExerciseTime": apple_exercise_time,
+    "HKQuantityTypeIdentifierAppleAFibBurden": apple_afib_burden,
+    "HKCategoryTypeIdentifierLowHeartRateEvent": low_heart_rate_event,
+    "HKCategoryTypeIdentifierIrregularHeartRhythmEvent": irregular_heart_rhythm_event,
+    "HKCategoryTypeIdentifierIntermenstrualBleeding": intermenstrual_bleeding,
 }
