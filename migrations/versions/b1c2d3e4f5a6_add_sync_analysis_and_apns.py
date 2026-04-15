@@ -50,9 +50,11 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("user_id", "day_of_week", name="uq_sync_schedule_day"),
     )
+    op.create_index("ix_sync_schedules_user_id", "sync_schedules", ["user_id"])
 
 
 def downgrade() -> None:
+    op.drop_index("ix_sync_schedules_user_id")
     op.drop_table("sync_schedules")
     op.drop_index("ix_analysis_reports_user_analyzed")
     op.drop_table("analysis_reports")

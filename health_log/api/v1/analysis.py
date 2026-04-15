@@ -15,6 +15,7 @@ def _format_report(row: dict) -> dict:
         "analyzed_at": row["analyzed_at"].isoformat() if row["analyzed_at"] else None,
         "period_from": row["period_from"].isoformat() if row["period_from"] else None,
         "period_to": row["period_to"].isoformat() if row["period_to"] else None,
+        "window": row["window"],
         "risks": row["risks"] or [],
     }
 

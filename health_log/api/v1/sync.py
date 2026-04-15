@@ -18,7 +18,7 @@ from health_log.services.apple_health_parser import ParsedRecord
 
 router = APIRouter(prefix="/api/v1/sync", tags=["sync"])
 
-DAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+_DAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
 
 
 # ─── Request / Response models ──────────────────────────────────────────────
@@ -179,7 +179,7 @@ async def get_sync_schedule(
     repo = SyncScheduleRepository(conn)
     schedule = await repo.get_schedule(current_user.id)
     if schedule is None:
-        default_schedule = {day: ("07:30" if day not in ("saturday", "sunday") else "09:00") for day in DAYS}
+        default_schedule = {day: ("07:30" if day not in ("saturday", "sunday") else "09:00") for day in _DAYS}
         return {"schedule": default_schedule, "timezone": "UTC"}
     return schedule
 

@@ -269,10 +269,13 @@ class UsersRepository:
         }
 
     async def update_apns_token(self, user_id: int, token: str) -> None:
+        import re
+        if not re.fullmatch(r"[0-9a-f]{64}", token.lower()):
+            raise ValueError("Недействительный формат APNs device token (ожидается 64 hex-символа)")
         await self._connection.execute(
             update(tables.users)
             .where(tables.users.c.id == user_id)
-            .values(apns_device_token=token, updated_at=datetime.utcnow())
+            .values(apns_device_token=token.lower(), updated_at=datetime.utcnow())
         )
 
     async def list_active_user_ids(self) -> list[int]:

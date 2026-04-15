@@ -35,7 +35,18 @@ def create_app() -> FastAPI:
     @app.on_event("startup")
     async def _start_scheduler() -> None:
         from health_log.services.sync_scheduler import run_sync_scheduler
-        asyncio.create_task(run_sync_scheduler())
+        task = asyncio.create_task(run_sync_scheduler())
+        app.state.scheduler_task = task
+
+    @app.on_event("shutdown")
+    async def _stop_scheduler() -> None:
+        task = getattr(app.state, "scheduler_task", None)
+        if task is not None:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
 
     return app
 
