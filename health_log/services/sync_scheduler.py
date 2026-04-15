@@ -9,8 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime, timezone
-
-import pytz
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from health_log.db import engine
 from health_log.repositories.analysis import SyncScheduleRepository
@@ -39,8 +38,8 @@ async def _check_and_send_pushes() -> None:
 
         for (tz_name,) in tz_rows:
             try:
-                tz = pytz.timezone(tz_name)
-            except pytz.UnknownTimeZoneError:
+                tz = ZoneInfo(tz_name)
+            except ZoneInfoNotFoundError:
                 logger.warning("Неизвестный часовой пояс в sync_schedules: %s", tz_name)
                 continue
 

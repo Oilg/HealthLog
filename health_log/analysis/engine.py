@@ -619,14 +619,24 @@ class HealthRiskAnalyzer:
             if a.score > 0
         ]
 
-        await self._reports_repo.save_report(
-            user_id=self._user_id,
-            analyzed_at=now,
-            period_from=start,
-            period_to=end,
-            window=window.value,
-            risks=active_risks,
-        )
+        try:
+            if self._connection is not None:
+                await self._reports_repo.save_report(
+                    user_id=self._user_id,
+                    analyzed_at=now,
+                    period_from=start,
+                    period_to=end,
+                    window=window.value,
+                    risks=active_risks,
+                )
+        except Exception:
+            import logging
+            logging.getLogger(__name__).warning(
+                "Не удалось сохранить отчёт об анализе (user=%d, window=%s)",
+                self._user_id,
+                window.value,
+                exc_info=True,
+            )
 
         return {
             "window": window,

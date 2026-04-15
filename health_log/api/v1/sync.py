@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import re
 import uuid
 from datetime import datetime
-from health_log.utils import utcnow
 from typing import Any
+
+from health_log.utils import utcnow
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, validator
@@ -66,6 +68,8 @@ class SyncRequest(BaseModel):
 
 
 def _validate_hhmm(value: str, field_name: str = "time") -> str:
+    if not re.fullmatch(r"\d{2}:\d{2}", value):
+        raise ValueError(f"Неверный формат {field_name}: '{value}'. Ожидается HH:MM")
     try:
         datetime.strptime(value, "%H:%M")
     except ValueError:
@@ -93,8 +97,8 @@ class ScheduleRequest(BaseModel):
 
     @validator("timezone")
     def validate_timezone(cls, v: str) -> str:
-        import pytz
-        if v not in pytz.all_timezones_set:
+        from zoneinfo import available_timezones
+        if v not in available_timezones():
             raise ValueError(f"Неизвестный часовой пояс: '{v}'. Используйте IANA timezone (например, Europe/Moscow)")
         return v
 
