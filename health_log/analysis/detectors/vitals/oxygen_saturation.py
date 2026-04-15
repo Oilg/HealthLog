@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from health_log.utils import utcnow
 from statistics import median
 from typing import Iterable
 
@@ -39,7 +40,7 @@ def assess_low_oxygen_saturation_risk(
     window: TimeWindow,
     now: datetime | None = None,
 ) -> RiskAssessment:
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     cutoff = now - timedelta(days=_LOOKBACK_DAYS)
     all_points = to_points(spo2_rows)
     points = [p for p in all_points if p.timestamp >= cutoff]

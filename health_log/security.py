@@ -3,6 +3,7 @@ from __future__ import annotations
 import hmac
 import secrets
 from datetime import datetime, timedelta
+from health_log.utils import utcnow
 from hashlib import pbkdf2_hmac, sha256
 
 PBKDF2_ALGO = "sha256"
@@ -45,8 +46,8 @@ def token_hash(token: str) -> str:
 
 
 def expires_in_minutes(minutes: int) -> datetime:
-    return datetime.utcnow() + timedelta(minutes=minutes)
+    return utcnow() + timedelta(minutes=minutes)
 
 
 def expires_in_days(days: int) -> datetime:
-    return datetime.utcnow() + timedelta(days=days)
+    return utcnow() + timedelta(days=days)

@@ -3,10 +3,11 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import datetime
+from health_log.utils import utcnow
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from health_log.dependencies import db_connect, get_current_user
@@ -29,6 +30,11 @@ class InstantaneousBpm(BaseModel):
     time: str
 
 
+_METADATA_MAX_KEYS = 50
+_METADATA_MAX_KEY_LEN = 256
+_METADATA_MAX_VAL_LEN = 1024
+
+
 class SyncRecord(BaseModel):
     type: str
     sourceName: str
@@ -41,11 +47,30 @@ class SyncRecord(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
     instantaneous_bpm: list[InstantaneousBpm] | None = None
 
+    @validator("metadata")
+    def validate_metadata(cls, v: dict) -> dict:
+        if len(v) > _METADATA_MAX_KEYS:
+            raise ValueError(f"metadata не может содержать более {_METADATA_MAX_KEYS} ключей")
+        for key, val in v.items():
+            if len(str(key)) > _METADATA_MAX_KEY_LEN:
+                raise ValueError(f"ключ metadata слишком длинный (макс. {_METADATA_MAX_KEY_LEN} символов)")
+            if len(str(val)) > _METADATA_MAX_VAL_LEN:
+                raise ValueError(f"значение metadata слишком длинное (макс. {_METADATA_MAX_VAL_LEN} символов)")
+        return v
+
 
 class SyncRequest(BaseModel):
     sync_from: str
     sync_to: str
     records: list[SyncRecord]
+
+
+def _validate_hhmm(value: str, field_name: str = "time") -> str:
+    try:
+        datetime.strptime(value, "%H:%M")
+    except ValueError:
+        raise ValueError(f"Неверный формат {field_name}: '{value}'. Ожидается HH:MM")
+    return value
 
 
 class DaySchedule(BaseModel):
@@ -57,10 +82,21 @@ class DaySchedule(BaseModel):
     saturday: str = "09:00"
     sunday: str = "09:00"
 
+    @validator("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", pre=True)
+    def validate_time_format(cls, v: str, field) -> str:
+        return _validate_hhmm(v, field.name)
+
 
 class ScheduleRequest(BaseModel):
     schedule: DaySchedule
     timezone: str = "UTC"
+
+    @validator("timezone")
+    def validate_timezone(cls, v: str) -> str:
+        import pytz
+        if v not in pytz.all_timezones_set:
+            raise ValueError(f"Неизвестный часовой пояс: '{v}'. Используйте IANA timezone (например, Europe/Moscow)")
+        return v
 
 
 # ─── Helpers ────────────────────────────────────────────────────────────────
@@ -143,7 +179,7 @@ async def sync_health_data(
     users_repo = UsersRepository(conn)
     await users_repo.update_sync_status(
         current_user.id,
-        last_sync_at=datetime.utcnow(),
+        last_sync_at=utcnow(),
         records_count=synced_count,
     )
 
@@ -191,15 +227,6 @@ async def put_sync_schedule(
     conn: AsyncConnection = Depends(db_connect),
 ):
     schedule_dict = body.schedule.dict()
-    for day, time_str in schedule_dict.items():
-        try:
-            datetime.strptime(time_str, "%H:%M")
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Неверный формат времени для '{day}': '{time_str}'. Ожидается HH:MM",
-            )
-
     repo = SyncScheduleRepository(conn)
     await repo.upsert_schedule(current_user.id, schedule=schedule_dict, timezone=body.timezone)
     return {"schedule": schedule_dict, "timezone": body.timezone}

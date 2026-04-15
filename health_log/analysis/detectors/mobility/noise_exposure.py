@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from health_log.utils import utcnow
 from typing import Iterable
 
 from health_log.analysis.constants import CLINICAL_SAFETY_NOTE
@@ -19,7 +20,7 @@ def assess_noise_exposure_risk(
     window: TimeWindow,
     now: datetime | None = None,
 ) -> RiskAssessment:
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     cutoff_7d = now - timedelta(days=_NOISE_LOOKBACK_7D)
     cutoff_30d = now - timedelta(days=_NOISE_LOOKBACK_30D)
 

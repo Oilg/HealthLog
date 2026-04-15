@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from health_log.utils import utcnow
 from statistics import median
 from typing import Iterable
 
@@ -18,7 +19,7 @@ def assess_vo2max_decline_risk(
     window: TimeWindow,
     now: datetime | None = None,
 ) -> RiskAssessment:
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     cutoff = now - timedelta(days=_LOOKBACK_DAYS)
     points = sorted(
         [p for p in to_points(vo2max_rows) if p.timestamp >= cutoff],

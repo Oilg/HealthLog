@@ -249,7 +249,12 @@ class IngestionRepository(BaseRepository):
                     )
                 )
             )
-        ).scalar_one()
+        ).scalar_one_or_none()
+        if existing_id is None:
+            raise RuntimeError(
+                f"Конфликт загрузки (sha256={digest[:16]}…): запись не вставлена и не найдена. "
+                "Вероятно, параллельный запрос удалил запись между вставкой и поиском."
+            )
         return existing_id, False
 
     async def insert_raw_records(

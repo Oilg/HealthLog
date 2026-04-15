@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from health_log.utils import utcnow
 
 from sqlalchemy import and_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -184,7 +185,7 @@ class UsersRepository:
             await self._connection.execute(
                 update(tables.users)
                 .where(tables.users.c.id == user_id)
-                .values(**values, updated_at=datetime.utcnow())
+                .values(**values, updated_at=utcnow())
             )
 
         user = await self.get_public_user(user_id)
@@ -196,7 +197,7 @@ class UsersRepository:
         await self._connection.execute(
             update(tables.users)
             .where(tables.users.c.id == user_id)
-            .values(is_active=False, updated_at=datetime.utcnow())
+            .values(is_active=False, updated_at=utcnow())
         )
 
     async def restore_user(
@@ -221,7 +222,7 @@ class UsersRepository:
                 phone=phone,
                 password_hash=password_hash,
                 is_active=True,
-                updated_at=datetime.utcnow(),
+                updated_at=utcnow(),
             )
         )
         user = await self.get_public_user(user_id)
@@ -248,7 +249,7 @@ class UsersRepository:
             .values(
                 last_sync_at=last_sync_at,
                 last_sync_records_count=records_count,
-                updated_at=datetime.utcnow(),
+                updated_at=utcnow(),
             )
         )
 
@@ -275,7 +276,7 @@ class UsersRepository:
         await self._connection.execute(
             update(tables.users)
             .where(tables.users.c.id == user_id)
-            .values(apns_device_token=token.lower(), updated_at=datetime.utcnow())
+            .values(apns_device_token=token.lower(), updated_at=utcnow())
         )
 
     async def list_active_user_ids(self) -> list[int]:
@@ -312,7 +313,7 @@ class AuthTokenRepository:
         await self._connection.execute(
             update(tables.auth_tokens)
             .where(tables.auth_tokens.c.token_hash == token_hash)
-            .values(revoked_at=datetime.utcnow())
+            .values(revoked_at=utcnow())
         )
 
     async def revoke_all_user_tokens(self, *, user_id: int) -> None:
@@ -324,11 +325,11 @@ class AuthTokenRepository:
                     tables.auth_tokens.c.revoked_at.is_(None),
                 )
             )
-            .values(revoked_at=datetime.utcnow())
+            .values(revoked_at=utcnow())
         )
 
     async def get_user_by_active_token(self, *, token_hash: str, token_type: str) -> AuthUser | None:
-        now = datetime.utcnow()
+        now = utcnow()
         row = (
             await self._connection.execute(
                 select(

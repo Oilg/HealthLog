@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from health_log.utils import utcnow
 from statistics import median
 from typing import Iterable
 
@@ -39,7 +40,7 @@ def assess_overweight_risk(
     window: TimeWindow,
     now: datetime | None = None,
 ) -> RiskAssessment:
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     cutoff = now - timedelta(days=MIN_WEIGHT_DAYS)
 
     mass_points = [p for p in to_points(body_mass_rows) if p.timestamp >= cutoff]
@@ -116,7 +117,7 @@ def assess_obesity_risk(
     window: TimeWindow,
     now: datetime | None = None,
 ) -> RiskAssessment:
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     cutoff = now - timedelta(days=MIN_WEIGHT_DAYS)
 
     mass_points = [p for p in to_points(body_mass_rows) if p.timestamp >= cutoff]
@@ -209,7 +210,7 @@ def assess_high_body_fat_risk(
     window: TimeWindow,
     now: datetime | None = None,
 ) -> RiskAssessment:
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     cutoff = now - timedelta(days=MIN_WEIGHT_DAYS)
     fat_points = [p for p in to_points(body_fat_rows) if p.timestamp >= cutoff]
 
@@ -272,7 +273,7 @@ def assess_abdominal_obesity_risk(
     window: TimeWindow,
     now: datetime | None = None,
 ) -> RiskAssessment:
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     cutoff = now - timedelta(days=MIN_WEIGHT_DAYS)
     waist_points = [p for p in to_points(waist_rows) if p.timestamp >= cutoff]
 

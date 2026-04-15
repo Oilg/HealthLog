@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from health_log.utils import utcnow
 from statistics import median
 from typing import Iterable
 
@@ -34,7 +35,7 @@ def assess_temperature_shift_risk(
     window: TimeWindow,
     now: datetime | None = None,
 ) -> RiskAssessment:
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     all_temp_points = to_points(wrist_temp_rows)
 
     recent_cutoff = now - timedelta(days=_RECENT_LOOKBACK_DAYS)

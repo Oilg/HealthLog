@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from health_log.utils import utcnow
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncConnection
@@ -433,7 +434,7 @@ class HealthRiskAnalyzer:
         ]
 
     async def analyze_window(self, window: TimeWindow, now: datetime | None = None) -> dict[str, object]:
-        now = now or datetime.utcnow()
+        now = now or utcnow()
         start, end = resolve_window_range(window, now)
 
         illness_start = end - timedelta(days=ILLNESS_TREND_LOOKBACK_DAYS)

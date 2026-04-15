@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from health_log.utils import utcnow
 from typing import Iterable
 
 from health_log.analysis.constants import CLINICAL_SAFETY_NOTE
@@ -18,7 +19,7 @@ def assess_atrial_fibrillation_risk(
     window: TimeWindow,
     now: datetime | None = None,
 ) -> RiskAssessment:
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     cutoff_30d = now - timedelta(days=30)
 
     burden_values = [float(v) for _, v in (afib_burden_rows or []) if v is not None]

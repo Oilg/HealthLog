@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from health_log.utils import utcnow
 from statistics import median
 from typing import Iterable
 
@@ -43,7 +44,7 @@ def assess_cardiometabolic_profile_risk(
     window: TimeWindow,
     now: datetime | None = None,
 ) -> RiskAssessment:
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     cutoff = now - timedelta(days=60)
 
     mass_points = [p for p in to_points(body_mass_rows or []) if p.timestamp >= cutoff]
@@ -154,7 +155,7 @@ def assess_metabolic_syndrome_risk(
     window: TimeWindow,
     now: datetime | None = None,
 ) -> RiskAssessment:
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     cutoff = now - timedelta(days=60)
 
     waist_points = [p for p in to_points(waist_rows or []) if p.timestamp >= cutoff]
@@ -274,7 +275,7 @@ def assess_cardiovascular_obesity_risk(
     window: TimeWindow,
     now: datetime | None = None,
 ) -> RiskAssessment:
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     cutoff = now - timedelta(days=60)
 
     mass_points = [p for p in to_points(body_mass_rows or []) if p.timestamp >= cutoff]
@@ -405,7 +406,7 @@ def assess_fitness_weight_gain_risk(
     window: TimeWindow,
     now: datetime | None = None,
 ) -> RiskAssessment:
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     cutoff_90d = now - timedelta(days=90)
     mass_points = sorted([p for p in to_points(body_mass_rows) if p.timestamp >= cutoff_90d], key=lambda p: p.timestamp)
     vo2_points = sorted([p for p in to_points(vo2max_rows or []) if p.timestamp >= cutoff_90d], key=lambda p: p.timestamp)
@@ -511,7 +512,7 @@ def assess_recovery_obesity_risk(
     now: datetime | None = None,
 ) -> RiskAssessment:
 
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     cutoff = now - timedelta(days=60)
     recent_start = now - timedelta(days=14)
 

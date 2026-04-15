@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from health_log.utils import utcnow
 from statistics import median
 from typing import Iterable
 
@@ -43,7 +44,7 @@ def assess_overload_recovery_risk(
     window: TimeWindow,
     now: datetime | None = None,
 ) -> RiskAssessment:
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     recent_start = now - timedelta(days=_LOOKBACK_DAYS)
     baseline_start = now - timedelta(days=_LOOKBACK_DAYS + _BASELINE_DAYS)
 
