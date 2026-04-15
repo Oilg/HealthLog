@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from health_log.utils import utcnow
 
 from sqlalchemy import and_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from health_log.repositories.v1 import tables
+from health_log.utils import utcnow
 
 
 @dataclass(slots=True)

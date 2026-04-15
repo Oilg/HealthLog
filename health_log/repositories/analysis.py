@@ -132,7 +132,7 @@ class SyncScheduleRepository:
         return {"schedule": schedule, "timezone": timezone}
 
     async def upsert_schedule(self, user_id: int, *, schedule: dict[str, str], timezone: str) -> None:
-        from sqlalchemy import and_, delete
+        from sqlalchemy import delete
 
         await self._connection.execute(
             delete(tables.sync_schedules).where(tables.sync_schedules.c.user_id == user_id)

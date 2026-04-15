@@ -6,8 +6,6 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from health_log.utils import utcnow
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, validator
 from sqlalchemy.ext.asyncio import AsyncConnection
@@ -18,6 +16,7 @@ from health_log.repositories.auth import AuthUser, UsersRepository
 from health_log.repositories.repository import IngestionRepository, RecordsRepository
 from health_log.repositories.v1.tables import TYPE_TABLE_MAP
 from health_log.services.apple_health_parser import ParsedRecord
+from health_log.utils import utcnow
 
 router = APIRouter(prefix="/api/v1/sync", tags=["sync"])
 
@@ -73,7 +72,7 @@ def _validate_hhmm(value: str, field_name: str = "time") -> str:
     try:
         datetime.strptime(value, "%H:%M")
     except ValueError:
-        raise ValueError(f"Неверный формат {field_name}: '{value}'. Ожидается HH:MM")
+        raise ValueError(f"Неверный формат {field_name}: '{value}'. Ожидается HH:MM") from None
     return value
 
 

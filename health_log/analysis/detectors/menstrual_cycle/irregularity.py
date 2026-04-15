@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from health_log.utils import utcnow
 from statistics import median
 from typing import Iterable
 
@@ -15,6 +14,7 @@ from health_log.analysis.detectors.menstrual_cycle.features import (
 )
 from health_log.analysis.models import RiskAssessment, TimeWindow
 from health_log.analysis.utils import EventPoint
+from health_log.utils import utcnow
 
 _MIN_INTERMENSTRUAL_EVENTS = 1
 _TEMP_SHIFT_THRESHOLD = 0.2

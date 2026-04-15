@@ -12,7 +12,6 @@ import pytest
 from health_log.repositories.analysis import AnalysisReportsRepository, SyncScheduleRepository
 from tests.integration.conftest import requires_db
 
-
 # ─── AnalysisReportsRepository ──────────────────────────────────────────────
 
 

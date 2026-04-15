@@ -3,8 +3,9 @@ from __future__ import annotations
 import hmac
 import secrets
 from datetime import datetime, timedelta
-from health_log.utils import utcnow
 from hashlib import pbkdf2_hmac, sha256
+
+from health_log.utils import utcnow
 
 PBKDF2_ALGO = "sha256"
 PBKDF2_ITERATIONS = 260_000

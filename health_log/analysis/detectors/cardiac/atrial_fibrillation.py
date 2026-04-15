@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from health_log.utils import utcnow
 from typing import Iterable
 
 from health_log.analysis.constants import CLINICAL_SAFETY_NOTE
 from health_log.analysis.models import RiskAssessment, TimeWindow
+from health_log.utils import utcnow
 
 _IRREGULAR_EVENTS_BOOST = 0.15
 _ECG_AFIB_BOOST = 0.25

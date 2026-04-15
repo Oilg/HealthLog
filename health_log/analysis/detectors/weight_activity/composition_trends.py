@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from health_log.utils import utcnow
 from statistics import median
 from typing import Iterable
 
@@ -22,6 +21,7 @@ from health_log.analysis.detectors.weight_activity.recommendations import (
 )
 from health_log.analysis.models import RiskAssessment, TimeWindow
 from health_log.analysis.utils import EventPoint, to_points
+from health_log.utils import utcnow
 
 
 def assess_lean_mass_decline_risk(

@@ -13,7 +13,6 @@ from health_log.api.v1.sync import (
 )
 from health_log.services.apple_health_parser import parse_datetime
 
-
 # ─── SyncRecord.metadata validator ──────────────────────────────────────────
 
 

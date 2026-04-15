@@ -29,8 +29,7 @@ async def send_silent_push(device_token: str) -> bool:
         return False
 
     try:
-        import aioapns  # type: ignore[import]
-        from aioapns import APNs, NotificationRequest  # type: ignore[import]
+        from aioapns import APNs, NotificationRequest, PushType  # type: ignore[import]
 
         client = APNs(
             key=settings.apns_auth_key_path,
@@ -43,7 +42,7 @@ async def send_silent_push(device_token: str) -> bool:
         request = NotificationRequest(
             device_token=device_token,
             message={"aps": {"content-available": 1}},
-            push_type="background",
+            push_type=PushType.background,
             priority=5,  # low priority for silent push
         )
 

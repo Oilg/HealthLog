@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from health_log.utils import utcnow
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncConnection
@@ -54,6 +53,7 @@ from health_log.analysis.windows import resolve_window_range
 from health_log.repositories.analysis import AnalysisReportsRepository
 from health_log.repositories.repository import RecordsRepository
 from health_log.repositories.v1 import tables
+from health_log.utils import utcnow
 
 
 class HealthRiskAnalyzer:

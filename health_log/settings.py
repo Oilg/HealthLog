@@ -27,3 +27,6 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = "local.env"
+
+
+settings = Settings()

@@ -3,8 +3,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-import pytest
-
 from health_log.api.v1.analysis import _format_report
 
 

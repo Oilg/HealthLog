@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from datetime import datetime
-from health_log.utils import utcnow
 from typing import Iterable
 
 from health_log.analysis.constants import CLINICAL_SAFETY_NOTE
 from health_log.analysis.models import RiskAssessment, TimeWindow
+from health_log.utils import utcnow
 
 _SCORE_ONE_EVENT = 0.3
 _SCORE_TWO_PLUS_EVENTS = 0.6
