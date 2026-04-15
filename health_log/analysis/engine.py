@@ -50,8 +50,10 @@ from health_log.analysis.detectors import (
 from health_log.analysis.detectors.illness.constants import ILLNESS_TREND_LOOKBACK_DAYS
 from health_log.analysis.models import RiskAssessment, TimeWindow
 from health_log.analysis.windows import resolve_window_range
+from health_log.repositories.analysis import AnalysisReportsRepository
 from health_log.repositories.repository import RecordsRepository
 from health_log.repositories.v1 import tables
+from health_log.utils import utcnow
 
 
 class HealthRiskAnalyzer:
@@ -60,6 +62,7 @@ class HealthRiskAnalyzer:
         self._user_id = user_id
         self._user_sex: str | None = None
         self._records_repo = RecordsRepository(connection)
+        self._reports_repo = AnalysisReportsRepository(connection)
 
     async def _fetch_rows(self, table, start: datetime, end: datetime):
         query = (
@@ -431,7 +434,7 @@ class HealthRiskAnalyzer:
         ]
 
     async def analyze_window(self, window: TimeWindow, now: datetime | None = None) -> dict[str, object]:
-        now = now or datetime.utcnow()
+        now = now or utcnow()
         start, end = resolve_window_range(window, now)
 
         illness_start = end - timedelta(days=ILLNESS_TREND_LOOKBACK_DAYS)
@@ -604,6 +607,36 @@ class HealthRiskAnalyzer:
             *weight_activity_results,
             *menstrual_assessments,
         ]
+
+        active_risks = [
+            {
+                "type": a.condition,
+                "severity": a.severity,
+                "confidence": round(a.confidence, 4),
+                "description": _CONDITION_LABELS.get(a.condition, a.condition),
+            }
+            for a in assessments
+            if a.score > 0
+        ]
+
+        try:
+            if self._connection is not None:
+                await self._reports_repo.save_report(
+                    user_id=self._user_id,
+                    analyzed_at=now,
+                    period_from=start,
+                    period_to=end,
+                    window=window.value,
+                    risks=active_risks,
+                )
+        except Exception:
+            import logging
+            logging.getLogger(__name__).warning(
+                "Не удалось сохранить отчёт об анализе (user=%d, window=%s)",
+                self._user_id,
+                window.value,
+                exc_info=True,
+            )
 
         return {
             "window": window,

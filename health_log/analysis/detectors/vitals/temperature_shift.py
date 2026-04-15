@@ -7,6 +7,7 @@ from typing import Iterable
 from health_log.analysis.constants import CLINICAL_SAFETY_NOTE
 from health_log.analysis.models import RiskAssessment, TimeWindow
 from health_log.analysis.utils import EventPoint, to_points
+from health_log.utils import utcnow
 
 _MIN_BASELINE_NIGHTS = 7
 _MIN_RECENT_NIGHTS = 2
@@ -34,7 +35,7 @@ def assess_temperature_shift_risk(
     window: TimeWindow,
     now: datetime | None = None,
 ) -> RiskAssessment:
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     all_temp_points = to_points(wrist_temp_rows)
 
     recent_cutoff = now - timedelta(days=_RECENT_LOOKBACK_DAYS)

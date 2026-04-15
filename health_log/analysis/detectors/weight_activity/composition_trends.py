@@ -21,6 +21,7 @@ from health_log.analysis.detectors.weight_activity.recommendations import (
 )
 from health_log.analysis.models import RiskAssessment, TimeWindow
 from health_log.analysis.utils import EventPoint, to_points
+from health_log.utils import utcnow
 
 
 def assess_lean_mass_decline_risk(
@@ -29,7 +30,7 @@ def assess_lean_mass_decline_risk(
     window: TimeWindow,
     now: datetime | None = None,
 ) -> RiskAssessment:
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     cutoff = now - timedelta(days=60)
     points = sorted(
         [p for p in to_points(lean_mass_rows) if p.timestamp >= cutoff],
@@ -104,7 +105,7 @@ def assess_weight_trend_risk(
     window: TimeWindow,
     now: datetime | None = None,
 ) -> RiskAssessment:
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     points = sorted(to_points(body_mass_rows), key=lambda p: p.timestamp)
 
     if len(points) < MIN_WEIGHT_MEASUREMENTS:
@@ -187,7 +188,7 @@ def assess_fat_mass_trend_risk(
     window: TimeWindow,
     now: datetime | None = None,
 ) -> RiskAssessment:
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     cutoff_90d = now - timedelta(days=90)
 
     mass_points = sorted([p for p in to_points(body_mass_rows) if p.timestamp >= cutoff_90d], key=lambda p: p.timestamp)
@@ -272,7 +273,7 @@ def assess_body_composition_trend_risk(
     window: TimeWindow,
     now: datetime | None = None,
 ) -> RiskAssessment:
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     cutoff = now - timedelta(days=90)
 
     mass_points = sorted([p for p in to_points(body_mass_rows) if p.timestamp >= cutoff], key=lambda p: p.timestamp)

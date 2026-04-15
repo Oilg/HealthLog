@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
+from health_log.utils import utcnow
+
 
 class TimeWindow(str, Enum):
     NIGHT = "night"
@@ -32,4 +34,4 @@ class RiskAssessment:
     clinical_safety_note: str
     supporting_metrics: dict = field(default_factory=dict)
     lifestyle_recommendations: list = field(default_factory=list)
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=utcnow)

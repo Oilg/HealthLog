@@ -7,6 +7,7 @@ from typing import Iterable
 from health_log.analysis.constants import CLINICAL_SAFETY_NOTE
 from health_log.analysis.models import RiskAssessment, TimeWindow
 from health_log.analysis.utils import EventPoint, to_points
+from health_log.utils import utcnow
 
 _MIN_RR_DAYS = 7
 _MIN_SPO2_MEASUREMENTS = 5
@@ -31,7 +32,7 @@ def assess_respiratory_function_decline_risk(
     window: TimeWindow,
     now: datetime | None = None,
 ) -> RiskAssessment:
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     recent_start = now - timedelta(days=_LOOKBACK_DAYS)
     baseline_start = now - timedelta(days=_LOOKBACK_DAYS + _BASELINE_DAYS)
 

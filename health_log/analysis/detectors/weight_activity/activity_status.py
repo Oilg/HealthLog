@@ -27,6 +27,7 @@ from health_log.analysis.detectors.weight_activity.recommendations import (
 )
 from health_log.analysis.models import RiskAssessment, TimeWindow
 from health_log.analysis.utils import to_points
+from health_log.utils import utcnow
 
 
 def assess_sedentary_lifestyle_risk(
@@ -36,7 +37,7 @@ def assess_sedentary_lifestyle_risk(
     window: TimeWindow,
     now: datetime | None = None,
 ) -> RiskAssessment:
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     cutoff = now - timedelta(days=MIN_ACTIVITY_DAYS)
     step_points = [p for p in to_points(step_rows) if p.timestamp >= cutoff]
     exercise_points = [p for p in to_points(exercise_time_rows or []) if p.timestamp >= cutoff]
@@ -121,7 +122,7 @@ def assess_insufficient_activity_risk(
     window: TimeWindow,
     now: datetime | None = None,
 ) -> RiskAssessment:
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     cutoff = now - timedelta(days=MIN_ACTIVITY_DAYS)
     step_points = [p for p in to_points(step_rows) if p.timestamp >= cutoff]
 

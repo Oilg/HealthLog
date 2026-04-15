@@ -14,6 +14,7 @@ from health_log.analysis.detectors.menstrual_cycle.features import (
 )
 from health_log.analysis.models import RiskAssessment, TimeWindow
 from health_log.analysis.utils import EventPoint
+from health_log.utils import utcnow
 
 _MIN_INTERMENSTRUAL_EVENTS = 1
 _TEMP_SHIFT_THRESHOLD = 0.2
@@ -39,7 +40,7 @@ def assess_menstrual_irregularity_risk(
             clinical_safety_note=CLINICAL_SAFETY_NOTE,
         )
 
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     menstrual_list = list(menstrual_rows)
     flow_days = extract_flow_days(menstrual_list)
     starts = build_period_starts(flow_days)
@@ -178,7 +179,7 @@ def assess_atypical_menstrual_bleeding_risk(
             clinical_safety_note=CLINICAL_SAFETY_NOTE,
         )
 
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     intermenstrual_events = list(intermenstrual_event_rows or [])
     menstrual_list = list(menstrual_rows or [])
 
@@ -300,7 +301,7 @@ def assess_menstrual_start_forecast_with_temp(
         assess_menstrual_cycle_start_forecast,
     )
 
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     menstrual_list = list(menstrual_rows)
 
     base_result = assess_menstrual_cycle_start_forecast(
@@ -374,7 +375,7 @@ def assess_ovulation_forecast_with_temp(
         assess_ovulation_window_forecast,
     )
 
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     menstrual_list = list(menstrual_rows)
 
     base_result = assess_ovulation_window_forecast(menstrual_list, window=window, now=now)

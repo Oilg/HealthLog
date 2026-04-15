@@ -8,6 +8,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from health_log.repositories.v1 import tables
+from health_log.utils import utcnow
 
 
 @dataclass(slots=True)
@@ -184,7 +185,7 @@ class UsersRepository:
             await self._connection.execute(
                 update(tables.users)
                 .where(tables.users.c.id == user_id)
-                .values(**values, updated_at=datetime.utcnow())
+                .values(**values, updated_at=utcnow())
             )
 
         user = await self.get_public_user(user_id)
@@ -196,7 +197,7 @@ class UsersRepository:
         await self._connection.execute(
             update(tables.users)
             .where(tables.users.c.id == user_id)
-            .values(is_active=False, updated_at=datetime.utcnow())
+            .values(is_active=False, updated_at=utcnow())
         )
 
     async def restore_user(
@@ -221,7 +222,7 @@ class UsersRepository:
                 phone=phone,
                 password_hash=password_hash,
                 is_active=True,
-                updated_at=datetime.utcnow(),
+                updated_at=utcnow(),
             )
         )
         user = await self.get_public_user(user_id)
@@ -240,6 +241,43 @@ class UsersRepository:
             await self._connection.execute(select(tables.users.c.id).where(tables.users.c.phone == phone))
         ).one_or_none()
         return row is not None
+
+    async def update_sync_status(self, user_id: int, *, last_sync_at: datetime, records_count: int) -> None:
+        await self._connection.execute(
+            update(tables.users)
+            .where(tables.users.c.id == user_id)
+            .values(
+                last_sync_at=last_sync_at,
+                last_sync_records_count=records_count,
+                updated_at=utcnow(),
+            )
+        )
+
+    async def get_sync_status(self, user_id: int) -> dict | None:
+        row = (
+            await self._connection.execute(
+                select(
+                    tables.users.c.last_sync_at,
+                    tables.users.c.last_sync_records_count,
+                ).where(tables.users.c.id == user_id)
+            )
+        ).one_or_none()
+        if row is None:
+            return None
+        return {
+            "last_sync_at": row.last_sync_at,
+            "last_sync_records_count": row.last_sync_records_count,
+        }
+
+    async def update_apns_token(self, user_id: int, token: str) -> None:
+        import re
+        if not re.fullmatch(r"[0-9a-f]{64}", token.lower()):
+            raise ValueError("Недействительный формат APNs device token (ожидается 64 hex-символа)")
+        await self._connection.execute(
+            update(tables.users)
+            .where(tables.users.c.id == user_id)
+            .values(apns_device_token=token.lower(), updated_at=utcnow())
+        )
 
     async def list_active_user_ids(self) -> list[int]:
         rows = (
@@ -275,7 +313,7 @@ class AuthTokenRepository:
         await self._connection.execute(
             update(tables.auth_tokens)
             .where(tables.auth_tokens.c.token_hash == token_hash)
-            .values(revoked_at=datetime.utcnow())
+            .values(revoked_at=utcnow())
         )
 
     async def revoke_all_user_tokens(self, *, user_id: int) -> None:
@@ -287,11 +325,11 @@ class AuthTokenRepository:
                     tables.auth_tokens.c.revoked_at.is_(None),
                 )
             )
-            .values(revoked_at=datetime.utcnow())
+            .values(revoked_at=utcnow())
         )
 
     async def get_user_by_active_token(self, *, token_hash: str, token_type: str) -> AuthUser | None:
-        now = datetime.utcnow()
+        now = utcnow()
         row = (
             await self._connection.execute(
                 select(

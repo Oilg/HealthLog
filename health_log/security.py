@@ -5,6 +5,8 @@ import secrets
 from datetime import datetime, timedelta
 from hashlib import pbkdf2_hmac, sha256
 
+from health_log.utils import utcnow
+
 PBKDF2_ALGO = "sha256"
 PBKDF2_ITERATIONS = 260_000
 SALT_BYTES = 16
@@ -45,8 +47,8 @@ def token_hash(token: str) -> str:
 
 
 def expires_in_minutes(minutes: int) -> datetime:
-    return datetime.utcnow() + timedelta(minutes=minutes)
+    return utcnow() + timedelta(minutes=minutes)
 
 
 def expires_in_days(days: int) -> datetime:
-    return datetime.utcnow() + timedelta(days=days)
+    return utcnow() + timedelta(days=days)

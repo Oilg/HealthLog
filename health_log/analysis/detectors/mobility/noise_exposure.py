@@ -6,6 +6,7 @@ from typing import Iterable
 from health_log.analysis.constants import CLINICAL_SAFETY_NOTE
 from health_log.analysis.models import RiskAssessment, TimeWindow
 from health_log.analysis.utils import to_points
+from health_log.utils import utcnow
 
 _MIN_AUDIO_EVENTS = 3
 _NOISE_LOOKBACK_7D = 7
@@ -19,7 +20,7 @@ def assess_noise_exposure_risk(
     window: TimeWindow,
     now: datetime | None = None,
 ) -> RiskAssessment:
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     cutoff_7d = now - timedelta(days=_NOISE_LOOKBACK_7D)
     cutoff_30d = now - timedelta(days=_NOISE_LOOKBACK_30D)
 

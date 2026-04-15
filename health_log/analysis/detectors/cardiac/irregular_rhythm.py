@@ -5,6 +5,7 @@ from typing import Iterable
 
 from health_log.analysis.constants import CLINICAL_SAFETY_NOTE
 from health_log.analysis.models import RiskAssessment, TimeWindow
+from health_log.utils import utcnow
 
 _SCORE_ONE_EVENT = 0.3
 _SCORE_TWO_PLUS_EVENTS = 0.6
@@ -25,7 +26,7 @@ def assess_irregular_rhythm_risk(
     window: TimeWindow,
     now: datetime | None = None,
 ) -> RiskAssessment:
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     event_timestamps = [ts for ts, _ in irregular_rhythm_event_rows if ts is not None]
 
     if not event_timestamps:

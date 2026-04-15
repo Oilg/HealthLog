@@ -7,6 +7,7 @@ from typing import Iterable
 from health_log.analysis.constants import CLINICAL_SAFETY_NOTE
 from health_log.analysis.models import RiskAssessment, TimeWindow
 from health_log.analysis.utils import EventPoint, to_points
+from health_log.utils import utcnow
 
 _MIN_MEASUREMENTS = 10
 _LOOKBACK_DAYS = 14
@@ -39,7 +40,7 @@ def assess_low_oxygen_saturation_risk(
     window: TimeWindow,
     now: datetime | None = None,
 ) -> RiskAssessment:
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     cutoff = now - timedelta(days=_LOOKBACK_DAYS)
     all_points = to_points(spo2_rows)
     points = [p for p in all_points if p.timestamp >= cutoff]

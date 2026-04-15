@@ -7,6 +7,7 @@ from typing import Iterable
 from health_log.analysis.constants import CLINICAL_SAFETY_NOTE
 from health_log.analysis.models import RiskAssessment, TimeWindow
 from health_log.analysis.utils import to_points
+from health_log.utils import utcnow
 
 _MIN_MEASUREMENTS = 5
 _LOOKBACK_DAYS = 60
@@ -20,7 +21,7 @@ def assess_hrr_decline_risk(
     window: TimeWindow,
     now: datetime | None = None,
 ) -> RiskAssessment:
-    now = now or datetime.utcnow()
+    now = now or utcnow()
     cutoff = now - timedelta(days=_LOOKBACK_DAYS)
     points = sorted(
         [p for p in to_points(hrr_rows) if p.timestamp >= cutoff],

@@ -23,6 +23,7 @@ starlette = ">=0.22.0,<0.23.0"
 xmltodict = "^1.0.2"
 python-dotenv = "^1.1.1"
 python-multipart = "^0.0.20"
+aioapns = "^3.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.2"
