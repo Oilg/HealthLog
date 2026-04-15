@@ -14,6 +14,9 @@ users = sqlalchemy.Table(
     sqlalchemy.Column("phone", sqlalchemy.String, nullable=False, unique=True),
     sqlalchemy.Column("password_hash", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("is_active", sqlalchemy.Boolean, nullable=False, server_default=sqlalchemy.true()),
+    sqlalchemy.Column("last_sync_at", sqlalchemy.DateTime, nullable=True),
+    sqlalchemy.Column("last_sync_records_count", sqlalchemy.Integer, nullable=True),
+    sqlalchemy.Column("apns_device_token", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, server_default=func.now(), nullable=False),
     sqlalchemy.Column(
         "updated_at",
@@ -268,6 +271,30 @@ sleep_apnea_events = sqlalchemy.Table(
     sqlalchemy.Column("sleep_hours_context", sqlalchemy.Float, nullable=True),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, server_default=func.now(), nullable=False),
     sqlalchemy.UniqueConstraint("user_id", "start_time", "end_time", "detected_by", name="uq_sleep_apnea_event"),
+)
+
+analysis_reports = sqlalchemy.Table(
+    "analysis_reports",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True),
+    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False),
+    sqlalchemy.Column("analyzed_at", sqlalchemy.DateTime, nullable=False),
+    sqlalchemy.Column("period_from", sqlalchemy.DateTime, nullable=False),
+    sqlalchemy.Column("period_to", sqlalchemy.DateTime, nullable=False),
+    sqlalchemy.Column("window", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("risks", sqlalchemy.JSON, nullable=False),
+    sqlalchemy.Column("created_at", sqlalchemy.DateTime, server_default=func.now(), nullable=False),
+)
+
+sync_schedules = sqlalchemy.Table(
+    "sync_schedules",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True),
+    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False),
+    sqlalchemy.Column("day_of_week", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("sync_time", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("timezone", sqlalchemy.String, nullable=False, server_default="UTC"),
+    sqlalchemy.UniqueConstraint("user_id", "day_of_week", name="uq_sync_schedule_day"),
 )
 
 TYPE_TABLE_MAP = {

@@ -241,6 +241,40 @@ class UsersRepository:
         ).one_or_none()
         return row is not None
 
+    async def update_sync_status(self, user_id: int, *, last_sync_at: datetime, records_count: int) -> None:
+        await self._connection.execute(
+            update(tables.users)
+            .where(tables.users.c.id == user_id)
+            .values(
+                last_sync_at=last_sync_at,
+                last_sync_records_count=records_count,
+                updated_at=datetime.utcnow(),
+            )
+        )
+
+    async def get_sync_status(self, user_id: int) -> dict | None:
+        row = (
+            await self._connection.execute(
+                select(
+                    tables.users.c.last_sync_at,
+                    tables.users.c.last_sync_records_count,
+                ).where(tables.users.c.id == user_id)
+            )
+        ).one_or_none()
+        if row is None:
+            return None
+        return {
+            "last_sync_at": row.last_sync_at,
+            "last_sync_records_count": row.last_sync_records_count,
+        }
+
+    async def update_apns_token(self, user_id: int, token: str) -> None:
+        await self._connection.execute(
+            update(tables.users)
+            .where(tables.users.c.id == user_id)
+            .values(apns_device_token=token, updated_at=datetime.utcnow())
+        )
+
     async def list_active_user_ids(self) -> list[int]:
         rows = (
             await self._connection.execute(

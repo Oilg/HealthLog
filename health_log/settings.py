@@ -12,6 +12,13 @@ class Settings(BaseSettings):
     auth_access_ttl_minutes: PositiveInt = 30
     auth_refresh_ttl_days: PositiveInt = 14
 
+    # APNs configuration (optional — pushes are skipped if not set)
+    apns_key_id: str = ""
+    apns_team_id: str = ""
+    apns_auth_key_path: str = ""
+    apns_bundle_id: str = ""
+    apns_use_sandbox: bool = True
+
     @validator("postgres_dsn", pre=True)
     def validate_postgres_dsn(cls, value):
         if not value:
