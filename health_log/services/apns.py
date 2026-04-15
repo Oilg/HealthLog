@@ -7,8 +7,6 @@ from health_log.settings import settings
 
 logger = logging.getLogger(__name__)
 
-_APNS_TOPIC_SUFFIX = ".voip"  # silent push uses normal topic
-
 
 async def send_silent_push(device_token: str) -> bool:
     """Send a silent (background) push notification to trigger a sync.
@@ -29,7 +27,7 @@ async def send_silent_push(device_token: str) -> bool:
         return False
 
     try:
-        from aioapns import APNs, NotificationRequest, PushType  # type: ignore[import]
+        from aioapns import APNs, NotificationRequest, PushType
 
         client = APNs(
             key=settings.apns_auth_key_path,
@@ -42,7 +40,7 @@ async def send_silent_push(device_token: str) -> bool:
         request = NotificationRequest(
             device_token=device_token,
             message={"aps": {"content-available": 1}},
-            push_type=PushType.background,
+            push_type=PushType.BACKGROUND,
             priority=5,  # low priority for silent push
         )
 
