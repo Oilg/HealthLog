@@ -21,3 +21,6 @@ jobs:
             /root/.local/bin/poetry install --without dev
             /root/.local/bin/poetry run alembic upgrade head
             systemctl restart healthlog
+            docker compose up -d prometheus grafana
+            cp monitoring/nginx-healthlog.conf /etc/nginx/sites-enabled/healthlog
+            nginx -t && systemctl reload nginx

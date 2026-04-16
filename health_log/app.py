@@ -3,6 +3,7 @@ import asyncio
 import uvicorn
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
+from prometheus_fastapi_instrumentator import Instrumentator
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
@@ -36,6 +37,8 @@ def create_app() -> FastAPI:
     app.include_router(users_router)
     app.include_router(sync_router)
     app.include_router(analysis_router)
+
+    Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
     @app.on_event("startup")
     async def _start_scheduler() -> None:
