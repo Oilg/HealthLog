@@ -3,12 +3,13 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal, cast
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field, validator
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from health_log.dependencies import db_connect, get_current_user
+from health_log.limiter import limiter
 from health_log.repositories.auth import AuthTokenRepository, AuthUser, PublicUser, UsersRepository
 from health_log.security import (
     InvalidPasswordFormat,
@@ -19,10 +20,9 @@ from health_log.security import (
     token_hash,
     verify_password,
 )
-from health_log.settings import Settings
+from health_log.settings import settings
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
-settings = Settings()
 
 
 class RegisterRequest(BaseModel):
@@ -33,7 +33,8 @@ class RegisterRequest(BaseModel):
     phone: str
     password: str = Field(min_length=8, max_length=128)
 
-    @validator("first_name", "last_name")
+    @field_validator("first_name", "last_name")
+    @classmethod
     def validate_non_blank_names(cls, value: str) -> str:
         cleaned = value.strip()
         if not cleaned:
@@ -116,7 +117,8 @@ async def _issue_tokens(conn: AsyncConnection, user: AuthUser) -> TokenResponse:
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED, response_model=AuthResponse)
-async def register(payload: RegisterRequest, conn: AsyncConnection = Depends(db_connect)) -> AuthResponse:
+@limiter.limit("10/hour")
+async def register(request: Request, payload: RegisterRequest, conn: AsyncConnection = Depends(db_connect)) -> AuthResponse:
     users_repo = UsersRepository(conn)
 
     email = _normalize_email(payload.email)
@@ -184,7 +186,8 @@ async def register(payload: RegisterRequest, conn: AsyncConnection = Depends(db_
 
 
 @router.post("/login", response_model=AuthResponse)
-async def login(payload: LoginRequest, conn: AsyncConnection = Depends(db_connect)) -> AuthResponse:
+@limiter.limit("10/minute")
+async def login(request: Request, payload: LoginRequest, conn: AsyncConnection = Depends(db_connect)) -> AuthResponse:
     users_repo = UsersRepository(conn)
     login_value = payload.login.strip().lower()
 
@@ -224,7 +227,7 @@ async def refresh(payload: RefreshRequest, conn: AsyncConnection = Depends(db_co
     return await _issue_tokens(conn, user)
 
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def logout(
     current_user: AuthUser = Depends(get_current_user),
     conn: AsyncConnection = Depends(db_connect),

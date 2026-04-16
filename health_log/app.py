@@ -3,6 +3,8 @@ import asyncio
 import uvicorn
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from health_log.api.v1.analysis import router as analysis_router
 from health_log.api.v1.auth import router as auth_router
@@ -11,6 +13,7 @@ from health_log.api.v1.handlers import request_exception_handler
 from health_log.api.v1.sync import router as sync_router
 from health_log.api.v1.users import router as users_router
 from health_log.errors import BaseError
+from health_log.limiter import limiter
 
 SERVICE_NAME = "health-log"
 
@@ -24,9 +27,11 @@ def create_app() -> FastAPI:
         }
     )
 
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
     app.add_exception_handler(BaseError, error_handler)
     app.add_exception_handler(500, error_handler)
-    app.add_exception_handler(RequestValidationError, request_exception_handler)
+    app.add_exception_handler(RequestValidationError, request_exception_handler)  # type: ignore[arg-type]
     app.include_router(auth_router)
     app.include_router(users_router)
     app.include_router(sync_router)

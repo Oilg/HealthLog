@@ -9,11 +9,11 @@ from health_log.analysis.models import RiskAssessment, TimeWindow
 from health_log.analysis.utils import EventPoint, merge_datetime_intervals, to_points
 
 _MIN_REST_POINTS = 20
-_BRADYCARDIA_THRESHOLD = 50
+_BRADYCARDIA_THRESHOLD = 60  # Clinical definition: resting HR < 60 bpm
 _EPISODE_MIN_POINTS = 3
 _EPISODE_MAX_GAP_SEC = 120
 _EPISODE_MIN_DURATION_SEC = 300
-_MEDIAN_STRONG_THRESHOLD = 45
+_MEDIAN_STRONG_THRESHOLD = 55  # Consistent with clinical threshold
 
 
 def _in_sleep(ts: datetime, segments: list[tuple[datetime, datetime]]) -> bool:
@@ -117,7 +117,7 @@ def assess_bradycardia_risk(
         )
 
     episode_count_component = min(1.0, len(episodes) / 3.0)
-    intensity_component = min(1.0, max(0.0, _BRADYCARDIA_THRESHOLD - min_hr) / 15.0)
+    intensity_component = min(1.0, max(0.0, _BRADYCARDIA_THRESHOLD - min_hr) / 20.0)
     event_component = 1.0 if low_hr_event_count > 0 else 0.0
 
     score = 0.45 * episode_count_component + 0.35 * intensity_component + 0.20 * event_component

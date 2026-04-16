@@ -6,17 +6,21 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field, validator
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from health_log.dependencies import db_connect, get_current_user
+from health_log.limiter import limiter
 from health_log.repositories.analysis import SyncScheduleRepository
 from health_log.repositories.auth import AuthUser, UsersRepository
 from health_log.repositories.repository import IngestionRepository, RecordsRepository
 from health_log.repositories.v1.tables import TYPE_TABLE_MAP
+from health_log.services.analysis_service import analyze_for_user
 from health_log.services.apple_health_parser import ParsedRecord
 from health_log.utils import utcnow
+
+_MAX_SYNC_RECORDS = 10_000
 
 router = APIRouter(prefix="/api/v1/sync", tags=["sync"])
 
@@ -48,7 +52,8 @@ class SyncRecord(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
     instantaneous_bpm: list[InstantaneousBpm] | None = None
 
-    @validator("metadata")
+    @field_validator("metadata")
+    @classmethod
     def validate_metadata(cls, v: dict) -> dict:
         if len(v) > _METADATA_MAX_KEYS:
             raise ValueError(f"metadata не может содержать более {_METADATA_MAX_KEYS} ключей")
@@ -64,6 +69,16 @@ class SyncRequest(BaseModel):
     sync_from: str
     sync_to: str
     records: list[SyncRecord]
+
+    @field_validator("records")
+    @classmethod
+    def validate_records_limit(cls, v: list) -> list:
+        if len(v) > _MAX_SYNC_RECORDS:
+            raise ValueError(
+                f"Слишком много записей в одном запросе: {len(v)} (макс. {_MAX_SYNC_RECORDS}). "
+                "Разбей данные на несколько синков."
+            )
+        return v
 
 
 def _validate_hhmm(value: str, field_name: str = "time") -> str:
@@ -85,16 +100,18 @@ class DaySchedule(BaseModel):
     saturday: str = "09:00"
     sunday: str = "09:00"
 
-    @validator("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", pre=True)
-    def validate_time_format(cls, v: str, field) -> str:
-        return _validate_hhmm(v, field.name)
+    @field_validator("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", mode="before")
+    @classmethod
+    def validate_time_format(cls, v: str, info) -> str:
+        return _validate_hhmm(v, info.field_name)
 
 
 class ScheduleRequest(BaseModel):
     schedule: DaySchedule
     timezone: str = "UTC"
 
-    @validator("timezone")
+    @field_validator("timezone")
+    @classmethod
     def validate_timezone(cls, v: str) -> str:
         from zoneinfo import available_timezones
         if v not in available_timezones():
@@ -127,8 +144,11 @@ def _record_to_parsed(record: SyncRecord) -> ParsedRecord:
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
+@limiter.limit("20/hour")
 async def sync_health_data(
+    request: Request,
     body: SyncRequest,
+    background_tasks: BackgroundTasks,
     current_user: AuthUser = Depends(get_current_user),
     conn: AsyncConnection = Depends(db_connect),
 ):
@@ -138,7 +158,7 @@ async def sync_health_data(
         {
             "sync_from": body.sync_from,
             "sync_to": body.sync_to,
-            "records": [r.dict() for r in body.records],
+            "records": [r.model_dump() for r in body.records],
         },
         ensure_ascii=False,
     )
@@ -178,6 +198,9 @@ async def sync_health_data(
             user_id=current_user.id,
             records=parsed_records,
         )
+
+        # Trigger analysis in background after transaction commits
+        background_tasks.add_task(analyze_for_user, current_user.id)
 
     users_repo = UsersRepository(conn)
     await users_repo.update_sync_status(
@@ -229,7 +252,7 @@ async def put_sync_schedule(
     current_user: AuthUser = Depends(get_current_user),
     conn: AsyncConnection = Depends(db_connect),
 ):
-    schedule_dict = body.schedule.dict()
+    schedule_dict = body.schedule.model_dump()
     repo = SyncScheduleRepository(conn)
     await repo.upsert_schedule(current_user.id, schedule=schedule_dict, timezone=body.timezone)
     return {"schedule": schedule_dict, "timezone": body.timezone}

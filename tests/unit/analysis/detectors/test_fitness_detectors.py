@@ -29,8 +29,15 @@ class TestVo2MaxDecline:
         result = assess_vo2max_decline_risk(rows, window=_WINDOW, now=_NOW)
         assert result.severity == "none"
 
-    def test_5_pct_decline_returns_low(self):
-        rows = [(_ts(i * 15 + 5), 42.0) for i in range(5)] + [(_ts(0), 39.8)]
+    def test_5_pct_decline_returns_none(self):
+        """5% is within Apple Watch measurement noise (~10-15%) — should not flag."""
+        rows = [(_ts(i * 15 + 5), 42.0) for i in range(5)] + [(_ts(0), 39.8)]  # ~5.2%
+        result = assess_vo2max_decline_risk(rows, window=_WINDOW, now=_NOW)
+        assert result.severity == "none"
+
+    def test_8_pct_decline_returns_low(self):
+        """8% is above noise floor — should be flagged as low risk."""
+        rows = [(_ts(i * 15 + 5), 42.0) for i in range(5)] + [(_ts(0), 38.6)]  # ~8.1%
         result = assess_vo2max_decline_risk(rows, window=_WINDOW, now=_NOW)
         assert result.severity in {"low", "medium"}
         assert result.score > 0
@@ -57,19 +64,32 @@ class TestHrrDecline:
         result = assess_hrr_decline_risk([], window=_WINDOW, now=_NOW)
         assert result.severity == "unknown"
 
-    def test_stable_hrr_returns_none(self):
-        rows = [(_ts(i * 10), 22.0) for i in range(6)]
+    def test_condition_name_is_walking_fitness(self):
+        rows = [(_ts(i * 10), 92.0) for i in range(6)]
+        result = assess_hrr_decline_risk(rows, window=_WINDOW, now=_NOW)
+        assert result.condition == "walking_fitness_decline_risk"
+
+    def test_stable_walking_hr_returns_none(self):
+        rows = [(_ts(i * 10), 92.0) for i in range(6)]
         result = assess_hrr_decline_risk(rows, window=_WINDOW, now=_NOW)
         assert result.severity == "none"
 
-    def test_5_bpm_decline_returns_low(self):
-        rows = [(_ts(i * 10 + 15), 22.0) for i in range(3)] + [(_ts(i * 3), 16.0) for i in range(3)]
+    def test_5_bpm_rise_in_walking_hr_returns_low(self):
+        # Baseline (older) walking HR: 88, recent: 94 → +6 bpm = fitness declined → low risk
+        rows = [(_ts(i * 10 + 20), 88.0) for i in range(3)] + [(_ts(i * 3), 94.0) for i in range(3)]
         result = assess_hrr_decline_risk(rows, window=_WINDOW, now=_NOW)
         assert result.severity in {"low", "medium", "high"}
         assert result.score > 0
 
+    def test_walking_hr_decrease_returns_none(self):
+        # Walking HR went DOWN = fitness improved → not a risk
+        rows = [(_ts(i * 10 + 20), 98.0) for i in range(3)] + [(_ts(i * 3), 90.0) for i in range(3)]
+        result = assess_hrr_decline_risk(rows, window=_WINDOW, now=_NOW)
+        assert result.severity == "none"
+
     def test_vo2max_decline_boosts_score(self):
-        hrr = [(_ts(i * 10), 22.0) for i in range(3)] + [(_ts(i * 5), 17.0) for i in range(1, 3)]
+        # Recent walking HR higher (fitness declined) + VO2max also down → score boosted
+        hrr = [(_ts(i * 10 + 20), 85.0) for i in range(3)] + [(_ts(i * 3), 97.0) for i in range(3)]
         vo2 = [(_ts(i * 20), 40.0) for i in range(3)] + [(_ts(2), 35.0)]
         without = assess_hrr_decline_risk(hrr, window=_WINDOW, now=_NOW)
         with_vo2 = assess_hrr_decline_risk(hrr, vo2max_rows=vo2, window=_WINDOW, now=_NOW)

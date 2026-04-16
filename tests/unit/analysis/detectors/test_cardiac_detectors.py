@@ -80,10 +80,22 @@ class TestBradycardiaRisk:
         result = assess_bradycardia_risk(hr, sleep_segments=None, window=_WINDOW)
         assert result.severity not in {"not_applicable"}
 
+    def test_episodes_at_55_bpm_now_detected(self):
+        """HR=55 bpm is clinical bradycardia (< 60 bpm) — must be flagged with correct threshold."""
+        base = _NOW - timedelta(hours=8)
+        sleep = [_sleep_seg(base)]
+        hr = _hr_series(base, 65.0, 25)
+        ep_start = base + timedelta(hours=3)
+        for i in range(5):
+            hr.append((ep_start + timedelta(minutes=i * 2), 55.0))
+        result = assess_bradycardia_risk(hr, sleep_segments=sleep, window=_WINDOW)
+        assert result.score > 0
+        assert result.severity in {"low", "medium", "high"}
+
     def test_supporting_metrics_present(self):
         base = _NOW - timedelta(hours=8)
         sleep = [_sleep_seg(base)]
-        hr = _hr_series(base, 60.0, 25)
+        hr = _hr_series(base, 65.0, 25)
         result = assess_bradycardia_risk(hr, sleep_segments=sleep, window=_WINDOW)
         assert "rest_points_count" in result.supporting_metrics
 

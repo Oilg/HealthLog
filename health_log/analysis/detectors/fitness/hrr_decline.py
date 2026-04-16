@@ -13,6 +13,13 @@ _MIN_MEASUREMENTS = 5
 _LOOKBACK_DAYS = 60
 _VO2MAX_DECLINE_BOOST = 0.1
 
+# Walking heart rate average rises when cardiovascular fitness declines:
+# higher walking HR at the same activity level → worse aerobic capacity.
+# Thresholds represent rise in bpm over the lookback period.
+_THRESHOLD_HIGH = 12   # ≥12 bpm rise → high risk
+_THRESHOLD_MEDIUM = 8  # ≥8 bpm rise  → medium risk
+_THRESHOLD_LOW = 5     # ≥5 bpm rise  → low risk
+
 
 def assess_hrr_decline_risk(
     hrr_rows: Iterable[tuple],
@@ -21,6 +28,13 @@ def assess_hrr_decline_risk(
     window: TimeWindow,
     now: datetime | None = None,
 ) -> RiskAssessment:
+    """Detect cardiovascular fitness decline via walking heart rate trend.
+
+    Uses HKQuantityTypeIdentifierWalkingHeartRateAverage: if walking HR rises
+    over time (while activity level stays similar) that indicates reduced
+    aerobic capacity.  This is NOT clinical Heart Rate Recovery (HRR), which
+    requires post-exercise 1-min measurement — it is a submaximal fitness proxy.
+    """
     now = now or utcnow()
     cutoff = now - timedelta(days=_LOOKBACK_DAYS)
     points = sorted(
@@ -30,17 +44,17 @@ def assess_hrr_decline_risk(
 
     if len(points) < _MIN_MEASUREMENTS:
         return RiskAssessment(
-            condition="hrr_decline_risk",
+            condition="walking_fitness_decline_risk",
             window=window,
             score=0.0,
             confidence=0.0,
             severity="unknown",
-            interpretation="Недостаточно данных восстановления пульса для оценки.",
+            interpretation="Недостаточно данных пульса при ходьбе для оценки кардиофитнеса.",
             summary=(
-                f"Найдено {len(points)} записей HRR за {_LOOKBACK_DAYS} дней "
+                f"Найдено {len(points)} записей пульса при ходьбе за {_LOOKBACK_DAYS} дней "
                 f"(нужно ≥{_MIN_MEASUREMENTS})."
             ),
-            recommendation="Проверь наличие данных heart rate recovery в Apple Health.",
+            recommendation="Убедись, что данные Walking Heart Rate Average синхронизированы из Apple Health.",
             clinical_safety_note=CLINICAL_SAFETY_NOTE,
             supporting_metrics={"measurements_count": len(points)},
         )
@@ -49,39 +63,42 @@ def assess_hrr_decline_risk(
     baseline_points = points[:split_idx]
     recent_points = points[split_idx:]
 
-    baseline_hrr = median([p.value for p in baseline_points])
-    recent_hrr = median([p.value for p in recent_points])
-    decline_bpm = baseline_hrr - recent_hrr
+    baseline_whr = median([p.value for p in baseline_points])
+    recent_whr = median([p.value for p in recent_points])
 
-    if decline_bpm >= 12:
-        severity = "high"
-        score_base = 0.85
-    elif decline_bpm >= 8:
-        severity = "medium"
-        score_base = 0.65
-    elif decline_bpm >= 5:
-        severity = "low"
-        score_base = 0.35
-    else:
+    # Positive rise = walking HR went up = fitness declined
+    rise_bpm = recent_whr - baseline_whr
+
+    if rise_bpm < _THRESHOLD_LOW:
         return RiskAssessment(
-            condition="hrr_decline_risk",
+            condition="walking_fitness_decline_risk",
             window=window,
             score=0.0,
             confidence=round(min(1.0, len(points) / 10.0), 3),
             severity="none",
-            interpretation="Значимого снижения восстановления пульса не выявлено.",
+            interpretation="Значимого роста пульса при ходьбе не выявлено.",
             summary=(
-                f"HRR стабилен: baseline {baseline_hrr:.1f} уд/мин, "
-                f"recent {recent_hrr:.1f} уд/мин (Δ={decline_bpm:.1f})."
+                f"Кардиофитнес при ходьбе стабилен: ЧСС {baseline_whr:.1f} → {recent_whr:.1f} уд/мин "
+                f"(Δ={rise_bpm:+.1f})."
             ),
-            recommendation="Поддерживай регулярные аэробные тренировки.",
+            recommendation="Поддерживай регулярные аэробные нагрузки.",
             clinical_safety_note=CLINICAL_SAFETY_NOTE,
             supporting_metrics={
-                "baseline_hrr": round(baseline_hrr, 1),
-                "recent_hrr": round(recent_hrr, 1),
-                "decline_bpm": round(decline_bpm, 1),
+                "baseline_walking_hr": round(baseline_whr, 1),
+                "recent_walking_hr": round(recent_whr, 1),
+                "rise_bpm": round(rise_bpm, 1),
             },
         )
+
+    if rise_bpm >= _THRESHOLD_HIGH:
+        severity = "high"
+        score_base = 0.85
+    elif rise_bpm >= _THRESHOLD_MEDIUM:
+        severity = "medium"
+        score_base = 0.65
+    else:
+        severity = "low"
+        score_base = 0.35
 
     score = score_base
     vo2max_declined = False
@@ -102,29 +119,29 @@ def assess_hrr_decline_risk(
     confidence = round(min(1.0, len(points) / 10.0), 3)
 
     return RiskAssessment(
-        condition="hrr_decline_risk",
+        condition="walking_fitness_decline_risk",
         window=window,
         score=score,
         confidence=confidence,
         severity=severity,
         interpretation=(
-            "Снижение восстановления пульса после нагрузки может отражать ухудшение "
-            "вегетативной регуляции или кардиофитнеса. Требует наблюдения."
+            "Рост пульса при одинаковой активности ходьбы указывает на снижение аэробного кардиофитнеса. "
+            "Это косвенный показатель; для точной оценки нужны нагрузочные тесты."
         ),
         summary=(
-            f"Подозрение на ухудшение восстановления: HRR снизился с {baseline_hrr:.1f} до "
-            f"{recent_hrr:.1f} уд/мин (−{decline_bpm:.1f} уд/мин)."
+            f"Снижение кардиофитнеса при ходьбе: ЧСС выросла с {baseline_whr:.1f} до "
+            f"{recent_whr:.1f} уд/мин (+{rise_bpm:.1f} уд/мин за {_LOOKBACK_DAYS} дней)."
             + (" VO2 max также снижается." if vo2max_declined else "")
         ),
         recommendation=(
-            "Убедись в полноценном восстановлении между тренировками. "
-            "При продолжающемся снижении или симптомах обратись к кардиологу."
+            "Увеличь объём аэробных нагрузок (ходьба, бег, велосипед). "
+            "При продолжающемся росте ЧСС или симптомах обратись к кардиологу."
         ),
         clinical_safety_note=CLINICAL_SAFETY_NOTE,
         supporting_metrics={
-            "baseline_hrr_bpm": round(baseline_hrr, 1),
-            "recent_hrr_bpm": round(recent_hrr, 1),
-            "decline_bpm": round(decline_bpm, 1),
+            "baseline_walking_hr_bpm": round(baseline_whr, 1),
+            "recent_walking_hr_bpm": round(recent_whr, 1),
+            "rise_bpm": round(rise_bpm, 1),
             "measurements_count": len(points),
             "vo2max_also_declined": vo2max_declined,
         },

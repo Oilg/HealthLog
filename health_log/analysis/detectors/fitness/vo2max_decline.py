@@ -50,7 +50,8 @@ def assess_vo2max_decline_risk(
     elif decline_pct >= 10:
         severity = "medium"
         score_base = 0.65
-    elif decline_pct >= 5:
+    elif decline_pct >= 8:
+        # Apple Watch VO2max has ~10-15% measurement error; flag only above 8%
         severity = "low"
         score_base = 0.35
     else:
@@ -71,7 +72,7 @@ def assess_vo2max_decline_risk(
             },
         )
 
-    score = round(min(1.0, score_base + (decline_pct - 5) * 0.01), 3)
+    score = round(min(1.0, score_base + (decline_pct - 8) * 0.01), 3)
     confidence = round(min(1.0, len(points) / 6.0), 3)
 
     return RiskAssessment(

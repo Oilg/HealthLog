@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncConnection
 
@@ -32,7 +32,8 @@ class UpdateMeRequest(BaseModel):
     email: str | None = None
     phone: str | None = None
 
-    @validator("first_name", "last_name")
+    @field_validator("first_name", "last_name")
+    @classmethod
     def validate_non_blank_names(cls, value: str | None) -> str | None:
         if value is None:
             return None
@@ -107,7 +108,7 @@ async def update_me(
     )
 
 
-@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_me(
     current_user: AuthUser = Depends(get_current_user),
     conn: AsyncConnection = Depends(db_connect),

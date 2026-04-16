@@ -90,7 +90,8 @@ class HealthRiskAnalyzer:
             )
             .order_by(tables.sleep_analysis.c.startDate)
         )
-        return list((await self._connection.execute(query)).all())
+        rows = (await self._connection.execute(query)).all()
+        return [(r[0], r[1]) for r in rows]
 
     async def _fetch_user_sex(self) -> str:
         if self._user_sex is not None:
