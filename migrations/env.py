@@ -20,7 +20,7 @@ if config.config_file_name is not None:
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 target_metadata = tables.metadata
-URL = Settings().postgres_dsn
+URL = str(Settings().postgres_dsn)
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
