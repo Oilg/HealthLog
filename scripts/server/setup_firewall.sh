@@ -22,6 +22,10 @@ ufw allow 80/tcp
 echo "==> Allowing HTTPS (port 443)..."
 ufw allow 443/tcp
 
+echo "==> Allowing Docker networks to access FastAPI metrics (port 8080)..."
+# Docker-compose creates bridges in 172.16.0.0/12 range — Prometheus needs this
+ufw allow from 172.16.0.0/12 to any port 8080 comment 'Docker networks -> FastAPI metrics'
+
 echo "==> Blocking public access to PostgreSQL (port 5433)..."
 # Port 5433 must only be accessible from localhost (app connects internally)
 ufw deny 5433/tcp
