@@ -1,0 +1,90 @@
+{
+  "title": "HealthLog API",
+  "uid": "healthlog-api",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Request Rate (req/s)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "rate(http_requests_total{job=\"healthlog_api\"}[1m])",
+          "legendFormat": "{{method}} {{handler}} {{status_code}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Request Latency p95 (s)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=\"healthlog_api\"}[5m]))",
+          "legendFormat": "p95 {{handler}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Error Rate (4xx + 5xx)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "rate(http_requests_total{job=\"healthlog_api\", status_code=~\"4..|5..\"}[1m])",
+          "legendFormat": "{{status_code}} {{handler}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Requests In-Flight",
+      "type": "stat",
+      "gridPos": { "x": 12, "y": 8, "w": 6, "h": 8 },
+      "targets": [
+        {
+          "expr": "http_requests_inprogress{job=\"healthlog_api\"}",
+          "legendFormat": "in-flight"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Total Requests",
+      "type": "stat",
+      "gridPos": { "x": 18, "y": 8, "w": 6, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(http_requests_total{job=\"healthlog_api\"})",
+          "legendFormat": "total"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Latency p50 / p95 / p99",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 16, "w": 24, "h": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, rate(http_request_duration_seconds_bucket{job=\"healthlog_api\"}[5m]))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=\"healthlog_api\"}[5m]))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, rate(http_request_duration_seconds_bucket{job=\"healthlog_api\"}[5m]))",
+          "legendFormat": "p99"
+        }
+      ]
+    }
+  ]
+}
