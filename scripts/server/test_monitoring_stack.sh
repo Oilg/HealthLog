@@ -92,7 +92,7 @@ else
 fi
 
 # Check Grafana accessible via nginx at /grafana/
-NGINX_GRAFANA=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://localhost/grafana/ 2>/dev/null || echo "000")
+NGINX_GRAFANA=$(curl -s -L -o /dev/null -w "%{http_code}" --max-time 5 http://localhost/grafana/ 2>/dev/null || echo "000")
 if [ "$NGINX_GRAFANA" = "200" ]; then
     pass "Grafana accessible via nginx at /grafana/"
 else
