@@ -40,8 +40,8 @@ auth_tokens = sqlalchemy.Table(
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, server_default=func.now(), nullable=False),
 )
 
-xml_uploads = sqlalchemy.Table(
-    "xml_uploads",
+health_uploads = sqlalchemy.Table(
+    "health_uploads",
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True),
     sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False),
@@ -49,7 +49,7 @@ xml_uploads = sqlalchemy.Table(
     sqlalchemy.Column("data_format", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("filename", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("sha256", sqlalchemy.String(64), nullable=False, unique=True),
-    sqlalchemy.Column("raw_xml", sqlalchemy.Text, nullable=False),
+    sqlalchemy.Column("raw_payload", sqlalchemy.Text, nullable=False),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, server_default=func.now(), nullable=False),
 )
 
@@ -57,7 +57,7 @@ raw_health_records = sqlalchemy.Table(
     "raw_health_records",
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True),
-    sqlalchemy.Column("upload_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("xml_uploads.id"), nullable=False),
+    sqlalchemy.Column("upload_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("health_uploads.id"), nullable=False),
     sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False),
     sqlalchemy.Column("provider", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("data_format", sqlalchemy.String, nullable=False),

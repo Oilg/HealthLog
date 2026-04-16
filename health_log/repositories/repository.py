@@ -69,8 +69,12 @@ class RecordsRepository(BaseRepository):
         inserted_total = 0
         for i in range(0, len(rows), batch_size):
             batch = rows[i : i + batch_size]
-            stmt = pg_insert(table).values(batch).returning(table.c.id)
-            stmt = stmt.on_conflict_do_nothing(index_elements=conflict_columns)
+            stmt = (
+                pg_insert(table)
+                .values(batch)
+                .on_conflict_do_nothing(index_elements=conflict_columns)
+                .returning(table.c.id)
+            )
             result = await self._connection.execute(stmt)
             inserted_total += len(result.fetchall())
         return inserted_total
@@ -222,17 +226,17 @@ class IngestionRepository(BaseRepository):
         digest = sha256(digest_src.encode("utf-8")).hexdigest()
 
         stmt = (
-            pg_insert(tables.xml_uploads)
+            pg_insert(tables.health_uploads)
             .values(
                 user_id=user_id,
                 provider=provider,
                 data_format=data_format,
                 filename=filename,
                 sha256=digest,
-                raw_xml=raw_payload,
+                raw_payload=raw_payload,
             )
             .on_conflict_do_nothing(index_elements=["sha256"])
-            .returning(tables.xml_uploads.c.id)
+            .returning(tables.health_uploads.c.id)
         )
         result = await self._connection.execute(stmt)
         upload_id = result.scalar_one_or_none()
@@ -242,10 +246,10 @@ class IngestionRepository(BaseRepository):
 
         existing_id = (
             await self._connection.execute(
-                select(tables.xml_uploads.c.id).where(
+                select(tables.health_uploads.c.id).where(
                     and_(
-                        tables.xml_uploads.c.user_id == user_id,
-                        tables.xml_uploads.c.sha256 == digest,
+                        tables.health_uploads.c.user_id == user_id,
+                        tables.health_uploads.c.sha256 == digest,
                     )
                 )
             )
@@ -301,8 +305,12 @@ class IngestionRepository(BaseRepository):
             )
 
         if rows:
-            stmt = pg_insert(tables.raw_health_records).values(rows).returning(tables.raw_health_records.c.id)
-            stmt = stmt.on_conflict_do_nothing(index_elements=["user_id", "provider", "record_fingerprint"])
+            stmt = (
+                pg_insert(tables.raw_health_records)
+                .values(rows)
+                .on_conflict_do_nothing(index_elements=["user_id", "provider", "record_fingerprint"])
+                .returning(tables.raw_health_records.c.id)
+            )
             result = await self._connection.execute(stmt)
             return len(result.fetchall())
         return 0

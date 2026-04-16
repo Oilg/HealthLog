@@ -16,7 +16,7 @@ async def error_handler(request: Request, exc: Exception) -> JSONResponse:
     content = ErrorResponse(
         message=getattr(exc, "message", base_error.message),
         code=getattr(exc, "code", base_error.code),
-    ).dict()
+    ).model_dump()
     return JSONResponse(
         status_code=status_code,
         content=content,

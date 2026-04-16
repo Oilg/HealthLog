@@ -9,6 +9,7 @@ from health_log.api.v1.sync import (
     InstantaneousBpm,
     ScheduleRequest,
     SyncRecord,
+    SyncRequest,
     _record_to_parsed,
 )
 from health_log.services.apple_health_parser import parse_datetime
@@ -74,6 +75,31 @@ def test_sync_record_metadata_value_max_length_ok():
     edge_val = "v" * 1024
     r = SyncRecord(**_minimal_record(metadata={"key": edge_val}))
     assert r.metadata["key"] == edge_val
+
+
+# ─── SyncRequest.records limit ──────────────────────────────────────────────
+
+
+def _make_record() -> dict:
+    return _minimal_record(value="72", unit="count/min")
+
+
+def test_sync_request_within_limit_ok():
+    records = [SyncRecord(**_make_record()) for _ in range(100)]
+    req = SyncRequest(sync_from="2024-01-01", sync_to="2024-01-02", records=records)
+    assert len(req.records) == 100
+
+
+def test_sync_request_exactly_at_limit_ok():
+    records = [SyncRecord(**_make_record()) for _ in range(10_000)]
+    req = SyncRequest(sync_from="2024-01-01", sync_to="2024-01-02", records=records)
+    assert len(req.records) == 10_000
+
+
+def test_sync_request_over_limit_raises():
+    records = [SyncRecord(**_make_record()) for _ in range(10_001)]
+    with pytest.raises(ValidationError, match="10000"):
+        SyncRequest(sync_from="2024-01-01", sync_to="2024-01-02", records=records)
 
 
 # ─── DaySchedule / ScheduleRequest validation ───────────────────────────────

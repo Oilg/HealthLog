@@ -1,13 +1,28 @@
 import asyncio
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi import HTTPException
 from pydantic import ValidationError
+from starlette.requests import Request
 
 import health_log.api.v1.auth as auth_api
 import health_log.api.v1.users as users_api
 from health_log.api.v1.auth import LoginRequest, RegisterRequest
 from health_log.repositories.auth import AuthUser, PublicUser
+
+
+def _mock_request() -> Request:
+    """Minimal Starlette Request mock that satisfies slowapi's isinstance check."""
+    scope = {"type": "http", "method": "POST", "path": "/", "headers": [], "query_string": b""}
+    mock = MagicMock(spec=Request)
+    mock.scope = scope
+    mock.headers = {}
+    mock.url = MagicMock()
+    mock.url.path = "/"
+    mock.client = MagicMock()
+    mock.client.host = "127.0.0.1"
+    return mock
 
 
 class FakeUsersRepository:
@@ -106,7 +121,7 @@ def test_register_restores_inactive_account(monkeypatch):
         password="StrongPass123",
     )
 
-    result = asyncio.run(auth_api.register(payload, conn=object()))
+    result = asyncio.run(auth_api.register(_mock_request(), payload, conn=object()))
 
     assert fake_repo.restore_called is True
     assert fake_repo.create_called is False
@@ -145,6 +160,6 @@ def test_login_returns_401_for_invalid_password_format(monkeypatch):
     payload = LoginRequest(login="x@example.com", password="StrongPass123")
 
     with pytest.raises(HTTPException) as exc:
-        asyncio.run(auth_api.login(payload, conn=object()))
+        asyncio.run(auth_api.login(_mock_request(), payload, conn=object()))
 
     assert exc.value.status_code == 401

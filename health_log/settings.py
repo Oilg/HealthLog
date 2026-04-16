@@ -1,11 +1,12 @@
-from typing import cast
-
-from pydantic import BaseSettings, PositiveInt, validator
+from pydantic import PositiveInt, field_validator
 from pydantic.networks import PostgresDsn
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    postgres_dsn: PostgresDsn = cast(PostgresDsn, "postgresql://admin:root@localhost:5433/postgres")
+    model_config = SettingsConfigDict(env_file="local.env")
+
+    postgres_dsn: PostgresDsn = PostgresDsn("postgresql://admin:root@localhost:5433/postgres")
     pg_pool_size: PositiveInt = 10
     pg_log_queries: bool = False
     pg_connection_timeout: PositiveInt = 60
@@ -19,14 +20,12 @@ class Settings(BaseSettings):
     apns_bundle_id: str = ""
     apns_use_sandbox: bool = True
 
-    @validator("postgres_dsn", pre=True)
-    def validate_postgres_dsn(cls, value):
+    @field_validator("postgres_dsn", mode="before")
+    @classmethod
+    def validate_postgres_dsn(cls, value: object) -> object:
         if not value:
             raise ValueError("POSTGRES_DSN is required")
         return value
-
-    class Config:
-        env_file = "local.env"
 
 
 settings = Settings()

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from health_log.dependencies import db_connect, get_current_user
+from health_log.limiter import limiter
 from health_log.repositories.analysis import AnalysisReportsRepository
 from health_log.repositories.auth import AuthUser
 
@@ -21,7 +22,9 @@ def _format_report(row: dict) -> dict:
 
 
 @router.get("/latest")
+@limiter.limit("60/minute")
 async def get_latest_analysis(
+    request: Request,
     current_user: AuthUser = Depends(get_current_user),
     conn: AsyncConnection = Depends(db_connect),
 ):
@@ -36,7 +39,9 @@ async def get_latest_analysis(
 
 
 @router.get("/history")
+@limiter.limit("60/minute")
 async def get_analysis_history(
+    request: Request,
     limit: int = Query(default=30, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     current_user: AuthUser = Depends(get_current_user),
