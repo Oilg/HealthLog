@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncConnection
@@ -118,7 +118,7 @@ async def _issue_tokens(conn: AsyncConnection, user: AuthUser) -> TokenResponse:
 
 @router.post("/register", status_code=status.HTTP_201_CREATED, response_model=AuthResponse)
 @limiter.limit("10/hour")
-async def register(request: Request, payload: RegisterRequest, conn: AsyncConnection = Depends(db_connect)) -> AuthResponse:
+async def register(request: Request, payload: RegisterRequest = Body(...), conn: AsyncConnection = Depends(db_connect)) -> AuthResponse:
     users_repo = UsersRepository(conn)
 
     email = _normalize_email(payload.email)
@@ -187,7 +187,7 @@ async def register(request: Request, payload: RegisterRequest, conn: AsyncConnec
 
 @router.post("/login", response_model=AuthResponse)
 @limiter.limit("10/minute")
-async def login(request: Request, payload: LoginRequest, conn: AsyncConnection = Depends(db_connect)) -> AuthResponse:
+async def login(request: Request, payload: LoginRequest = Body(...), conn: AsyncConnection = Depends(db_connect)) -> AuthResponse:
     users_repo = UsersRepository(conn)
     login_value = payload.login.strip().lower()
 
