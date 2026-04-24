@@ -144,7 +144,7 @@ def _record_to_parsed(record: SyncRecord) -> ParsedRecord:
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-@limiter.limit("20/hour")
+@limiter.limit("200/hour")
 async def sync_health_data(
     request: Request,
     body: SyncRequest,

@@ -254,3 +254,24 @@ def test_parse_datetime_empty_string():
 
 def test_parse_datetime_invalid_string():
     assert parse_datetime("not-a-date") is None
+
+
+# ─── Rate limit configuration ───────────────────────────────────────────────
+
+
+def test_sync_endpoint_rate_limit_is_200_per_hour():
+    """POST /sync must allow 200 requests/hour to support iOS initial bulk sync.
+
+    The previous limit of 20/hour caused 429 errors during initial sync
+    (iOS batches data in 30-day chunks, easily sending 24+ requests for 2+ years of data).
+    """
+    from health_log.app import create_app
+    from health_log.limiter import limiter
+
+    create_app()  # registers routes with limiter
+    limits = limiter._route_limits.get("health_log.api.v1.sync.sync_health_data", [])
+    assert len(limits) == 1, "sync_health_data must have exactly one rate limit"
+    assert str(limits[0].limit) == "200 per 1 hour", (
+        f"Expected '200 per 1 hour', got '{limits[0].limit}'. "
+        "iOS initial sync sends ~24+ requests for 2+ years of data."
+    )
