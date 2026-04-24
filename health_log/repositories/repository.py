@@ -304,13 +304,15 @@ class IngestionRepository(BaseRepository):
                 }
             )
 
-        if rows:
+        inserted = 0
+        for i in range(0, len(rows), BATCH_SIZE):
+            batch = rows[i : i + BATCH_SIZE]
             stmt = (
                 pg_insert(tables.raw_health_records)
-                .values(rows)
+                .values(batch)
                 .on_conflict_do_nothing(index_elements=["user_id", "provider", "record_fingerprint"])
                 .returning(tables.raw_health_records.c.id)
             )
             result = await self._connection.execute(stmt)
-            return len(result.fetchall())
-        return 0
+            inserted += len(result.fetchall())
+        return inserted
