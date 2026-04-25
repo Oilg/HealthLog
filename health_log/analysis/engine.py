@@ -611,10 +611,10 @@ class HealthRiskAnalyzer:
 
         active_risks = [
             {
-                "type": a.condition,
+                "condition": a.condition,
                 "severity": a.severity,
                 "confidence": round(a.confidence, 4),
-                "description": _CONDITION_LABELS.get(a.condition, a.condition),
+                "interpretation": _CONDITION_LABELS.get(a.condition, a.condition),
             }
             for a in assessments
             if a.score > 0
