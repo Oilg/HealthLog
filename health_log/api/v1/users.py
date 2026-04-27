@@ -108,6 +108,23 @@ async def update_me(
     )
 
 
+class DeviceTokenRequest(BaseModel):
+    device_token: str
+
+
+@router.put("/me/device-token", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
+async def update_device_token(
+    payload: DeviceTokenRequest,
+    current_user: AuthUser = Depends(get_current_user),
+    conn: AsyncConnection = Depends(db_connect),
+) -> None:
+    users_repo = UsersRepository(conn)
+    try:
+        await users_repo.update_apns_token(current_user.id, payload.device_token)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+
+
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_me(
     current_user: AuthUser = Depends(get_current_user),
