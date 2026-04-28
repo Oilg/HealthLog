@@ -19,6 +19,8 @@ logger = logging.getLogger(__name__)
 
 WEEKDAY_NAMES = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
 
+DAILY_SYNC_HOUR = 10
+
 
 async def _check_and_send_pushes() -> None:
     """Fire silent APNs pushes for all users whose schedule matches the current local time."""
@@ -55,12 +57,62 @@ async def _check_and_send_pushes() -> None:
                         logger.info("Push отправлен пользователю user_id=%d (%s %s)", user_id, current_day, current_time_str)
 
 
+async def _send_daily_10am_pushes() -> None:
+    """Send a silent push to every active user at 10:00 AM in their local timezone.
+
+    Uses each user's timezone from sync_schedules if configured; falls back to UTC.
+    This runs independently of custom sync_schedules so users without a configured
+    schedule still receive a daily sync trigger.
+    """
+    utc_now = datetime.now(timezone.utc)
+
+    from sqlalchemy import func, select
+
+    from health_log.repositories.v1 import tables
+
+    async with engine.begin() as conn:
+        # Pick one timezone per user (from their sync_schedules), defaulting to UTC.
+        tz_subq = (
+            select(tables.sync_schedules.c.user_id, tables.sync_schedules.c.timezone)
+            .distinct(tables.sync_schedules.c.user_id)
+            .subquery()
+        )
+
+        rows = (
+            await conn.execute(
+                select(
+                    tables.users.c.id,
+                    tables.users.c.apns_device_token,
+                    func.coalesce(tz_subq.c.timezone, "UTC").label("timezone"),
+                )
+                .outerjoin(tz_subq, tables.users.c.id == tz_subq.c.user_id)
+                .where(
+                    tables.users.c.is_active.is_(True),
+                    tables.users.c.apns_device_token.isnot(None),
+                )
+            )
+        ).all()
+
+    for row in rows:
+        try:
+            tz = ZoneInfo(row.timezone)
+        except ZoneInfoNotFoundError:
+            tz = ZoneInfo("UTC")
+
+        local_now = utc_now.astimezone(tz)
+        if local_now.hour == DAILY_SYNC_HOUR and local_now.minute == 0:
+            ok = await send_silent_push(row.apns_device_token)
+            if ok:
+                logger.info("Ежедневный push в 10:00 отправлен: user_id=%d (tz=%s)", row.id, row.timezone)
+
+
 async def run_sync_scheduler() -> None:
     """Infinite loop: tick every 60 seconds, check schedules, send pushes."""
     logger.info("Планировщик синхронизации запущен")
     while True:
         try:
             await _check_and_send_pushes()
+            await _send_daily_10am_pushes()
         except Exception:
             logger.exception("Ошибка в планировщике синхронизации")
         await asyncio.sleep(60)
