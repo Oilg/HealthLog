@@ -88,7 +88,9 @@ async def send_analysis_ready_push(device_token: str) -> bool:
                     },
                     "sound": "default",
                     "badge": 1,
-                }
+                    "content-available": 1,
+                },
+                "type": "analysis_ready",
             },
             push_type=PushType.ALERT,
             priority=10,
