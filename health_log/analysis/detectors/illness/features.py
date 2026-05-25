@@ -13,6 +13,9 @@ from health_log.analysis.detectors.illness.constants import (
     MIN_RECENT_VALID_DAYS,
     MIN_VALID_DAYS_FOR_SIGNAL,
     RECENT_DAYS,
+    TEMP_MAX_BASELINE_NIGHTS,
+    TEMP_MIN_BASELINE_NIGHTS,
+    TEMP_RECENT_NIGHTS,
 )
 from health_log.analysis.utils import EventPoint, merge_datetime_intervals
 
@@ -110,6 +113,27 @@ class TrendSnapshot:
     total_hr_points: int
     total_hrv_points: int
     days_with_sleep: int
+    wrist_temp_delta: float | None  # °C above personal baseline; None when no Watch 8+ data
+
+
+def _compute_wrist_temp_delta(points: list[EventPoint]) -> float | None:
+    if not points:
+        return None
+    by_date: dict[date, list[float]] = defaultdict(list)
+    for p in points:
+        by_date[p.timestamp.date()].append(p.value)
+    sorted_dates = sorted(by_date)
+    if len(sorted_dates) < TEMP_MIN_BASELINE_NIGHTS + TEMP_RECENT_NIGHTS:
+        return None
+    recent_dates = sorted_dates[-TEMP_RECENT_NIGHTS:]
+    baseline_dates = sorted_dates[
+        -(TEMP_RECENT_NIGHTS + TEMP_MAX_BASELINE_NIGHTS) : -TEMP_RECENT_NIGHTS
+    ]
+    if len(baseline_dates) < TEMP_MIN_BASELINE_NIGHTS:
+        return None
+    recent_val = float(median([median(by_date[d]) for d in recent_dates]))
+    baseline_val = float(median([median(by_date[d]) for d in baseline_dates]))
+    return recent_val - baseline_val
 
 
 def build_trend_snapshot(
@@ -117,6 +141,7 @@ def build_trend_snapshot(
     hrv: list[EventPoint],
     respiratory: list[EventPoint],
     sleep_rows: Iterable[tuple[datetime, datetime]],
+    wrist_temp: list[EventPoint] | None = None,
 ) -> TrendSnapshot | None:
     merged = _merged_sleep(sleep_rows)
     heart_by_day = _group_by_day(heart)
@@ -188,6 +213,7 @@ def build_trend_snapshot(
             confirmed_days += 1
 
     days_with_sleep = sum(1 for d in valid_days if _day_has_sleep(d, sleep_rows))
+    wrist_temp_delta = _compute_wrist_temp_delta(wrist_temp or [])
 
     return TrendSnapshot(
         baseline_rest_hr=baseline_rest_hr,
@@ -202,6 +228,7 @@ def build_trend_snapshot(
         total_hr_points=len(heart),
         total_hrv_points=len(hrv),
         days_with_sleep=days_with_sleep,
+        wrist_temp_delta=wrist_temp_delta,
     )
 
 

@@ -10,12 +10,16 @@ def build_insufficient_data_summary(days_available: int) -> str:
 
 
 def build_summary(snapshot: TrendSnapshot) -> str:
-    return (
+    hr_delta = snapshot.recent_rest_hr - snapshot.baseline_rest_hr
+    base = (
         f"За последние периоды: пульс в покое в последних {RECENT_DAYS} валидных днях "
-        f"относительно baseline выше на {snapshot.recent_rest_hr - snapshot.baseline_rest_hr:.1f} уд/мин; "
-        f"HRV ниже относительного baseline; подтверждающих дней из {RECENT_DAYS}: {snapshot.confirmed_days}. "
-        "Это может соответствовать изменению физиологии на фоне простуды или воспаления."
+        f"относительно baseline выше на {hr_delta:.1f} уд/мин; "
+        f"HRV ниже относительного baseline; подтверждающих дней из {RECENT_DAYS}: {snapshot.confirmed_days}."
     )
+    if snapshot.wrist_temp_delta is not None and snapshot.wrist_temp_delta >= 0.1:
+        base += f" Температура запястья во сне выше личного baseline на {snapshot.wrist_temp_delta:+.2f}°C."
+    base += " Это может соответствовать изменению физиологии на фоне простуды или воспаления."
+    return base
 
 
 def build_recommendation() -> str:

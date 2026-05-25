@@ -24,6 +24,7 @@ def assess_illness_onset_risk(
     hrv_rows: Iterable[tuple],
     respiratory_rows: Iterable[tuple] | None = None,
     sleep_rows: Iterable[tuple[datetime, datetime]] | None = None,
+    wrist_temp_rows: Iterable[tuple] | None = None,
     *,
     window: TimeWindow,
 ) -> RiskAssessment:
@@ -43,12 +44,14 @@ def assess_illness_onset_risk(
     heart = to_points(heart_rows)
     hrv = to_points(hrv_rows)
     respiratory = to_points(respiratory_rows or [])
+    wrist_temp = to_points(wrist_temp_rows or [])
 
     snapshot = build_trend_snapshot(
         heart=heart,
         hrv=hrv,
         respiratory=respiratory,
         sleep_rows=sleep_rows or [],
+        wrist_temp=wrist_temp or None,
     )
 
     if snapshot is None:
