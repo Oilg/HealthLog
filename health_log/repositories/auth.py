@@ -83,7 +83,9 @@ class UsersRepository:
             created_at=row.created_at,
         )
 
-    async def _select_auth_user(self, where_clause, *, include_inactive: bool = False) -> AuthUser | None:
+    async def _select_auth_user(
+        self, where_clause, *, include_inactive: bool = False
+    ) -> AuthUser | None:
         row = (
             await self._connection.execute(
                 select(
@@ -113,19 +115,25 @@ class UsersRepository:
             is_active=row.is_active,
         )
 
-    async def get_auth_user_by_email_or_phone(self, login: str, *, include_inactive: bool = False) -> AuthUser | None:
+    async def get_auth_user_by_email_or_phone(
+        self, login: str, *, include_inactive: bool = False
+    ) -> AuthUser | None:
         return await self._select_auth_user(
             (tables.users.c.email == login) | (tables.users.c.phone == login),
             include_inactive=include_inactive,
         )
 
-    async def get_auth_user_by_email(self, email: str, *, include_inactive: bool = False) -> AuthUser | None:
+    async def get_auth_user_by_email(
+        self, email: str, *, include_inactive: bool = False
+    ) -> AuthUser | None:
         return await self._select_auth_user(
             tables.users.c.email == email,
             include_inactive=include_inactive,
         )
 
-    async def get_auth_user_by_phone(self, phone: str, *, include_inactive: bool = False) -> AuthUser | None:
+    async def get_auth_user_by_phone(
+        self, phone: str, *, include_inactive: bool = False
+    ) -> AuthUser | None:
         return await self._select_auth_user(
             tables.users.c.phone == phone,
             include_inactive=include_inactive,
@@ -232,17 +240,23 @@ class UsersRepository:
 
     async def exists_by_email(self, email: str) -> bool:
         row = (
-            await self._connection.execute(select(tables.users.c.id).where(tables.users.c.email == email))
+            await self._connection.execute(
+                select(tables.users.c.id).where(tables.users.c.email == email)
+            )
         ).one_or_none()
         return row is not None
 
     async def exists_by_phone(self, phone: str) -> bool:
         row = (
-            await self._connection.execute(select(tables.users.c.id).where(tables.users.c.phone == phone))
+            await self._connection.execute(
+                select(tables.users.c.id).where(tables.users.c.phone == phone)
+            )
         ).one_or_none()
         return row is not None
 
-    async def update_sync_status(self, user_id: int, *, last_sync_at: datetime, records_count: int) -> None:
+    async def update_sync_status(
+        self, user_id: int, *, last_sync_at: datetime, records_count: int
+    ) -> None:
         await self._connection.execute(
             update(tables.users)
             .where(tables.users.c.id == user_id)
@@ -271,6 +285,7 @@ class UsersRepository:
 
     async def update_apns_token(self, user_id: int, token: str) -> None:
         import re
+
         if not re.fullmatch(r"[0-9a-f]{64}", token.lower()):
             raise ValueError("Недействительный формат APNs device token (ожидается 64 hex-символа)")
         await self._connection.execute(
@@ -282,7 +297,9 @@ class UsersRepository:
     async def list_active_user_ids(self) -> list[int]:
         rows = (
             await self._connection.execute(
-                select(tables.users.c.id).where(tables.users.c.is_active.is_(True)).order_by(tables.users.c.id)
+                select(tables.users.c.id)
+                .where(tables.users.c.is_active.is_(True))
+                .order_by(tables.users.c.id)
             )
         ).all()
         return [row.id for row in rows]
@@ -328,7 +345,9 @@ class AuthTokenRepository:
             .values(revoked_at=utcnow())
         )
 
-    async def get_user_by_active_token(self, *, token_hash: str, token_type: str) -> AuthUser | None:
+    async def get_user_by_active_token(
+        self, *, token_hash: str, token_type: str
+    ) -> AuthUser | None:
         now = utcnow()
         row = (
             await self._connection.execute(
@@ -343,7 +362,9 @@ class AuthTokenRepository:
                     tables.users.c.is_active,
                 )
                 .select_from(
-                    tables.auth_tokens.join(tables.users, tables.auth_tokens.c.user_id == tables.users.c.id)
+                    tables.auth_tokens.join(
+                        tables.users, tables.auth_tokens.c.user_id == tables.users.c.id
+                    )
                 )
                 .where(
                     and_(

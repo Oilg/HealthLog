@@ -94,7 +94,9 @@ async def update_me(
             phone=_normalize_phone(payload.phone),
         )
     except IntegrityError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email или телефон уже используется") from exc
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Email или телефон уже используется"
+        ) from exc
 
     return UserResponse(
         id=user.id,
@@ -122,7 +124,9 @@ async def update_device_token(
     try:
         await users_repo.update_apns_token(current_user.id, payload.device_token)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
 
 
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT, response_model=None)

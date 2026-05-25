@@ -79,7 +79,10 @@ def assess_fall_risk(
                 "Рассмотри физиотерапию для улучшения баланса."
             ),
             clinical_safety_note=CLINICAL_SAFETY_NOTE,
-            supporting_metrics={"apple_fall_event_count": apple_fall_event_count, "recent_mobility_days": recent_days},
+            supporting_metrics={
+                "apple_fall_event_count": apple_fall_event_count,
+                "recent_mobility_days": recent_days,
+            },
         )
 
     recent_steadiness = _daily_medians(steadiness, recent_start, now)
@@ -113,7 +116,11 @@ def assess_fall_risk(
     ds_increase = increase_pct(baseline_ds, recent_ds)
 
     max_decline = max(
-        (v for v in [steadiness_decline, speed_decline, step_length_decline, ds_increase, 0.0] if v is not None),
+        (
+            v
+            for v in [steadiness_decline, speed_decline, step_length_decline, ds_increase, 0.0]
+            if v is not None
+        ),
         default=0.0,
     )
 
@@ -138,9 +145,13 @@ def assess_fall_risk(
             recommendation="Продолжай регулярную активность для поддержания баланса.",
             clinical_safety_note=CLINICAL_SAFETY_NOTE,
             supporting_metrics={
-                "steadiness_decline_pct": round(steadiness_decline, 1) if steadiness_decline is not None else None,
+                "steadiness_decline_pct": round(steadiness_decline, 1)
+                if steadiness_decline is not None
+                else None,
                 "speed_decline_pct": round(speed_decline, 1) if speed_decline is not None else None,
-                "step_length_decline_pct": round(step_length_decline, 1) if step_length_decline is not None else None,
+                "step_length_decline_pct": round(step_length_decline, 1)
+                if step_length_decline is not None
+                else None,
             },
         )
 
@@ -164,10 +175,16 @@ def assess_fall_risk(
         ),
         clinical_safety_note=CLINICAL_SAFETY_NOTE,
         supporting_metrics={
-            "steadiness_decline_pct": round(steadiness_decline, 1) if steadiness_decline is not None else None,
+            "steadiness_decline_pct": round(steadiness_decline, 1)
+            if steadiness_decline is not None
+            else None,
             "speed_decline_pct": round(speed_decline, 1) if speed_decline is not None else None,
-            "step_length_decline_pct": round(step_length_decline, 1) if step_length_decline is not None else None,
-            "double_support_increase_pct": round(ds_increase, 1) if ds_increase is not None else None,
+            "step_length_decline_pct": round(step_length_decline, 1)
+            if step_length_decline is not None
+            else None,
+            "double_support_increase_pct": round(ds_increase, 1)
+            if ds_increase is not None
+            else None,
             "recent_mobility_days": recent_days,
         },
     )

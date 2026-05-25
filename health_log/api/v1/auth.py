@@ -116,7 +116,11 @@ async def _issue_tokens(conn: AsyncConnection, user: AuthUser) -> TokenResponse:
 
 @router.post("/register", status_code=status.HTTP_201_CREATED, response_model=AuthResponse)
 @limiter.limit("10/hour")
-async def register(request: Request, payload: RegisterRequest = Body(...), conn: AsyncConnection = Depends(db_connect)) -> AuthResponse:
+async def register(
+    request: Request,
+    payload: RegisterRequest = Body(...),
+    conn: AsyncConnection = Depends(db_connect),
+) -> AuthResponse:
     users_repo = UsersRepository(conn)
 
     email = _normalize_email(payload.email)
@@ -167,7 +171,9 @@ async def register(request: Request, payload: RegisterRequest = Body(...), conn:
                 password_hash=password_hash,
             )
     except IntegrityError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email или телефон уже используется") from exc
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Email или телефон уже используется"
+        ) from exc
 
     auth_user = AuthUser(
         id=public_user.id,
@@ -185,7 +191,9 @@ async def register(request: Request, payload: RegisterRequest = Body(...), conn:
 
 @router.post("/login", response_model=AuthResponse)
 @limiter.limit("10/minute")
-async def login(request: Request, payload: LoginRequest = Body(...), conn: AsyncConnection = Depends(db_connect)) -> AuthResponse:
+async def login(
+    request: Request, payload: LoginRequest = Body(...), conn: AsyncConnection = Depends(db_connect)
+) -> AuthResponse:
     users_repo = UsersRepository(conn)
     login_value = payload.login.strip().lower()
 
@@ -194,15 +202,21 @@ async def login(request: Request, payload: LoginRequest = Body(...), conn: Async
         user = await users_repo.get_auth_user_by_email_or_phone(payload.login.strip())
 
     if user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Неверный логин или пароль")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Неверный логин или пароль"
+        )
 
     try:
         is_valid = verify_password(payload.password, user.password_hash)
     except InvalidPasswordFormat as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Неверный логин или пароль") from exc
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Неверный логин или пароль"
+        ) from exc
 
     if not is_valid:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Неверный логин или пароль")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Неверный логин или пароль"
+        )
 
     public_user = await users_repo.get_public_user(user.id)
     if public_user is None:
@@ -213,13 +227,19 @@ async def login(request: Request, payload: LoginRequest = Body(...), conn: Async
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh(payload: RefreshRequest, conn: AsyncConnection = Depends(db_connect)) -> TokenResponse:
+async def refresh(
+    payload: RefreshRequest, conn: AsyncConnection = Depends(db_connect)
+) -> TokenResponse:
     token_repo = AuthTokenRepository(conn)
     token_hash_value = token_hash(payload.refresh_token)
 
-    user = await token_repo.get_user_by_active_token(token_hash=token_hash_value, token_type="refresh")
+    user = await token_repo.get_user_by_active_token(
+        token_hash=token_hash_value, token_type="refresh"
+    )
     if user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token недействителен")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token недействителен"
+        )
 
     await token_repo.revoke_token(token_hash=token_hash_value)
     return await _issue_tokens(conn, user)

@@ -71,7 +71,10 @@ def assess_menstrual_irregularity_risk(
             summary="Нет достаточного числа полных циклов для оценки вариабельности.",
             recommendation="Продолжай синхронизацию данных цикла.",
             clinical_safety_note=CLINICAL_SAFETY_NOTE,
-            supporting_metrics={"period_starts_count": len(starts), "valid_intervals": len(cycle_lengths)},
+            supporting_metrics={
+                "period_starts_count": len(starts),
+                "valid_intervals": len(cycle_lengths),
+            },
         )
 
     last_six = cycle_lengths[-6:]
@@ -106,7 +109,11 @@ def assess_menstrual_irregularity_risk(
         )
 
     score = round(score_base, 3)
-    confidence = round(min(1.0, len(cycle_lengths) / 6.0) * 0.7 + (0.3 if valid_intervals_in_last_six >= 5 else 0.1), 3)
+    confidence = round(
+        min(1.0, len(cycle_lengths) / 6.0) * 0.7
+        + (0.3 if valid_intervals_in_last_six >= 5 else 0.1),
+        3,
+    )
 
     return RiskAssessment(
         condition="menstrual_irregularity_risk",
@@ -217,8 +224,7 @@ def assess_atypical_menstrual_bleeding_risk(
         score = 0.35
 
     confidence = round(
-        min(1.0, (n_intermenstrual + n_prolonged) / 5.0) * 0.8
-        + (0.2 if menstrual_list else 0.0),
+        min(1.0, (n_intermenstrual + n_prolonged) / 5.0) * 0.8 + (0.2 if menstrual_list else 0.0),
         3,
     )
 
@@ -269,7 +275,9 @@ def _detect_postovulation_temp_shift(
     for p in post_ovulation:
         by_day.setdefault(p.timestamp.toordinal(), []).append(p.value)
 
-    pre_ovulation = [p.value for p in temp_points if p.timestamp.toordinal() <= ovulation_date_ordinal]
+    pre_ovulation = [
+        p.value for p in temp_points if p.timestamp.toordinal() <= ovulation_date_ordinal
+    ]
     if not pre_ovulation:
         return False
 
@@ -304,9 +312,7 @@ def assess_menstrual_start_forecast_with_temp(
     now = now or utcnow()
     menstrual_list = list(menstrual_rows)
 
-    base_result = assess_menstrual_cycle_start_forecast(
-        menstrual_list, window=window, now=now
-    )
+    base_result = assess_menstrual_cycle_start_forecast(menstrual_list, window=window, now=now)
 
     if base_result.severity in {"unknown", "not_applicable"} or wrist_temp_rows is None:
         return RiskAssessment(
@@ -323,6 +329,7 @@ def assess_menstrual_start_forecast_with_temp(
         )
 
     from health_log.analysis.utils import to_points as _to_points
+
     temp_points = _to_points(wrist_temp_rows)
 
     model = build_menstrual_model(menstrual_list, now=now)
@@ -341,6 +348,7 @@ def assess_menstrual_start_forecast_with_temp(
         )
 
     from datetime import timedelta as _timedelta
+
     ovulation_ordinal = (model.predicted_next - _timedelta(days=14)).toordinal()
     temp_shift_detected = _detect_postovulation_temp_shift(temp_points, ovulation_ordinal)
 
@@ -395,6 +403,7 @@ def assess_ovulation_forecast_with_temp(
         )
 
     from health_log.analysis.utils import to_points as _to_points
+
     temp_points = _to_points(wrist_temp_rows)
 
     model = build_menstrual_model(menstrual_list, now=now)
@@ -413,6 +422,7 @@ def assess_ovulation_forecast_with_temp(
         )
 
     from datetime import timedelta as _timedelta
+
     ovulation_ordinal = (model.predicted_next - _timedelta(days=14)).toordinal()
     temp_confirmed = _detect_postovulation_temp_shift(temp_points, ovulation_ordinal)
 

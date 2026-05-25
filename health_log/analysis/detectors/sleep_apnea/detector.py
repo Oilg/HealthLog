@@ -113,13 +113,9 @@ def _analyze_sleep_apnea(
             continue
         hr_near = nearest_value(heart, p.timestamp, max_seconds=120)
         hrv_near = nearest_value(hrv, p.timestamp, max_seconds=120)
-        supported_by_hr = (
-            hr_near is not None and baseline_hr > 0 and hr_near >= baseline_hr + 12.0
-        )
+        supported_by_hr = hr_near is not None and baseline_hr > 0 and hr_near >= baseline_hr + 12.0
         supported_by_hrv = (
-            hrv_near is not None
-            and baseline_hrv > 0
-            and hrv_near <= baseline_hrv * 0.8
+            hrv_near is not None and baseline_hrv > 0 and hrv_near <= baseline_hrv * 0.8
         )
         if not (supported_by_hr or supported_by_hrv):
             continue

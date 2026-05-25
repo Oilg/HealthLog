@@ -85,7 +85,9 @@ def assess_atrial_fibrillation_risk(
     if has_burden:
         summary_parts.append(f"AFib burden: среднее {avg_burden:.1f}%, максимум {max_burden:.1f}%")
     if has_events:
-        summary_parts.append(f"{len(event_timestamps)} событий нерегулярного ритма, из них {events_30d} за 30 дней")
+        summary_parts.append(
+            f"{len(event_timestamps)} событий нерегулярного ритма, из них {events_30d} за 30 дней"
+        )
     if ecg_afib_count > 0:
         summary_parts.append(f"ЭКГ Apple Watch: {ecg_afib_count} записей с признаками ФП")
 

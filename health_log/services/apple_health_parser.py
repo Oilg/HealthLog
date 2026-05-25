@@ -26,7 +26,7 @@ class ParsedRecord:
 def parse_datetime(dt_str: str | None) -> datetime | None:
     if not dt_str:
         return None
-    cleaned = dt_str.replace("\u00A0", " ").strip()
+    cleaned = dt_str.replace("\u00a0", " ").strip()
     for fmt in DATE_FORMATS:
         try:
             dt = datetime.strptime(cleaned, fmt)

@@ -25,7 +25,7 @@ def create_app() -> FastAPI:
         responses={
             500: {"model": ErrorResponse},
             400: {"model": ErrorResponse},
-        }
+        },
     )
 
     app.state.limiter = limiter
@@ -43,6 +43,7 @@ def create_app() -> FastAPI:
     @app.on_event("startup")
     async def _start_scheduler() -> None:
         from health_log.services.sync_scheduler import run_sync_scheduler
+
         task = asyncio.create_task(run_sync_scheduler())
         app.state.scheduler_task = task
 

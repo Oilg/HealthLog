@@ -24,7 +24,9 @@ def _group_by_day(points: list[EventPoint]) -> dict[date, list[EventPoint]]:
     return grouped
 
 
-def _merged_sleep(sleep_rows: Iterable[tuple[datetime, datetime]]) -> list[tuple[datetime, datetime]]:
+def _merged_sleep(
+    sleep_rows: Iterable[tuple[datetime, datetime]],
+) -> list[tuple[datetime, datetime]]:
     intervals = [(s, e) for s, e in sleep_rows if s and e and e > s]
     return merge_datetime_intervals(intervals)
 
@@ -180,9 +182,7 @@ def build_trend_snapshot(
         hr_flag = day_hr_v is not None and day_hr_v >= baseline_rest_hr + 4
         hrv_flag = day_hrv_v is not None and day_hrv_v <= baseline_hrv * 0.9
         resp_flag = (
-            day_rr_v is not None
-            and baseline_rr is not None
-            and day_rr_v >= baseline_rr * 1.08
+            day_rr_v is not None and baseline_rr is not None and day_rr_v >= baseline_rr * 1.08
         )
         if sum([hr_flag, hrv_flag, resp_flag]) >= 2:
             confirmed_days += 1

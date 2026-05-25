@@ -1,4 +1,5 @@
 """APNs (Apple Push Notification service) integration via aioapns."""
+
 from __future__ import annotations
 
 import logging
@@ -11,6 +12,7 @@ logger = logging.getLogger(__name__)
 async def _make_client():
     """Create and return a configured APNs client."""
     from aioapns import APNs, PushType  # noqa: F401
+
     with open(settings.apns_auth_key_path, "r") as f:
         key_content = f.read()
     return APNs(
@@ -23,12 +25,14 @@ async def _make_client():
 
 
 def _apns_configured() -> bool:
-    return all([
-        settings.apns_key_id,
-        settings.apns_team_id,
-        settings.apns_auth_key_path,
-        settings.apns_bundle_id,
-    ])
+    return all(
+        [
+            settings.apns_key_id,
+            settings.apns_team_id,
+            settings.apns_auth_key_path,
+            settings.apns_bundle_id,
+        ]
+    )
 
 
 async def send_silent_push(device_token: str) -> bool:
@@ -103,7 +107,9 @@ async def send_analysis_ready_push(device_token: str) -> bool:
             logger.info("Analysis-ready push отправлен: device=%s", device_token[:8] + "…")
             return True
 
-        logger.warning("APNs отклонил analysis push: %s — %s", device_token[:8] + "…", result.description)
+        logger.warning(
+            "APNs отклонил analysis push: %s — %s", device_token[:8] + "…", result.description
+        )
         return False
 
     except ImportError:

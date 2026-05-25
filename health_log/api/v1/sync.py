@@ -57,9 +57,13 @@ class SyncRecord(BaseModel):
             raise ValueError(f"metadata не может содержать более {_METADATA_MAX_KEYS} ключей")
         for key, val in v.items():
             if len(str(key)) > _METADATA_MAX_KEY_LEN:
-                raise ValueError(f"ключ metadata слишком длинный (макс. {_METADATA_MAX_KEY_LEN} символов)")
+                raise ValueError(
+                    f"ключ metadata слишком длинный (макс. {_METADATA_MAX_KEY_LEN} символов)"
+                )
             if len(str(val)) > _METADATA_MAX_VAL_LEN:
-                raise ValueError(f"значение metadata слишком длинное (макс. {_METADATA_MAX_VAL_LEN} символов)")
+                raise ValueError(
+                    f"значение metadata слишком длинное (макс. {_METADATA_MAX_VAL_LEN} символов)"
+                )
         return v
 
 
@@ -98,7 +102,9 @@ class DaySchedule(BaseModel):
     saturday: str = "09:00"
     sunday: str = "09:00"
 
-    @field_validator("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", mode="before")
+    @field_validator(
+        "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", mode="before"
+    )
     @classmethod
     def validate_time_format(cls, v: str, info) -> str:
         return _validate_hhmm(v, info.field_name)
@@ -112,8 +118,11 @@ class ScheduleRequest(BaseModel):
     @classmethod
     def validate_timezone(cls, v: str) -> str:
         from zoneinfo import available_timezones
+
         if v not in available_timezones():
-            raise ValueError(f"Неизвестный часовой пояс: '{v}'. Используйте IANA timezone (например, Europe/Moscow)")
+            raise ValueError(
+                f"Неизвестный часовой пояс: '{v}'. Используйте IANA timezone (например, Europe/Moscow)"
+            )
         return v
 
 
@@ -134,7 +143,9 @@ def _record_to_parsed(record: SyncRecord) -> ParsedRecord:
     metadata = {str(k): str(v) for k, v in record.metadata.items()}
     hrv_bpm: list[dict[str, str]] = []
     if record.instantaneous_bpm:
-        hrv_bpm = [{"bpm": str(entry.bpm), "time": entry.time} for entry in record.instantaneous_bpm]
+        hrv_bpm = [
+            {"bpm": str(entry.bpm), "time": entry.time} for entry in record.instantaneous_bpm
+        ]
     return ParsedRecord(attrs=attrs, metadata=metadata, hrv_bpm=hrv_bpm)
 
 
@@ -239,7 +250,9 @@ async def get_sync_schedule(
     repo = SyncScheduleRepository(conn)
     schedule = await repo.get_schedule(current_user.id)
     if schedule is None:
-        default_schedule = {day: ("07:30" if day not in ("saturday", "sunday") else "09:00") for day in _DAYS}
+        default_schedule = {
+            day: ("07:30" if day not in ("saturday", "sunday") else "09:00") for day in _DAYS
+        }
         return {"schedule": default_schedule, "timezone": "UTC"}
     return schedule
 

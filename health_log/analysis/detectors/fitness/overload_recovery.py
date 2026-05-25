@@ -27,7 +27,9 @@ def _sleep_hours_per_day(segments: list[tuple[datetime, datetime]]) -> dict[int,
     return by_day
 
 
-def _daily_median_for_points(points: list[EventPoint], cutoff_start: datetime, cutoff_end: datetime) -> dict[int, float]:
+def _daily_median_for_points(
+    points: list[EventPoint], cutoff_start: datetime, cutoff_end: datetime
+) -> dict[int, float]:
     by_day: dict[int, list[float]] = {}
     for p in points:
         if cutoff_start <= p.timestamp <= cutoff_end:
@@ -52,9 +54,7 @@ def assess_overload_recovery_risk(
     hr_points = to_points(heart_rows or [])
     hrv_points = to_points(hrv_rows or [])
 
-    recent_sleep_by_day = _sleep_hours_per_day(
-        [(s, e) for s, e in segments if e >= recent_start]
-    )
+    recent_sleep_by_day = _sleep_hours_per_day([(s, e) for s, e in segments if e >= recent_start])
     baseline_sleep_by_day = _sleep_hours_per_day(
         [(s, e) for s, e in segments if baseline_start <= s < recent_start]
     )
@@ -127,7 +127,9 @@ def assess_overload_recovery_risk(
             supporting_metrics={"signal_days": signal_days, "recent_valid_days": recent_days_count},
         )
 
-    confidence = round(min(1.0, recent_days_count / _MIN_VALID_DAYS) * 0.7 + min(1.0, signal_days / 6.0) * 0.3, 3)
+    confidence = round(
+        min(1.0, recent_days_count / _MIN_VALID_DAYS) * 0.7 + min(1.0, signal_days / 6.0) * 0.3, 3
+    )
 
     return RiskAssessment(
         condition="overload_recovery_risk",

@@ -43,7 +43,9 @@ def assess_sedentary_lifestyle_risk(
     exercise_points = [p for p in to_points(exercise_time_rows or []) if p.timestamp >= cutoff]
 
     if distinct_day_count(step_points, cutoff, now) < MIN_ACTIVITY_DAYS:
-        return _insufficient("sedentary_lifestyle_risk", window, len(step_points), "мало дней с данными шагов")
+        return _insufficient(
+            "sedentary_lifestyle_risk", window, len(step_points), "мало дней с данными шагов"
+        )
 
     daily_steps = daily_medians(step_points, cutoff, now)
     median_steps = median(daily_steps)
@@ -83,11 +85,13 @@ def assess_sedentary_lifestyle_risk(
     elif score > 0:
         severity = "low"
 
-    recs = build_weight_activity_recommendations({
-        "low_activity": True,
-        "sedentary": True,
-        "weight_issue": False,
-    })
+    recs = build_weight_activity_recommendations(
+        {
+            "low_activity": True,
+            "sedentary": True,
+            "weight_issue": False,
+        }
+    )
 
     return RiskAssessment(
         condition="sedentary_lifestyle_risk",
@@ -108,12 +112,12 @@ def assess_sedentary_lifestyle_risk(
         clinical_safety_note=CLINICAL_SAFETY_NOTE,
         supporting_metrics={
             "median_daily_steps": round(median_steps, 0),
-            "weekly_exercise_min": round(weekly_exercise, 0) if weekly_exercise is not None else None,
+            "weekly_exercise_min": round(weekly_exercise, 0)
+            if weekly_exercise is not None
+            else None,
         },
         lifestyle_recommendations=recs,
     )
-
-
 
 
 def assess_insufficient_activity_risk(
@@ -127,7 +131,9 @@ def assess_insufficient_activity_risk(
     step_points = [p for p in to_points(step_rows) if p.timestamp >= cutoff]
 
     if distinct_day_count(step_points, cutoff, now) < MIN_ACTIVITY_DAYS:
-        return _insufficient("insufficient_activity_risk", window, len(step_points), "мало дней с данными шагов")
+        return _insufficient(
+            "insufficient_activity_risk", window, len(step_points), "мало дней с данными шагов"
+        )
 
     daily_steps = daily_medians(step_points, cutoff, now)
     median_steps = median(daily_steps)
@@ -167,5 +173,3 @@ def assess_insufficient_activity_risk(
         supporting_metrics={"median_daily_steps": round(median_steps, 0)},
         lifestyle_recommendations=recs,
     )
-
-

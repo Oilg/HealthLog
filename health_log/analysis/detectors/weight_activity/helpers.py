@@ -43,7 +43,7 @@ def recent_and_baseline(
 def compute_bmi(weight_kg: float, height_m: float) -> float | None:
     if height_m <= 0:
         return None
-    return weight_kg / (height_m ** 2)
+    return weight_kg / (height_m**2)
 
 
 def smoothed_median(

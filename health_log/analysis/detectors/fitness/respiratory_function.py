@@ -64,7 +64,10 @@ def assess_respiratory_function_decline_risk(
             ),
             recommendation="Проверь синхронизацию данных частоты дыхания и SpO2 в Apple Health.",
             clinical_safety_note=CLINICAL_SAFETY_NOTE,
-            supporting_metrics={"rr_recent_days": len(recent_rr_vals), "spo2_recent_count": len(recent_spo2)},
+            supporting_metrics={
+                "rr_recent_days": len(recent_rr_vals),
+                "spo2_recent_count": len(recent_spo2),
+            },
         )
 
     if not has_load_metric:
@@ -78,7 +81,10 @@ def assess_respiratory_function_decline_risk(
             summary="Отсутствуют нагрузочные метрики (пульс при ходьбе или VO2 max).",
             recommendation="Убедись, что данные ходьбы и VO2 max синхронизированы.",
             clinical_safety_note=CLINICAL_SAFETY_NOTE,
-            supporting_metrics={"rr_recent_days": len(recent_rr_vals), "spo2_recent_count": len(recent_spo2)},
+            supporting_metrics={
+                "rr_recent_days": len(recent_rr_vals),
+                "spo2_recent_count": len(recent_spo2),
+            },
         )
 
     rr_delta_pct = 0.0
@@ -157,7 +163,9 @@ def assess_respiratory_function_decline_risk(
 
     summary_parts = []
     if baseline_rr_vals and recent_rr is not None and baseline_rr is not None:
-        summary_parts.append(f"ЧД выросла с {baseline_rr:.1f} до {recent_rr:.1f} ({rr_delta_pct:+.1f}%)")
+        summary_parts.append(
+            f"ЧД выросла с {baseline_rr:.1f} до {recent_rr:.1f} ({rr_delta_pct:+.1f}%)"
+        )
     if spo2_below_94 > 0:
         summary_parts.append(f"SpO2 <94%: {spo2_below_94} измерений, <92%: {spo2_below_92}")
 

@@ -105,8 +105,6 @@ def assess_overweight_risk(
     )
 
 
-
-
 def assess_obesity_risk(
     body_mass_rows: Iterable[tuple],
     height_m: float | None = None,
@@ -166,13 +164,15 @@ def assess_obesity_risk(
         score = min(1.0, score + 0.1)
 
     score = round(score, 3)
-    recs = build_weight_activity_recommendations({
-        "weight_issue": True,
-        "fat_issue": fat_pct is not None,
-        "low_activity": low_activity,
-        "metabolic_risk": True,
-        "persistent_weight_gain": True,
-    })
+    recs = build_weight_activity_recommendations(
+        {
+            "weight_issue": True,
+            "fat_issue": fat_pct is not None,
+            "low_activity": low_activity,
+            "metabolic_risk": True,
+            "persistent_weight_gain": True,
+        }
+    )
 
     return RiskAssessment(
         condition="obesity_risk",
@@ -201,8 +201,6 @@ def assess_obesity_risk(
     )
 
 
-
-
 def assess_high_body_fat_risk(
     body_fat_rows: Iterable[tuple],
     *,
@@ -215,7 +213,9 @@ def assess_high_body_fat_risk(
     fat_points = [p for p in to_points(body_fat_rows) if p.timestamp >= cutoff]
 
     if len(fat_points) < MIN_FAT_MEASUREMENTS:
-        return _insufficient("high_body_fat_risk", window, len(fat_points), "мало измерений жировой массы")
+        return _insufficient(
+            "high_body_fat_risk", window, len(fat_points), "мало измерений жировой массы"
+        )
 
     fat_pct = median([p.value for p in fat_points])
     thresholds = BODY_FAT_THRESHOLDS_FEMALE if sex == "female" else BODY_FAT_THRESHOLDS_MALE
@@ -240,11 +240,13 @@ def assess_high_body_fat_risk(
             supporting_metrics={"body_fat_pct": round(fat_pct, 1), "sex": sex},
         )
 
-    recs = build_weight_activity_recommendations({
-        "fat_issue": True,
-        "lean_mass_issue": True,
-        "low_activity": True,
-    })
+    recs = build_weight_activity_recommendations(
+        {
+            "fat_issue": True,
+            "lean_mass_issue": True,
+            "low_activity": True,
+        }
+    )
 
     return RiskAssessment(
         condition="high_body_fat_risk",
@@ -262,8 +264,6 @@ def assess_high_body_fat_risk(
         supporting_metrics={"body_fat_pct": round(fat_pct, 1), "sex": sex},
         lifestyle_recommendations=recs,
     )
-
-
 
 
 def assess_abdominal_obesity_risk(
@@ -311,11 +311,13 @@ def assess_abdominal_obesity_risk(
             supporting_metrics={"waist_cm": round(waist_cm, 1)},
         )
 
-    recs = build_weight_activity_recommendations({
-        "fat_issue": True,
-        "waist_available": True,
-        "metabolic_risk": True,
-    })
+    recs = build_weight_activity_recommendations(
+        {
+            "fat_issue": True,
+            "waist_available": True,
+            "metabolic_risk": True,
+        }
+    )
 
     return RiskAssessment(
         condition="abdominal_obesity_risk",
@@ -333,5 +335,3 @@ def assess_abdominal_obesity_risk(
         supporting_metrics={"waist_cm": round(waist_cm, 1), "sex": sex},
         lifestyle_recommendations=recs,
     )
-
-

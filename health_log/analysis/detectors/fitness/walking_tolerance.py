@@ -39,7 +39,9 @@ def assess_walking_tolerance_decline_risk(
 
     step_by_day = _group_by_day(step_points)
 
-    def filter_moderate_days(pts: list[EventPoint], cutoff_start: datetime, cutoff_end: datetime) -> list[float]:
+    def filter_moderate_days(
+        pts: list[EventPoint], cutoff_start: datetime, cutoff_end: datetime
+    ) -> list[float]:
         result = []
         for p in pts:
             if not (cutoff_start <= p.timestamp <= cutoff_end):
@@ -53,7 +55,9 @@ def assess_walking_tolerance_decline_risk(
     recent_hr_vals = filter_moderate_days(whr_points, recent_cutoff, now)
     baseline_hr_vals = filter_moderate_days(whr_points, baseline_cutoff, recent_cutoff)
 
-    recent_days = len({p.timestamp.toordinal() for p in step_points if p.timestamp >= recent_cutoff})
+    recent_days = len(
+        {p.timestamp.toordinal() for p in step_points if p.timestamp >= recent_cutoff}
+    )
 
     if recent_days < _MIN_VALID_DAYS:
         return RiskAssessment(
@@ -80,7 +84,10 @@ def assess_walking_tolerance_decline_risk(
             summary="Нет дней с сопоставимой активностью в обоих периодах.",
             recommendation="Продолжай синхронизацию данных для накопления baseline.",
             clinical_safety_note=CLINICAL_SAFETY_NOTE,
-            supporting_metrics={"recent_valid_days": recent_days, "moderate_activity_days_recent": len(recent_hr_vals)},
+            supporting_metrics={
+                "recent_valid_days": recent_days,
+                "moderate_activity_days_recent": len(recent_hr_vals),
+            },
         )
 
     baseline_hr = median(baseline_hr_vals)
@@ -118,7 +125,10 @@ def assess_walking_tolerance_decline_risk(
         )
 
     score = round(score_base, 3)
-    confidence = round(min(1.0, recent_days / _MIN_VALID_DAYS) * 0.7 + min(1.0, len(recent_hr_vals) / 10.0) * 0.3, 3)
+    confidence = round(
+        min(1.0, recent_days / _MIN_VALID_DAYS) * 0.7 + min(1.0, len(recent_hr_vals) / 10.0) * 0.3,
+        3,
+    )
 
     return RiskAssessment(
         condition="walking_tolerance_decline_risk",

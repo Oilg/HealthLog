@@ -61,7 +61,9 @@ def build_cycle_lengths(starts: list[date]) -> list[int]:
 def weighted_cycle_length(lengths: list[int]) -> float:
     recent = lengths[-6:]
     weights = list(range(1, len(recent) + 1))
-    weighted_mean = sum(length * weight for length, weight in zip(recent, weights, strict=True)) / sum(weights)
+    weighted_mean = sum(
+        length * weight for length, weight in zip(recent, weights, strict=True)
+    ) / sum(weights)
     return (weighted_mean * 0.7) + (median(recent) * 0.3)
 
 

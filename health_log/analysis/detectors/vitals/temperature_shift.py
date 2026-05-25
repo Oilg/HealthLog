@@ -61,7 +61,10 @@ def assess_temperature_shift_risk(
             ),
             recommendation="Продолжай синхронизацию данных Apple Watch для накопления baseline.",
             clinical_safety_note=CLINICAL_SAFETY_NOTE,
-            supporting_metrics={"baseline_nights": len(baseline_by_date), "recent_nights": len(recent_by_date)},
+            supporting_metrics={
+                "baseline_nights": len(baseline_by_date),
+                "recent_nights": len(recent_by_date),
+            },
         )
 
     if len(recent_by_date) < _MIN_RECENT_NIGHTS:
@@ -75,7 +78,10 @@ def assess_temperature_shift_risk(
             summary=f"Найдено {len(recent_by_date)} ночей в recent-периоде (нужно ≥{_MIN_RECENT_NIGHTS}).",
             recommendation="Продолжай ношение Apple Watch во время сна.",
             clinical_safety_note=CLINICAL_SAFETY_NOTE,
-            supporting_metrics={"baseline_nights": len(baseline_by_date), "recent_nights": len(recent_by_date)},
+            supporting_metrics={
+                "baseline_nights": len(baseline_by_date),
+                "recent_nights": len(recent_by_date),
+            },
         )
 
     baseline_values = [m for _, m in _daily_medians(baseline_by_date)]
@@ -120,7 +126,9 @@ def assess_temperature_shift_risk(
 
     if hr_points:
         recent_hr_points = [p for p in hr_points if p.timestamp >= recent_cutoff]
-        baseline_hr_points = [p for p in hr_points if baseline_cutoff <= p.timestamp < recent_cutoff]
+        baseline_hr_points = [
+            p for p in hr_points if baseline_cutoff <= p.timestamp < recent_cutoff
+        ]
         if recent_hr_points and baseline_hr_points:
             recent_hr = median([p.value for p in recent_hr_points])
             baseline_hr = median([p.value for p in baseline_hr_points])
@@ -130,7 +138,9 @@ def assess_temperature_shift_risk(
 
     if rr_points:
         recent_rr_points = [p for p in rr_points if p.timestamp >= recent_cutoff]
-        baseline_rr_points = [p for p in rr_points if baseline_cutoff <= p.timestamp < recent_cutoff]
+        baseline_rr_points = [
+            p for p in rr_points if baseline_cutoff <= p.timestamp < recent_cutoff
+        ]
         if recent_rr_points and baseline_rr_points:
             recent_rr = median([p.value for p in recent_rr_points])
             baseline_rr = median([p.value for p in baseline_rr_points])
@@ -146,11 +156,11 @@ def assess_temperature_shift_risk(
     elif score > 0:
         severity = "low"
 
-    confidence = round(min(1.0, len(baseline_by_date) / 14.0) * 0.7 + min(1.0, len(recent_by_date) / 3.0) * 0.3, 3)
-
-    summary = (
-        f"Подозрение на температурный сдвиг: +{delta:.2f}°C (baseline {baseline_temp:.2f}°C → recent {recent_temp:.2f}°C)."
+    confidence = round(
+        min(1.0, len(baseline_by_date) / 14.0) * 0.7 + min(1.0, len(recent_by_date) / 3.0) * 0.3, 3
     )
+
+    summary = f"Подозрение на температурный сдвиг: +{delta:.2f}°C (baseline {baseline_temp:.2f}°C → recent {recent_temp:.2f}°C)."
     if hr_boost:
         summary += " Пульс ночью также повышен."
     if rr_boost:
