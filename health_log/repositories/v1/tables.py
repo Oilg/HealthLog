@@ -6,14 +6,18 @@ metadata = sqlalchemy.MetaData()
 users = sqlalchemy.Table(
     "users",
     metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True),
+    sqlalchemy.Column(
+        "id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True
+    ),
     sqlalchemy.Column("first_name", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("last_name", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("sex", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("email", sqlalchemy.String, nullable=False, unique=True),
     sqlalchemy.Column("phone", sqlalchemy.String, nullable=False, unique=True),
     sqlalchemy.Column("password_hash", sqlalchemy.String, nullable=False),
-    sqlalchemy.Column("is_active", sqlalchemy.Boolean, nullable=False, server_default=sqlalchemy.true()),
+    sqlalchemy.Column(
+        "is_active", sqlalchemy.Boolean, nullable=False, server_default=sqlalchemy.true()
+    ),
     sqlalchemy.Column("last_sync_at", sqlalchemy.DateTime, nullable=True),
     sqlalchemy.Column("last_sync_records_count", sqlalchemy.Integer, nullable=True),
     sqlalchemy.Column("apns_device_token", sqlalchemy.String, nullable=True),
@@ -31,8 +35,12 @@ users = sqlalchemy.Table(
 auth_tokens = sqlalchemy.Table(
     "auth_tokens",
     metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True),
-    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False),
+    sqlalchemy.Column(
+        "id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True
+    ),
+    sqlalchemy.Column(
+        "user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False
+    ),
     sqlalchemy.Column("token_hash", sqlalchemy.String(64), nullable=False, unique=True),
     sqlalchemy.Column("token_type", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("expires_at", sqlalchemy.DateTime, nullable=False),
@@ -43,8 +51,12 @@ auth_tokens = sqlalchemy.Table(
 health_uploads = sqlalchemy.Table(
     "health_uploads",
     metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True),
-    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False),
+    sqlalchemy.Column(
+        "id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True
+    ),
+    sqlalchemy.Column(
+        "user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False
+    ),
     sqlalchemy.Column("provider", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("data_format", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("filename", sqlalchemy.String, nullable=False),
@@ -56,9 +68,15 @@ health_uploads = sqlalchemy.Table(
 raw_health_records = sqlalchemy.Table(
     "raw_health_records",
     metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True),
-    sqlalchemy.Column("upload_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("health_uploads.id"), nullable=False),
-    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False),
+    sqlalchemy.Column(
+        "id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True
+    ),
+    sqlalchemy.Column(
+        "upload_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("health_uploads.id"), nullable=False
+    ),
+    sqlalchemy.Column(
+        "user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False
+    ),
     sqlalchemy.Column("provider", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("data_format", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("record_type", sqlalchemy.String, nullable=False),
@@ -69,26 +87,38 @@ raw_health_records = sqlalchemy.Table(
     sqlalchemy.Column("record_fingerprint", sqlalchemy.String(64), nullable=False),
     sqlalchemy.Column("payload", sqlalchemy.JSON, nullable=False),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, server_default=func.now(), nullable=False),
-    sqlalchemy.UniqueConstraint("user_id", "provider", "record_fingerprint", name="uq_raw_record_fingerprint"),
+    sqlalchemy.UniqueConstraint(
+        "user_id", "provider", "record_fingerprint", name="uq_raw_record_fingerprint"
+    ),
 )
 
 sleep_analysis = sqlalchemy.Table(
     "sleep_analysis",
     metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True),
-    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False),
+    sqlalchemy.Column(
+        "id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True
+    ),
+    sqlalchemy.Column(
+        "user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False
+    ),
     sqlalchemy.Column("sourceName", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("creationDate", sqlalchemy.DateTime, nullable=False),
     sqlalchemy.Column("startDate", sqlalchemy.DateTime, nullable=False),
     sqlalchemy.Column("endDate", sqlalchemy.DateTime, nullable=False),
-    sqlalchemy.UniqueConstraint("user_id", "sourceName", "startDate", "endDate", name="uq_sleep_analysis_record"),
+    sqlalchemy.UniqueConstraint(
+        "user_id", "sourceName", "startDate", "endDate", name="uq_sleep_analysis_record"
+    ),
 )
 
 sleep_duration_goal = sqlalchemy.Table(
     "sleep_duration_goal",
     metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True),
-    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False),
+    sqlalchemy.Column(
+        "id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True
+    ),
+    sqlalchemy.Column(
+        "user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False
+    ),
     sqlalchemy.Column("sourceName", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("value", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("unit", sqlalchemy.String, nullable=True),
@@ -107,35 +137,49 @@ sleep_duration_goal = sqlalchemy.Table(
 heart_rate = sqlalchemy.Table(
     "heart_rate",
     metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True),
-    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False),
+    sqlalchemy.Column(
+        "id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True
+    ),
+    sqlalchemy.Column(
+        "user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False
+    ),
     sqlalchemy.Column("sourceName", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("unit", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("value", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("creationDate", sqlalchemy.DateTime, nullable=False),
     sqlalchemy.Column("startDate", sqlalchemy.DateTime, nullable=False),
     sqlalchemy.Column("endDate", sqlalchemy.DateTime, nullable=False),
-    sqlalchemy.UniqueConstraint("user_id", "sourceName", "startDate", "endDate", name="uq_heart_rate_record"),
+    sqlalchemy.UniqueConstraint(
+        "user_id", "sourceName", "startDate", "endDate", name="uq_heart_rate_record"
+    ),
 )
 
 heart_rate_variability = sqlalchemy.Table(
     "heart_rate_variability",
     metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True),
-    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False),
+    sqlalchemy.Column(
+        "id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True
+    ),
+    sqlalchemy.Column(
+        "user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False
+    ),
     sqlalchemy.Column("sourceName", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("unit", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("value", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("creationDate", sqlalchemy.DateTime, nullable=False),
     sqlalchemy.Column("startDate", sqlalchemy.DateTime, nullable=False),
     sqlalchemy.Column("endDate", sqlalchemy.DateTime, nullable=False),
-    sqlalchemy.UniqueConstraint("user_id", "sourceName", "startDate", "endDate", name="uq_hrv_record"),
+    sqlalchemy.UniqueConstraint(
+        "user_id", "sourceName", "startDate", "endDate", name="uq_hrv_record"
+    ),
 )
 
 instantaneous_bpm = sqlalchemy.Table(
     "heart_rate_variability_bpm",
     metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True),
+    sqlalchemy.Column(
+        "id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True
+    ),
     sqlalchemy.Column(
         "hr_variability_id",
         sqlalchemy.Integer,
@@ -150,57 +194,82 @@ instantaneous_bpm = sqlalchemy.Table(
 respiratory_rate = sqlalchemy.Table(
     "respiratory_rate",
     metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True),
-    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False),
+    sqlalchemy.Column(
+        "id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True
+    ),
+    sqlalchemy.Column(
+        "user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False
+    ),
     sqlalchemy.Column("sourceName", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("unit", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("value", sqlalchemy.Text, nullable=True),
     sqlalchemy.Column("creationDate", sqlalchemy.DateTime, nullable=False),
     sqlalchemy.Column("startDate", sqlalchemy.DateTime, nullable=False),
     sqlalchemy.Column("endDate", sqlalchemy.DateTime, nullable=False),
-    sqlalchemy.UniqueConstraint("user_id", "sourceName", "startDate", "endDate", name="uq_respiratory_rate_record"),
+    sqlalchemy.UniqueConstraint(
+        "user_id", "sourceName", "startDate", "endDate", name="uq_respiratory_rate_record"
+    ),
 )
 
 vo_2_max = sqlalchemy.Table(
     "vo_2_max",
     metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True),
-    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False),
+    sqlalchemy.Column(
+        "id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True
+    ),
+    sqlalchemy.Column(
+        "user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False
+    ),
     sqlalchemy.Column("sourceName", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("unit", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("value", sqlalchemy.Text, nullable=True),
     sqlalchemy.Column("creationDate", sqlalchemy.DateTime, nullable=False),
     sqlalchemy.Column("startDate", sqlalchemy.DateTime, nullable=False),
     sqlalchemy.Column("endDate", sqlalchemy.DateTime, nullable=False),
-    sqlalchemy.UniqueConstraint("user_id", "sourceName", "startDate", "endDate", name="uq_vo2max_record"),
+    sqlalchemy.UniqueConstraint(
+        "user_id", "sourceName", "startDate", "endDate", name="uq_vo2max_record"
+    ),
 )
 
 menstrual_flow = sqlalchemy.Table(
     "menstrual_flow",
     metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True),
-    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False),
+    sqlalchemy.Column(
+        "id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True
+    ),
+    sqlalchemy.Column(
+        "user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False
+    ),
     sqlalchemy.Column("sourceName", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("value", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("creationDate", sqlalchemy.DateTime, nullable=False),
     sqlalchemy.Column("startDate", sqlalchemy.DateTime, nullable=False),
     sqlalchemy.Column("endDate", sqlalchemy.DateTime, nullable=False),
-    sqlalchemy.UniqueConstraint("user_id", "sourceName", "startDate", "endDate", name="uq_menstrual_flow_record"),
+    sqlalchemy.UniqueConstraint(
+        "user_id", "sourceName", "startDate", "endDate", name="uq_menstrual_flow_record"
+    ),
 )
+
 
 def _quantity_table(name: str, unique_name: str) -> sqlalchemy.Table:
     return sqlalchemy.Table(
         name,
         metadata,
-        sqlalchemy.Column("id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True),
-        sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False),
+        sqlalchemy.Column(
+            "id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True
+        ),
+        sqlalchemy.Column(
+            "user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False
+        ),
         sqlalchemy.Column("sourceName", sqlalchemy.String, nullable=False),
         sqlalchemy.Column("unit", sqlalchemy.String, nullable=True),
         sqlalchemy.Column("value", sqlalchemy.Text, nullable=True),
         sqlalchemy.Column("creationDate", sqlalchemy.DateTime, nullable=False),
         sqlalchemy.Column("startDate", sqlalchemy.DateTime, nullable=False),
         sqlalchemy.Column("endDate", sqlalchemy.DateTime, nullable=False),
-        sqlalchemy.UniqueConstraint("user_id", "sourceName", "startDate", "endDate", name=unique_name),
+        sqlalchemy.UniqueConstraint(
+            "user_id", "sourceName", "startDate", "endDate", name=unique_name
+        ),
     )
 
 
@@ -208,32 +277,48 @@ def _category_table(name: str, unique_name: str) -> sqlalchemy.Table:
     return sqlalchemy.Table(
         name,
         metadata,
-        sqlalchemy.Column("id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True),
-        sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False),
+        sqlalchemy.Column(
+            "id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True
+        ),
+        sqlalchemy.Column(
+            "user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False
+        ),
         sqlalchemy.Column("sourceName", sqlalchemy.String, nullable=False),
         sqlalchemy.Column("value", sqlalchemy.String, nullable=True),
         sqlalchemy.Column("creationDate", sqlalchemy.DateTime, nullable=False),
         sqlalchemy.Column("startDate", sqlalchemy.DateTime, nullable=False),
         sqlalchemy.Column("endDate", sqlalchemy.DateTime, nullable=False),
-        sqlalchemy.UniqueConstraint("user_id", "sourceName", "startDate", "endDate", name=unique_name),
+        sqlalchemy.UniqueConstraint(
+            "user_id", "sourceName", "startDate", "endDate", name=unique_name
+        ),
     )
 
 
 oxygen_saturation = _quantity_table("oxygen_saturation", "uq_oxygen_saturation_record")
-blood_pressure_systolic = _quantity_table("blood_pressure_systolic", "uq_blood_pressure_systolic_record")
-blood_pressure_diastolic = _quantity_table("blood_pressure_diastolic", "uq_blood_pressure_diastolic_record")
+blood_pressure_systolic = _quantity_table(
+    "blood_pressure_systolic", "uq_blood_pressure_systolic_record"
+)
+blood_pressure_diastolic = _quantity_table(
+    "blood_pressure_diastolic", "uq_blood_pressure_diastolic_record"
+)
 apple_sleeping_wrist_temperature = _quantity_table(
     "apple_sleeping_wrist_temperature", "uq_apple_sleeping_wrist_temperature_record"
 )
-walking_heart_rate_average = _quantity_table("walking_heart_rate_average", "uq_walking_heart_rate_average_record")
+walking_heart_rate_average = _quantity_table(
+    "walking_heart_rate_average", "uq_walking_heart_rate_average_record"
+)
 walking_speed = _quantity_table("walking_speed", "uq_walking_speed_record")
 walking_step_length = _quantity_table("walking_step_length", "uq_walking_step_length_record")
 walking_double_support_percentage = _quantity_table(
     "walking_double_support_percentage", "uq_walking_double_support_percentage_record"
 )
 walking_steadiness = _quantity_table("walking_steadiness", "uq_walking_steadiness_record")
-environmental_audio_exposure = _quantity_table("environmental_audio_exposure", "uq_environmental_audio_exposure_record")
-headphone_audio_exposure = _quantity_table("headphone_audio_exposure", "uq_headphone_audio_exposure_record")
+environmental_audio_exposure = _quantity_table(
+    "environmental_audio_exposure", "uq_environmental_audio_exposure_record"
+)
+headphone_audio_exposure = _quantity_table(
+    "headphone_audio_exposure", "uq_headphone_audio_exposure_record"
+)
 body_mass = _quantity_table("body_mass", "uq_body_mass_record")
 body_mass_index = _quantity_table("body_mass_index", "uq_body_mass_index_record")
 body_fat_percentage = _quantity_table("body_fat_percentage", "uq_body_fat_percentage_record")
@@ -247,13 +332,19 @@ low_heart_rate_event = _category_table("low_heart_rate_event", "uq_low_heart_rat
 irregular_heart_rhythm_event = _category_table(
     "irregular_heart_rhythm_event", "uq_irregular_heart_rhythm_event_record"
 )
-intermenstrual_bleeding = _category_table("intermenstrual_bleeding", "uq_intermenstrual_bleeding_record")
+intermenstrual_bleeding = _category_table(
+    "intermenstrual_bleeding", "uq_intermenstrual_bleeding_record"
+)
 
 sleep_apnea_events = sqlalchemy.Table(
     "sleep_apnea_events",
     metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True),
-    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False),
+    sqlalchemy.Column(
+        "id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True
+    ),
+    sqlalchemy.Column(
+        "user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False
+    ),
     sqlalchemy.Column("start_time", sqlalchemy.DateTime, nullable=False),
     sqlalchemy.Column("end_time", sqlalchemy.DateTime, nullable=False),
     sqlalchemy.Column("sleep_segment_id", sqlalchemy.Integer, nullable=True),
@@ -270,14 +361,20 @@ sleep_apnea_events = sqlalchemy.Table(
     sqlalchemy.Column("baseline_hrv", sqlalchemy.Float, nullable=True),
     sqlalchemy.Column("sleep_hours_context", sqlalchemy.Float, nullable=True),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, server_default=func.now(), nullable=False),
-    sqlalchemy.UniqueConstraint("user_id", "start_time", "end_time", "detected_by", name="uq_sleep_apnea_event"),
+    sqlalchemy.UniqueConstraint(
+        "user_id", "start_time", "end_time", "detected_by", name="uq_sleep_apnea_event"
+    ),
 )
 
 analysis_reports = sqlalchemy.Table(
     "analysis_reports",
     metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True),
-    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False),
+    sqlalchemy.Column(
+        "id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True
+    ),
+    sqlalchemy.Column(
+        "user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False
+    ),
     sqlalchemy.Column("analyzed_at", sqlalchemy.DateTime, nullable=False),
     sqlalchemy.Column("period_from", sqlalchemy.DateTime, nullable=False),
     sqlalchemy.Column("period_to", sqlalchemy.DateTime, nullable=False),
@@ -289,8 +386,12 @@ analysis_reports = sqlalchemy.Table(
 sync_schedules = sqlalchemy.Table(
     "sync_schedules",
     metadata,
-    sqlalchemy.Column("id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True),
-    sqlalchemy.Column("user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False),
+    sqlalchemy.Column(
+        "id", sqlalchemy.Integer, sqlalchemy.Identity(), nullable=False, primary_key=True
+    ),
+    sqlalchemy.Column(
+        "user_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"), nullable=False
+    ),
     sqlalchemy.Column("day_of_week", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("sync_time", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("timezone", sqlalchemy.String, nullable=False, server_default="UTC"),

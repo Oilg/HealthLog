@@ -27,7 +27,9 @@ def _nights_with_low_spo2(
 ) -> int:
     nights: set[int] = set()
     for seg_start, seg_end in segments:
-        night_points = [p for p in points if seg_start <= p.timestamp <= seg_end and p.value < threshold]
+        night_points = [
+            p for p in points if seg_start <= p.timestamp <= seg_end and p.value < threshold
+        ]
         if night_points:
             nights.add(seg_start.toordinal())
     return len(nights)

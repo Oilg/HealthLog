@@ -44,10 +44,9 @@ def assess_irregular_rhythm_risk(
         )
 
     cutoff_90d = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    cutoff_90d = cutoff_90d.__class__(
-        cutoff_90d.year, cutoff_90d.month, cutoff_90d.day
-    )
+    cutoff_90d = cutoff_90d.__class__(cutoff_90d.year, cutoff_90d.month, cutoff_90d.day)
     from datetime import timedelta
+
     cutoff_90d = now - timedelta(days=90)
     cutoff_30d = now - timedelta(days=30)
 
@@ -72,7 +71,9 @@ def assess_irregular_rhythm_risk(
 
     score = round(score, 3)
 
-    confidence = round(min(1.0, events_90d / 5.0) * 0.6 + (0.4 if ecg_abnormal_count > 0 else 0.0), 3)
+    confidence = round(
+        min(1.0, events_90d / 5.0) * 0.6 + (0.4 if ecg_abnormal_count > 0 else 0.0), 3
+    )
 
     metrics: dict[str, object] = {
         "events_90d": events_90d,

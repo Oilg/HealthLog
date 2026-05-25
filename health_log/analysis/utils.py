@@ -63,7 +63,9 @@ def nearest_value(points: list[EventPoint], target_ts: datetime, max_seconds: in
     return nearest.value if nearest else None
 
 
-def merge_datetime_intervals(intervals: list[tuple[datetime, datetime]]) -> list[tuple[datetime, datetime]]:
+def merge_datetime_intervals(
+    intervals: list[tuple[datetime, datetime]],
+) -> list[tuple[datetime, datetime]]:
     if not intervals:
         return []
     intervals_sorted = sorted(intervals, key=lambda item: item[0])

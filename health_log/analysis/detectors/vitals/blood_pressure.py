@@ -102,7 +102,11 @@ def assess_hypertension_risk(
             summary=f"Среднее АД: {avg_sbp:.0f}/{avg_dbp:.0f} мм рт.ст. — в пределах нормы.",
             recommendation="Продолжай регулярный контроль АД.",
             clinical_safety_note=CLINICAL_SAFETY_NOTE,
-            supporting_metrics={"avg_sbp": round(avg_sbp, 1), "avg_dbp": round(avg_dbp, 1), "measurements": n_measurements},
+            supporting_metrics={
+                "avg_sbp": round(avg_sbp, 1),
+                "avg_dbp": round(avg_dbp, 1),
+                "measurements": n_measurements,
+            },
         )
 
     confirmed_days = _days_with_condition(sbp, dbp, sbp_thr, dbp_thr, above=True)
@@ -118,11 +122,17 @@ def assess_hypertension_risk(
             summary=f"Среднее АД {avg_sbp:.0f}/{avg_dbp:.0f} мм рт.ст., но устойчивого паттерна не выявлено.",
             recommendation="Продолжай измерения; при повторных высоких значениях обратись к врачу.",
             clinical_safety_note=CLINICAL_SAFETY_NOTE,
-            supporting_metrics={"avg_sbp": round(avg_sbp, 1), "avg_dbp": round(avg_dbp, 1), "confirmed_days": confirmed_days},
+            supporting_metrics={
+                "avg_sbp": round(avg_sbp, 1),
+                "avg_dbp": round(avg_dbp, 1),
+                "confirmed_days": confirmed_days,
+            },
         )
 
     score = round(min(1.0, score_base + confirmed_days * 0.03), 3)
-    confidence = round(min(1.0, n_measurements / 20.0) * 0.7 + min(1.0, confirmed_days / 5.0) * 0.3, 3)
+    confidence = round(
+        min(1.0, n_measurements / 20.0) * 0.7 + min(1.0, confirmed_days / 5.0) * 0.3, 3
+    )
 
     return RiskAssessment(
         condition="hypertension_risk",
@@ -196,7 +206,9 @@ def assess_hypotension_risk(
             supporting_metrics={"avg_sbp": round(avg_sbp, 1), "measurements": n_measurements},
         )
 
-    confidence = round(min(1.0, n_measurements / 20.0) * 0.8 + (0.2 if days_sbp_below_90 >= 2 else 0.0), 3)
+    confidence = round(
+        min(1.0, n_measurements / 20.0) * 0.8 + (0.2 if days_sbp_below_90 >= 2 else 0.0), 3
+    )
 
     summary = f"Подозрение на сниженное АД: среднее {avg_sbp:.0f} мм рт.ст."
     if high_hr_concurrent:

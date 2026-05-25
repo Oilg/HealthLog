@@ -38,13 +38,17 @@ def assess_lean_mass_decline_risk(
     )
 
     if len(points) < MIN_LEAN_MEASUREMENTS:
-        return _insufficient("lean_mass_decline_risk", window, len(points), "мало измерений безжировой массы")
+        return _insufficient(
+            "lean_mass_decline_risk", window, len(points), "мало измерений безжировой массы"
+        )
 
-    baseline_val = median([p.value for p in points[:max(1, len(points) // 2)]])
-    recent_val = median([p.value for p in points[len(points) // 2:]])
+    baseline_val = median([p.value for p in points[: max(1, len(points) // 2)]])
+    recent_val = median([p.value for p in points[len(points) // 2 :]])
 
     if baseline_val <= 0:
-        return _insufficient("lean_mass_decline_risk", window, len(points), "нулевые значения безжировой массы")
+        return _insufficient(
+            "lean_mass_decline_risk", window, len(points), "нулевые значения безжировой массы"
+        )
 
     decline_pct = (baseline_val - recent_val) / baseline_val * 100
 
@@ -65,14 +69,19 @@ def assess_lean_mass_decline_risk(
             summary=f"Безжировая масса стабильна: {recent_val:.1f} кг.",
             recommendation="Поддерживай силовые тренировки и достаточное потребление белка.",
             clinical_safety_note=CLINICAL_SAFETY_NOTE,
-            supporting_metrics={"recent_lean_kg": round(recent_val, 1), "decline_pct": round(decline_pct, 1)},
+            supporting_metrics={
+                "recent_lean_kg": round(recent_val, 1),
+                "decline_pct": round(decline_pct, 1),
+            },
         )
 
-    recs = build_weight_activity_recommendations({
-        "lean_mass_issue": True,
-        "fat_issue": False,
-        "low_activity": True,
-    })
+    recs = build_weight_activity_recommendations(
+        {
+            "lean_mass_issue": True,
+            "fat_issue": False,
+            "low_activity": True,
+        }
+    )
 
     return RiskAssessment(
         condition="lean_mass_decline_risk",
@@ -95,8 +104,6 @@ def assess_lean_mass_decline_risk(
         },
         lifestyle_recommendations=recs,
     )
-
-
 
 
 def assess_weight_trend_risk(
@@ -136,11 +143,13 @@ def assess_weight_trend_risk(
         change_pct = (end_med - start_med) / start_med * 100
         if change_pct >= threshold_pct:
             score = round(min(1.0, 0.35 + (change_pct - threshold_pct) * 0.02), 3)
-            recs = build_weight_activity_recommendations({
-                "weight_issue": True,
-                "persistent_weight_gain": True,
-                "metabolic_risk": True,
-            })
+            recs = build_weight_activity_recommendations(
+                {
+                    "weight_issue": True,
+                    "persistent_weight_gain": True,
+                    "metabolic_risk": True,
+                }
+            )
             return RiskAssessment(
                 condition="weight_trend_risk",
                 window=window,
@@ -179,8 +188,6 @@ def assess_weight_trend_risk(
     )
 
 
-
-
 def assess_fat_mass_trend_risk(
     body_mass_rows: Iterable[tuple],
     body_fat_rows: Iterable[tuple],
@@ -191,8 +198,14 @@ def assess_fat_mass_trend_risk(
     now = now or utcnow()
     cutoff_90d = now - timedelta(days=90)
 
-    mass_points = sorted([p for p in to_points(body_mass_rows) if p.timestamp >= cutoff_90d], key=lambda p: p.timestamp)
-    fat_points = sorted([p for p in to_points(body_fat_rows) if p.timestamp >= cutoff_90d], key=lambda p: p.timestamp)
+    mass_points = sorted(
+        [p for p in to_points(body_mass_rows) if p.timestamp >= cutoff_90d],
+        key=lambda p: p.timestamp,
+    )
+    fat_points = sorted(
+        [p for p in to_points(body_fat_rows) if p.timestamp >= cutoff_90d],
+        key=lambda p: p.timestamp,
+    )
 
     if len(mass_points) < MIN_WEIGHT_MEASUREMENTS or len(fat_points) < MIN_FAT_MEASUREMENTS:
         return _insufficient(
@@ -202,7 +215,9 @@ def assess_fat_mass_trend_risk(
             "мало измерений веса или жировой массы",
         )
 
-    def fat_mass_kg(mass_pts: list[EventPoint], fat_pts: list[EventPoint], start: datetime, end: datetime) -> float | None:
+    def fat_mass_kg(
+        mass_pts: list[EventPoint], fat_pts: list[EventPoint], start: datetime, end: datetime
+    ) -> float | None:
         m = window_median(mass_pts, start, end)
         f = window_median(fat_pts, start, end)
         if m is None or f is None:
@@ -213,7 +228,9 @@ def assess_fat_mass_trend_risk(
     end_fat = fat_mass_kg(mass_points, fat_points, now - timedelta(days=14), now)
 
     if start_fat is None or end_fat is None or start_fat <= 0:
-        return _insufficient("fat_mass_trend_risk", window, len(fat_points), "недостаточно точек для сглаживания")
+        return _insufficient(
+            "fat_mass_trend_risk", window, len(fat_points), "недостаточно точек для сглаживания"
+        )
 
     change_pct = (end_fat - start_fat) / start_fat * 100
 
@@ -234,15 +251,21 @@ def assess_fat_mass_trend_risk(
             summary=f"Жировая масса стабильна: {start_fat:.1f} → {end_fat:.1f} кг (Δ={change_pct:+.1f}%).",
             recommendation="Продолжай контролировать состав тела.",
             clinical_safety_note=CLINICAL_SAFETY_NOTE,
-            supporting_metrics={"fat_mass_start_kg": round(start_fat, 1), "fat_mass_end_kg": round(end_fat, 1), "change_pct": round(change_pct, 1)},
+            supporting_metrics={
+                "fat_mass_start_kg": round(start_fat, 1),
+                "fat_mass_end_kg": round(end_fat, 1),
+                "change_pct": round(change_pct, 1),
+            },
         )
 
-    recs = build_weight_activity_recommendations({
-        "fat_issue": True,
-        "lean_mass_issue": False,
-        "low_activity": True,
-        "persistent_weight_gain": True,
-    })
+    recs = build_weight_activity_recommendations(
+        {
+            "fat_issue": True,
+            "lean_mass_issue": False,
+            "low_activity": True,
+            "persistent_weight_gain": True,
+        }
+    )
 
     return RiskAssessment(
         condition="fat_mass_trend_risk",
@@ -263,8 +286,6 @@ def assess_fat_mass_trend_risk(
     )
 
 
-
-
 def assess_body_composition_trend_risk(
     body_mass_rows: Iterable[tuple],
     body_fat_rows: Iterable[tuple],
@@ -276,12 +297,24 @@ def assess_body_composition_trend_risk(
     now = now or utcnow()
     cutoff = now - timedelta(days=90)
 
-    mass_points = sorted([p for p in to_points(body_mass_rows) if p.timestamp >= cutoff], key=lambda p: p.timestamp)
-    fat_points = sorted([p for p in to_points(body_fat_rows) if p.timestamp >= cutoff], key=lambda p: p.timestamp)
-    lean_points = sorted([p for p in to_points(lean_mass_rows or []) if p.timestamp >= cutoff], key=lambda p: p.timestamp)
+    mass_points = sorted(
+        [p for p in to_points(body_mass_rows) if p.timestamp >= cutoff], key=lambda p: p.timestamp
+    )
+    fat_points = sorted(
+        [p for p in to_points(body_fat_rows) if p.timestamp >= cutoff], key=lambda p: p.timestamp
+    )
+    lean_points = sorted(
+        [p for p in to_points(lean_mass_rows or []) if p.timestamp >= cutoff],
+        key=lambda p: p.timestamp,
+    )
 
     if len(mass_points) < MIN_WEIGHT_MEASUREMENTS or len(fat_points) < MIN_FAT_MEASUREMENTS:
-        return _insufficient("body_composition_trend_risk", window, min(len(mass_points), len(fat_points)), "мало данных состава тела")
+        return _insufficient(
+            "body_composition_trend_risk",
+            window,
+            min(len(mass_points), len(fat_points)),
+            "мало данных состава тела",
+        )
 
     start_wt_pts = [p.value for p in mass_points if p.timestamp <= cutoff + timedelta(days=14)]
     end_wt_pts = [p.value for p in mass_points if p.timestamp >= now - timedelta(days=14)]
@@ -289,15 +322,20 @@ def assess_body_composition_trend_risk(
     end_fat_pts = [p.value for p in fat_points if p.timestamp >= now - timedelta(days=14)]
 
     if not (start_wt_pts and end_wt_pts and start_fat_pts and end_fat_pts):
-        return _insufficient("body_composition_trend_risk", window, len(mass_points), "недостаточно точек на границах")
+        return _insufficient(
+            "body_composition_trend_risk",
+            window,
+            len(mass_points),
+            "недостаточно точек на границах",
+        )
 
     weight_change_pct = (median(end_wt_pts) - median(start_wt_pts)) / median(start_wt_pts) * 100
     fat_pp_change = median(end_fat_pts) - median(start_fat_pts)
 
     lean_decline_pct = 0.0
     if len(lean_points) >= 2:
-        start_lean = median([p.value for p in lean_points[:max(1, len(lean_points) // 2)]])
-        end_lean = median([p.value for p in lean_points[len(lean_points) // 2:]])
+        start_lean = median([p.value for p in lean_points[: max(1, len(lean_points) // 2)]])
+        end_lean = median([p.value for p in lean_points[len(lean_points) // 2 :]])
         if start_lean > 0:
             lean_decline_pct = (start_lean - end_lean) / start_lean * 100
 
@@ -305,7 +343,13 @@ def assess_body_composition_trend_risk(
     fat_rising = fat_pp_change >= 2.0
     lean_falling = lean_decline_pct >= 3.0
 
-    if weight_stable and fat_rising and lean_falling and fat_pp_change >= 4 and lean_decline_pct >= 5:
+    if (
+        weight_stable
+        and fat_rising
+        and lean_falling
+        and fat_pp_change >= 4
+        and lean_decline_pct >= 5
+    ):
         severity, score = "high", 0.85
     elif weight_stable and fat_rising and lean_falling:
         severity, score = "medium", 0.65
@@ -331,11 +375,13 @@ def assess_body_composition_trend_risk(
             },
         )
 
-    recs = build_weight_activity_recommendations({
-        "fat_issue": fat_rising,
-        "lean_mass_issue": lean_falling,
-        "low_activity": True,
-    })
+    recs = build_weight_activity_recommendations(
+        {
+            "fat_issue": fat_rising,
+            "lean_mass_issue": lean_falling,
+            "low_activity": True,
+        }
+    )
 
     return RiskAssessment(
         condition="body_composition_trend_risk",

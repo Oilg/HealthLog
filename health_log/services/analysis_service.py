@@ -1,4 +1,5 @@
 """Background analysis service: run health risk analysis after data sync."""
+
 from __future__ import annotations
 
 import logging
@@ -36,6 +37,7 @@ async def analyze_for_user(user_id: int) -> None:
 
         if device_token:
             from health_log.services.apns import send_analysis_ready_push
+
             await send_analysis_ready_push(device_token)
 
     except Exception:

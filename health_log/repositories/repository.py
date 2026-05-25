@@ -116,7 +116,9 @@ class RecordsRepository(BaseRepository):
         inserted = await self._upsert_in_batches(table, rows, UPSERT_KEYS[table.name])
         return inserted
 
-    async def insert_hr_variability_records(self, *, user_id: int, records: list[ParsedRecord]) -> tuple[int, int]:
+    async def insert_hr_variability_records(
+        self, *, user_id: int, records: list[ParsedRecord]
+    ) -> tuple[int, int]:
         hrv_table = tables.heart_rate_variability
         bpm_table = tables.instantaneous_bpm
 
@@ -137,7 +139,9 @@ class RecordsRepository(BaseRepository):
             hrv_rows.append(values)
             hrv_keys.append((user_id, source_name, start_date, end_date))
 
-        inserted_hrv = await self._upsert_in_batches(hrv_table, hrv_rows, UPSERT_KEYS[hrv_table.name])
+        inserted_hrv = await self._upsert_in_batches(
+            hrv_table, hrv_rows, UPSERT_KEYS[hrv_table.name]
+        )
 
         if not hrv_keys:
             return (inserted_hrv, 0)
@@ -194,7 +198,9 @@ class RecordsRepository(BaseRepository):
                     }
                 )
 
-        inserted_bpm = await self._upsert_in_batches(bpm_table, bpm_rows, UPSERT_KEYS[bpm_table.name])
+        inserted_bpm = await self._upsert_in_batches(
+            bpm_table, bpm_rows, UPSERT_KEYS[bpm_table.name]
+        )
         return (inserted_hrv, inserted_bpm)
 
     async def insert_sleep_apnea_events(self, user_id: int, events: list[dict[str, Any]]) -> int:
@@ -283,9 +289,7 @@ class IngestionRepository(BaseRepository):
             start_date_raw = attrs.get("startDate") or ""
             end_date_raw = attrs.get("endDate") or ""
             value_raw = attrs.get("value") or ""
-            fingerprint_src = (
-                f"{user_id}|{provider}|{record_type}|{source_name}|{start_date_raw}|{end_date_raw}|{value_raw}"
-            )
+            fingerprint_src = f"{user_id}|{provider}|{record_type}|{source_name}|{start_date_raw}|{end_date_raw}|{value_raw}"
             record_fingerprint = sha256(fingerprint_src.encode("utf-8")).hexdigest()
 
             rows.append(
@@ -310,7 +314,9 @@ class IngestionRepository(BaseRepository):
             stmt = (
                 pg_insert(tables.raw_health_records)
                 .values(batch)
-                .on_conflict_do_nothing(index_elements=["user_id", "provider", "record_fingerprint"])
+                .on_conflict_do_nothing(
+                    index_elements=["user_id", "provider", "record_fingerprint"]
+                )
                 .returning(tables.raw_health_records.c.id)
             )
             result = await self._connection.execute(stmt)

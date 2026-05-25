@@ -17,11 +17,15 @@ def _in_sleep(ts: datetime, segments: list[tuple[datetime, datetime]]) -> bool:
 
 
 def _sleep_total_hours(segments: list[tuple[datetime, datetime]]) -> float:
-    merged = merge_datetime_intervals([(s, e) for s, e in segments if s is not None and e is not None and e > s])
+    merged = merge_datetime_intervals(
+        [(s, e) for s, e in segments if s is not None and e is not None and e > s]
+    )
     return sum((e - s).total_seconds() for s, e in merged) / 3600.0
 
 
-def _rest_points_from_sleep(heart: list[EventPoint], segments: list[tuple[datetime, datetime]]) -> list[EventPoint]:
+def _rest_points_from_sleep(
+    heart: list[EventPoint], segments: list[tuple[datetime, datetime]]
+) -> list[EventPoint]:
     return [p for p in heart if _in_sleep(p.timestamp, segments)]
 
 
@@ -33,7 +37,9 @@ def _percentile_20_threshold(values: list[float]) -> float | None:
     return s[idx]
 
 
-def _rest_like_daytime_points(heart: list[EventPoint], segments: list[tuple[datetime, datetime]]) -> list[EventPoint]:
+def _rest_like_daytime_points(
+    heart: list[EventPoint], segments: list[tuple[datetime, datetime]]
+) -> list[EventPoint]:
     outside = [p for p in heart if not _in_sleep(p.timestamp, segments)]
     if not outside:
         return []
@@ -248,9 +254,7 @@ def assess_tachycardia_risk(
             "стоит обсудить результаты с кардиологом и рассмотреть ЭКГ/Holter."
         )
     else:
-        recommendation = (
-            "Сигнал носит вероятностный характер по данным wearables; при симптомах или сомнениях проконсультируйся с врачом."
-        )
+        recommendation = "Сигнал носит вероятностный характер по данным wearables; при симптомах или сомнениях проконсультируйся с врачом."
 
     interpretation = (
         "Это не диагноз; окончательное подтверждение тахикардии требует ЭКГ или ритм-мониторинга (Holter). "
@@ -282,7 +286,9 @@ def _tachycardia_confidence(
     point_density_component = min(1.0, rest_points_count / 60.0)
     signal_consistency_component = min(1.0, episode_count / 2.0)
     confidence = (
-        0.5 * sleep_coverage_component + 0.3 * point_density_component + 0.2 * signal_consistency_component
+        0.5 * sleep_coverage_component
+        + 0.3 * point_density_component
+        + 0.2 * signal_consistency_component
     )
     if not used_sleep:
         confidence *= 0.7

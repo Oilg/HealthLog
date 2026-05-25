@@ -21,7 +21,9 @@ async def get_current_user(
     conn: AsyncConnection = Depends(db_connect),
 ) -> AuthUser:
     if credentials is None or credentials.scheme.lower() != "bearer":
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Требуется авторизация")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Требуется авторизация"
+        )
 
     token_repo = AuthTokenRepository(conn)
     user = await token_repo.get_user_by_active_token(
@@ -29,5 +31,7 @@ async def get_current_user(
         token_type="access",
     )
     if user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Недействительный access token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Недействительный access token"
+        )
     return user

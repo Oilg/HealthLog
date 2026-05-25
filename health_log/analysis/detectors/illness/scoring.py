@@ -19,9 +19,15 @@ class ScoreResult:
 
 def calculate_score(snapshot: TrendSnapshot) -> ScoreResult:
     hr_component = _clamp01((snapshot.recent_rest_hr - snapshot.baseline_rest_hr) / 10.0)
-    hrv_component = _clamp01((snapshot.baseline_hrv - snapshot.recent_hrv) / snapshot.baseline_hrv / 0.35)
+    hrv_component = _clamp01(
+        (snapshot.baseline_hrv - snapshot.recent_hrv) / snapshot.baseline_hrv / 0.35
+    )
     resp_component = 0.0
-    if snapshot.baseline_rr is not None and snapshot.recent_rr is not None and snapshot.baseline_rr > 0:
+    if (
+        snapshot.baseline_rr is not None
+        and snapshot.recent_rr is not None
+        and snapshot.baseline_rr > 0
+    ):
         resp_component = _clamp01(
             (snapshot.recent_rr - snapshot.baseline_rr) / snapshot.baseline_rr / 0.20
         )

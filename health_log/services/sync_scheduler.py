@@ -4,6 +4,7 @@ Integration pattern:
     from health_log.services.sync_scheduler import run_sync_scheduler
     asyncio.create_task(run_sync_scheduler())
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -54,7 +55,12 @@ async def _check_and_send_pushes() -> None:
                 if device_token:
                     ok = await send_silent_push(device_token)
                     if ok:
-                        logger.info("Push отправлен пользователю user_id=%d (%s %s)", user_id, current_day, current_time_str)
+                        logger.info(
+                            "Push отправлен пользователю user_id=%d (%s %s)",
+                            user_id,
+                            current_day,
+                            current_time_str,
+                        )
 
 
 async def _send_daily_10am_pushes() -> None:
@@ -103,7 +109,9 @@ async def _send_daily_10am_pushes() -> None:
         if local_now.hour == DAILY_SYNC_HOUR and local_now.minute == 0:
             ok = await send_silent_push(row.apns_device_token)
             if ok:
-                logger.info("Ежедневный push в 10:00 отправлен: user_id=%d (tz=%s)", row.id, row.timezone)
+                logger.info(
+                    "Ежедневный push в 10:00 отправлен: user_id=%d (tz=%s)", row.id, row.timezone
+                )
 
 
 async def run_sync_scheduler() -> None:

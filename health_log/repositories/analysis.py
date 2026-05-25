@@ -65,7 +65,9 @@ class AnalysisReportsRepository:
             "risks": row.risks,
         }
 
-    async def get_history(self, user_id: int, *, limit: int = 30, offset: int = 0) -> tuple[list[dict], int]:
+    async def get_history(
+        self, user_id: int, *, limit: int = 30, offset: int = 0
+    ) -> tuple[list[dict], int]:
         total = (
             await self._connection.execute(
                 select(func.count())
@@ -131,7 +133,9 @@ class SyncScheduleRepository:
 
         return {"schedule": schedule, "timezone": timezone}
 
-    async def upsert_schedule(self, user_id: int, *, schedule: dict[str, str], timezone: str) -> None:
+    async def upsert_schedule(
+        self, user_id: int, *, schedule: dict[str, str], timezone: str
+    ) -> None:
         from sqlalchemy import delete
 
         await self._connection.execute(
@@ -150,11 +154,11 @@ class SyncScheduleRepository:
         ]
 
         if rows:
-            await self._connection.execute(
-                pg_insert(tables.sync_schedules).values(rows)
-            )
+            await self._connection.execute(pg_insert(tables.sync_schedules).values(rows))
 
-    async def get_users_due_now(self, current_time_str: str, current_day: str) -> list[tuple[int, str]]:
+    async def get_users_due_now(
+        self, current_time_str: str, current_day: str
+    ) -> list[tuple[int, str]]:
         """Return (user_id, apns_device_token) for users scheduled at current_time on current_day."""
         rows = (
             await self._connection.execute(

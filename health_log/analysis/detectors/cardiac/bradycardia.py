@@ -39,7 +39,11 @@ def _fallback_rest_points(heart: list[EventPoint]) -> list[EventPoint]:
 
 
 def _build_bradycardia_episodes(rest_points: list[EventPoint]) -> list[dict]:
-    low_points = [p for p in sorted(rest_points, key=lambda p: p.timestamp) if p.value < _BRADYCARDIA_THRESHOLD]
+    low_points = [
+        p
+        for p in sorted(rest_points, key=lambda p: p.timestamp)
+        if p.value < _BRADYCARDIA_THRESHOLD
+    ]
     if not low_points:
         return []
 
@@ -113,7 +117,11 @@ def assess_bradycardia_risk(
             summary="Подозрение на брадикардию: признаков не выявлено по текущим данным.",
             recommendation="Продолжай наблюдение; при головокружениях или обмороках обратись к врачу.",
             clinical_safety_note=CLINICAL_SAFETY_NOTE,
-            supporting_metrics={"rest_points_count": len(rest_points), "median_rest_hr": round(med_hr, 1), "min_rest_hr": round(min_hr, 1)},
+            supporting_metrics={
+                "rest_points_count": len(rest_points),
+                "median_rest_hr": round(med_hr, 1),
+                "min_rest_hr": round(min_hr, 1),
+            },
         )
 
     episode_count_component = min(1.0, len(episodes) / 3.0)
@@ -138,7 +146,9 @@ def assess_bradycardia_risk(
     else:
         severity = "none"
 
-    confidence = round(min(1.0, len(rest_points) / 60.0) * 0.7 + min(1.0, len(episodes) / 3.0) * 0.3, 3)
+    confidence = round(
+        min(1.0, len(rest_points) / 60.0) * 0.7 + min(1.0, len(episodes) / 3.0) * 0.3, 3
+    )
 
     if severity in {"medium", "high"}:
         recommendation = (

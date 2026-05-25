@@ -72,7 +72,10 @@ def assess_noise_exposure_risk(
             summary=f"Уровень шума в норме: пик {peak:.0f} dB, среднее за 7 дней {avg_db_7d:.0f} dB.",
             recommendation="Продолжай контролировать уровень шума.",
             clinical_safety_note=CLINICAL_SAFETY_NOTE,
-            supporting_metrics={"max_db_30d": round(max_db_30d, 1), "avg_db_7d": round(avg_db_7d, 1)},
+            supporting_metrics={
+                "max_db_30d": round(max_db_30d, 1),
+                "avg_db_7d": round(avg_db_7d, 1),
+            },
         )
 
     score = round(score, 3)

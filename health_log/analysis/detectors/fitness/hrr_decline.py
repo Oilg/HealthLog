@@ -16,9 +16,9 @@ _VO2MAX_DECLINE_BOOST = 0.1
 # Walking heart rate average rises when cardiovascular fitness declines:
 # higher walking HR at the same activity level → worse aerobic capacity.
 # Thresholds represent rise in bpm over the lookback period.
-_THRESHOLD_HIGH = 12   # ≥12 bpm rise → high risk
+_THRESHOLD_HIGH = 12  # ≥12 bpm rise → high risk
 _THRESHOLD_MEDIUM = 8  # ≥8 bpm rise  → medium risk
-_THRESHOLD_LOW = 5     # ≥5 bpm rise  → low risk
+_THRESHOLD_LOW = 5  # ≥5 bpm rise  → low risk
 
 
 def assess_hrr_decline_risk(
