@@ -16,7 +16,9 @@ depends_on = None
 
 def upgrade() -> None:
     # Drop FK from raw_health_records that references xml_uploads
-    op.drop_constraint("raw_health_records_upload_id_fkey", "raw_health_records", type_="foreignkey")
+    op.drop_constraint(
+        "raw_health_records_upload_id_fkey", "raw_health_records", type_="foreignkey"
+    )
 
     # Rename table
     op.rename_table("xml_uploads", "health_uploads")
@@ -35,7 +37,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_constraint("raw_health_records_upload_id_fkey", "raw_health_records", type_="foreignkey")
+    op.drop_constraint(
+        "raw_health_records_upload_id_fkey", "raw_health_records", type_="foreignkey"
+    )
 
     op.alter_column("health_uploads", "raw_payload", new_column_name="raw_xml")
 

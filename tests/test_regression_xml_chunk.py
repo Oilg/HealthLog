@@ -12,7 +12,9 @@ def test_regression_real_xml_chunk_parses_and_scores():
 
     assert len(records) == 3
 
-    hrv = next(r for r in records if r.record_type == "HKQuantityTypeIdentifierHeartRateVariabilitySDNN")
+    hrv = next(
+        r for r in records if r.record_type == "HKQuantityTypeIdentifierHeartRateVariabilitySDNN"
+    )
     assert hrv.attrs["sourceName"].startswith("Apple")
     assert len(hrv.hrv_bpm) == 3
 

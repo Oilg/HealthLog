@@ -31,7 +31,9 @@ def upgrade() -> None:
         ).bindparams(legacy_email=LEGACY_EMAIL)
     )
 
-    unresolved = op.get_bind().execute(sa.text("SELECT count(*) FROM users WHERE sex IS NULL")).scalar_one()
+    unresolved = (
+        op.get_bind().execute(sa.text("SELECT count(*) FROM users WHERE sex IS NULL")).scalar_one()
+    )
     if unresolved > 0:
         raise RuntimeError(
             "Найдены пользователи без поля sex. Заполни users.sex ('male'/'female') вручную и повтори миграцию."
@@ -51,7 +53,9 @@ def upgrade() -> None:
         sa.Column("endDate", sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"]),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("user_id", "sourceName", "startDate", "endDate", name="uq_menstrual_flow_record"),
+        sa.UniqueConstraint(
+            "user_id", "sourceName", "startDate", "endDate", name="uq_menstrual_flow_record"
+        ),
     )
 
 

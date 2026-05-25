@@ -16,6 +16,7 @@ def test_utcnow_returns_naive():
 
 def test_utcnow_is_close_to_now():
     import time
+
     before = datetime.utcnow()
     time.sleep(0.01)
     result = utcnow()

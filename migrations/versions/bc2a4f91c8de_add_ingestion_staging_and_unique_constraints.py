@@ -5,6 +5,7 @@ Revises: 5afc1f597bdb
 Create Date: 2026-02-26 01:00:00.000000
 
 """
+
 import sqlalchemy as sa
 from alembic import op
 
@@ -137,14 +138,32 @@ def upgrade() -> None:
         """
     )
 
-    op.create_unique_constraint("uq_sleep_analysis_record", "sleep_analysis", ["sourceName", "startDate", "endDate"])
-    op.create_unique_constraint("uq_sleep_duration_goal_record", "sleep_duration_goal", ["sourceName", "startDate", "endDate"])
-    op.create_unique_constraint("uq_heart_rate_record", "heart_rate", ["sourceName", "startDate", "endDate"])
-    op.create_unique_constraint("uq_hrv_record", "heart_rate_variability", ["sourceName", "startDate", "endDate"])
-    op.create_unique_constraint("uq_hrv_bpm_record", "heart_rate_variability_bpm", ["hr_variability_id", "time"])
-    op.create_unique_constraint("uq_respiratory_rate_record", "respiratory_rate", ["sourceName", "startDate", "endDate"])
-    op.create_unique_constraint("uq_vo2max_record", "vo_2_max", ["sourceName", "startDate", "endDate"])
-    op.create_unique_constraint("uq_sleep_apnea_event", "sleep_apnea_events", ["start_time", "end_time", "detected_by"])
+    op.create_unique_constraint(
+        "uq_sleep_analysis_record", "sleep_analysis", ["sourceName", "startDate", "endDate"]
+    )
+    op.create_unique_constraint(
+        "uq_sleep_duration_goal_record",
+        "sleep_duration_goal",
+        ["sourceName", "startDate", "endDate"],
+    )
+    op.create_unique_constraint(
+        "uq_heart_rate_record", "heart_rate", ["sourceName", "startDate", "endDate"]
+    )
+    op.create_unique_constraint(
+        "uq_hrv_record", "heart_rate_variability", ["sourceName", "startDate", "endDate"]
+    )
+    op.create_unique_constraint(
+        "uq_hrv_bpm_record", "heart_rate_variability_bpm", ["hr_variability_id", "time"]
+    )
+    op.create_unique_constraint(
+        "uq_respiratory_rate_record", "respiratory_rate", ["sourceName", "startDate", "endDate"]
+    )
+    op.create_unique_constraint(
+        "uq_vo2max_record", "vo_2_max", ["sourceName", "startDate", "endDate"]
+    )
+    op.create_unique_constraint(
+        "uq_sleep_apnea_event", "sleep_apnea_events", ["start_time", "end_time", "detected_by"]
+    )
 
 
 def downgrade() -> None:

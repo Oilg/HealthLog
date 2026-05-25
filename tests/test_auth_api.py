@@ -103,7 +103,9 @@ def test_register_restores_inactive_account(monkeypatch):
         is_active=True,
         created_at=auth_api.datetime.utcnow(),
     )
-    fake_repo = FakeUsersRepository(email_user=inactive_user, phone_user=inactive_user, public_user=restored_public)
+    fake_repo = FakeUsersRepository(
+        email_user=inactive_user, phone_user=inactive_user, public_user=restored_public
+    )
 
     monkeypatch.setattr(auth_api, "UsersRepository", lambda conn: fake_repo)
 

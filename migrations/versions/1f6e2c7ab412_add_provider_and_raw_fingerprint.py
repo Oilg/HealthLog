@@ -5,6 +5,7 @@ Revises: bc2a4f91c8de
 Create Date: 2026-02-26 02:00:00.000000
 
 """
+
 import sqlalchemy as sa
 from alembic import op
 
@@ -27,7 +28,9 @@ def upgrade() -> None:
 
     op.add_column("raw_health_records", sa.Column("provider", sa.String(), nullable=True))
     op.add_column("raw_health_records", sa.Column("data_format", sa.String(), nullable=True))
-    op.add_column("raw_health_records", sa.Column("record_fingerprint", sa.String(length=64), nullable=True))
+    op.add_column(
+        "raw_health_records", sa.Column("record_fingerprint", sa.String(length=64), nullable=True)
+    )
 
     op.execute("UPDATE raw_health_records SET provider = 'apple_health' WHERE provider IS NULL")
     op.execute("UPDATE raw_health_records SET data_format = 'xml' WHERE data_format IS NULL")

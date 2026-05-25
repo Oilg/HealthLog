@@ -570,7 +570,6 @@ def assess_recovery_obesity_risk(
     window: TimeWindow,
     now: datetime | None = None,
 ) -> RiskAssessment:
-
     now = now or utcnow()
     cutoff = now - timedelta(days=60)
     recent_start = now - timedelta(days=14)

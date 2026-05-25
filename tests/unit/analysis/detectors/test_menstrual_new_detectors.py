@@ -14,7 +14,9 @@ _WINDOW = TimeWindow.MONTH
 _NOW = datetime(2026, 3, 5, 10, 0, 0)
 
 
-def _build_regular_cycle_rows(now: datetime, cycle_len: int = 28, n_cycles: int = 5) -> list[tuple[datetime, str]]:
+def _build_regular_cycle_rows(
+    now: datetime, cycle_len: int = 28, n_cycles: int = 5
+) -> list[tuple[datetime, str]]:
     rows: list[tuple[datetime, str]] = []
     for cycle in range(n_cycles):
         start = now.date() - timedelta(days=cycle_len * (n_cycles - cycle))
@@ -154,11 +156,13 @@ class TestMenstrualStartForecastWithTemp:
         temp_no_shift = [(_NOW - timedelta(days=i), 36.5) for i in range(30)]
         temp_with_shift = [(_NOW - timedelta(days=i), 36.5) for i in range(14, 30)]
         predicted_ovulation = _NOW - timedelta(days=14)
-        temp_with_shift += [
-            (predicted_ovulation + timedelta(days=i), 36.72) for i in range(1, 5)
-        ]
-        r_no = assess_menstrual_start_forecast_with_temp(cycle, temp_no_shift, window=_WINDOW, now=_NOW)
-        r_yes = assess_menstrual_start_forecast_with_temp(cycle, temp_with_shift, window=_WINDOW, now=_NOW)
+        temp_with_shift += [(predicted_ovulation + timedelta(days=i), 36.72) for i in range(1, 5)]
+        r_no = assess_menstrual_start_forecast_with_temp(
+            cycle, temp_no_shift, window=_WINDOW, now=_NOW
+        )
+        r_yes = assess_menstrual_start_forecast_with_temp(
+            cycle, temp_with_shift, window=_WINDOW, now=_NOW
+        )
         assert r_yes.confidence >= r_no.confidence
 
 

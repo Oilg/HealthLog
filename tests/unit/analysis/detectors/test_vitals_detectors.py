@@ -60,7 +60,9 @@ class TestLowOxygenSaturation:
             (_ts(2 + 0.4), _ts(2 - 0.1)),
             (_ts(5 + 0.4), _ts(5 - 0.1)),
         ]
-        with_sleep = assess_low_oxygen_saturation_risk(rows, sleep_segments=sleep_segs, window=_WINDOW, now=_NOW)
+        with_sleep = assess_low_oxygen_saturation_risk(
+            rows, sleep_segments=sleep_segs, window=_WINDOW, now=_NOW
+        )
         without_sleep = assess_low_oxygen_saturation_risk(rows, window=_WINDOW, now=_NOW)
         assert with_sleep.confidence >= without_sleep.confidence
 

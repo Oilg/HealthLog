@@ -17,7 +17,9 @@ def _sleep_seg(base: datetime, hours: float = 7.0) -> tuple[datetime, datetime]:
     return base, base + timedelta(hours=hours)
 
 
-def _hr_series(base: datetime, value: float, count: int, interval_min: int = 5) -> list[tuple[datetime, float]]:
+def _hr_series(
+    base: datetime, value: float, count: int, interval_min: int = 5
+) -> list[tuple[datetime, float]]:
     return [(base + timedelta(minutes=i * interval_min), value) for i in range(count)]
 
 
@@ -57,7 +59,9 @@ class TestBradycardiaRisk:
             hr.append((ep_start + timedelta(minutes=i * 2), 44.0))
 
         without_event = assess_bradycardia_risk(hr, sleep_segments=sleep, window=_WINDOW)
-        with_event = assess_bradycardia_risk(hr, sleep_segments=sleep, low_hr_event_count=2, window=_WINDOW)
+        with_event = assess_bradycardia_risk(
+            hr, sleep_segments=sleep, low_hr_event_count=2, window=_WINDOW
+        )
         assert with_event.score > without_event.score
 
     def test_medium_high_severity_recommends_cardiologist(self):
@@ -68,7 +72,9 @@ class TestBradycardiaRisk:
             ep_start = base + timedelta(hours=1 + cycle * 2)
             for i in range(6):
                 hr.append((ep_start + timedelta(minutes=i * 2), 42.0))
-        result = assess_bradycardia_risk(hr, sleep_segments=sleep, low_hr_event_count=1, window=_WINDOW)
+        result = assess_bradycardia_risk(
+            hr, sleep_segments=sleep, low_hr_event_count=1, window=_WINDOW
+        )
         assert result.severity in {"medium", "high"}
         assert "кардиолог" in result.recommendation.lower()
 
@@ -134,13 +140,17 @@ class TestIrregularRhythmRisk:
     def test_ecg_abnormal_boosts_score(self):
         events = [(_NOW - timedelta(days=60), "event")]
         without_ecg = assess_irregular_rhythm_risk(events, window=_WINDOW, now=_NOW)
-        with_ecg = assess_irregular_rhythm_risk(events, ecg_abnormal_count=1, window=_WINDOW, now=_NOW)
+        with_ecg = assess_irregular_rhythm_risk(
+            events, ecg_abnormal_count=1, window=_WINDOW, now=_NOW
+        )
         assert with_ecg.score > without_ecg.score
 
     def test_afib_burden_boost(self):
         events = [(_NOW - timedelta(days=60), "event")]
         without_burden = assess_irregular_rhythm_risk(events, window=_WINDOW, now=_NOW)
-        with_burden = assess_irregular_rhythm_risk(events, afib_burden_pct=3.0, window=_WINDOW, now=_NOW)
+        with_burden = assess_irregular_rhythm_risk(
+            events, afib_burden_pct=3.0, window=_WINDOW, now=_NOW
+        )
         assert with_burden.score > without_burden.score
 
     def test_score_capped_at_1(self):

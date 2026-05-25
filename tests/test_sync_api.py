@@ -1,4 +1,5 @@
 """Unit tests for health_log/api/v1/sync.py — models and helpers."""
+
 from __future__ import annotations
 
 import pytest

@@ -1,4 +1,5 @@
 """Unit tests for health_log/api/v1/analysis.py — _format_report helper."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -46,7 +47,9 @@ def test_format_report_window_preserved():
 
 
 def test_format_report_risks_passed_through():
-    risks = [{"type": "sleep_apnea", "severity": "moderate", "confidence": 0.78, "description": "..."}]
+    risks = [
+        {"type": "sleep_apnea", "severity": "moderate", "confidence": 0.78, "description": "..."}
+    ]
     result = _format_report(_make_row(risks=risks))
     assert result["risks"] == risks
 

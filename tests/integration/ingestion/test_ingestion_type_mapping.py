@@ -102,9 +102,7 @@ async def test_extended_quantity_records_are_inserted_into_expected_tables(db_co
             table=table,
             record_list=records,
         )
-        result = await db_conn.execute(
-            select(table).where(table.c.user_id == uid)
-        )
+        result = await db_conn.execute(select(table).where(table.c.user_id == uid))
         rows = result.fetchall()
         assert len(rows) >= 1, (
             f"No rows in table '{table.name}' for record_type '{record_type}' after insert. "
@@ -135,9 +133,7 @@ async def test_extended_category_records_are_inserted_into_expected_tables(db_co
             table=table,
             record_list=records,
         )
-        result = await db_conn.execute(
-            select(table).where(table.c.user_id == uid)
-        )
+        result = await db_conn.execute(select(table).where(table.c.user_id == uid))
         rows = result.fetchall()
         assert len(rows) >= 1, (
             f"No rows in table '{table.name}' for record_type '{record_type}' after insert. "

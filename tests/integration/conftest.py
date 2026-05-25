@@ -22,11 +22,10 @@ def _check_db_available() -> bool:
     async def _probe():
         try:
             from sqlalchemy.ext.asyncio import create_async_engine
+
             engine = create_async_engine(TEST_DB_URL, connect_args={"timeout": 3})
             async with engine.connect() as conn:
-                await conn.execute(
-                    __import__("sqlalchemy").text("SELECT 1")
-                )
+                await conn.execute(__import__("sqlalchemy").text("SELECT 1"))
             await engine.dispose()
             return True
         except Exception:
@@ -62,6 +61,7 @@ async def db_conn():
 @pytest_asyncio.fixture
 async def test_user_id(db_conn):
     from sqlalchemy import text
+
     result = await db_conn.execute(
         text(
             "INSERT INTO users (first_name, last_name, sex, email, phone, password_hash, updated_at) "
@@ -77,6 +77,7 @@ async def test_user_id(db_conn):
 @pytest_asyncio.fixture
 async def test_female_user_id(db_conn):
     from sqlalchemy import text
+
     result = await db_conn.execute(
         text(
             "INSERT INTO users (first_name, last_name, sex, email, phone, password_hash, updated_at) "

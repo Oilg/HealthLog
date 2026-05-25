@@ -170,7 +170,9 @@ def downgrade() -> None:
     )
 
     op.drop_constraint("uq_vo2max_record", "vo_2_max", type_="unique")
-    op.create_unique_constraint("uq_vo2max_record", "vo_2_max", ["sourceName", "startDate", "endDate"])
+    op.create_unique_constraint(
+        "uq_vo2max_record", "vo_2_max", ["sourceName", "startDate", "endDate"]
+    )
 
     op.drop_constraint("uq_respiratory_rate_record", "respiratory_rate", type_="unique")
     op.create_unique_constraint(
@@ -180,10 +182,14 @@ def downgrade() -> None:
     )
 
     op.drop_constraint("uq_hrv_record", "heart_rate_variability", type_="unique")
-    op.create_unique_constraint("uq_hrv_record", "heart_rate_variability", ["sourceName", "startDate", "endDate"])
+    op.create_unique_constraint(
+        "uq_hrv_record", "heart_rate_variability", ["sourceName", "startDate", "endDate"]
+    )
 
     op.drop_constraint("uq_heart_rate_record", "heart_rate", type_="unique")
-    op.create_unique_constraint("uq_heart_rate_record", "heart_rate", ["sourceName", "startDate", "endDate"])
+    op.create_unique_constraint(
+        "uq_heart_rate_record", "heart_rate", ["sourceName", "startDate", "endDate"]
+    )
 
     op.drop_constraint("uq_sleep_duration_goal_record", "sleep_duration_goal", type_="unique")
     op.create_unique_constraint(

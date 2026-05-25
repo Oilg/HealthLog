@@ -36,7 +36,9 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["user_id"], ["users.id"]),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index("ix_analysis_reports_user_analyzed", "analysis_reports", ["user_id", "analyzed_at"])
+    op.create_index(
+        "ix_analysis_reports_user_analyzed", "analysis_reports", ["user_id", "analyzed_at"]
+    )
 
     # Create sync_schedules table
     op.create_table(

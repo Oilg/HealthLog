@@ -41,16 +41,18 @@ class TestBuildWeightActivityRecommendations:
         assert "вес" in text.lower() or "питани" in text.lower()
 
     def test_no_duplicates(self):
-        recs = build_weight_activity_recommendations({
-            "weight_issue": True,
-            "fat_issue": True,
-            "lean_mass_issue": True,
-            "low_activity": True,
-            "sedentary": True,
-            "metabolic_risk": True,
-            "cardiovascular_symptom_risk": True,
-            "persistent_weight_gain": True,
-        })
+        recs = build_weight_activity_recommendations(
+            {
+                "weight_issue": True,
+                "fat_issue": True,
+                "lean_mass_issue": True,
+                "low_activity": True,
+                "sedentary": True,
+                "metabolic_risk": True,
+                "cardiovascular_symptom_risk": True,
+                "persistent_weight_gain": True,
+            }
+        )
         assert len(recs) == len(set(recs))
 
     def test_cardiovascular_risk_includes_cardiologist(self):
@@ -228,7 +230,9 @@ class TestSedentaryLifestyleRisk:
         rows = [(_ts(i), 4500.0) for i in range(15)]
         exercise = [(_ts(i), 5.0) for i in range(15)]
         without = assess_sedentary_lifestyle_risk(rows, window=_WINDOW, now=_NOW)
-        with_ex = assess_sedentary_lifestyle_risk(rows, exercise_time_rows=exercise, window=_WINDOW, now=_NOW)
+        with_ex = assess_sedentary_lifestyle_risk(
+            rows, exercise_time_rows=exercise, window=_WINDOW, now=_NOW
+        )
         assert with_ex.score >= without.score
 
     def test_lifestyle_recommendations_present(self):
@@ -338,8 +342,13 @@ class TestMetabolicSyndromeRisk:
         steps = [(_ts(i), 3000.0) for i in range(15)]
         mass = [(_ts(i * 5), 90.0) for i in range(5)]
         result = assess_metabolic_syndrome_risk(
-            waist_rows=waist, step_rows=steps, body_mass_rows=mass,
-            height_m=1.75, sex="male", window=_WINDOW, now=_NOW,
+            waist_rows=waist,
+            step_rows=steps,
+            body_mass_rows=mass,
+            height_m=1.75,
+            sex="male",
+            window=_WINDOW,
+            now=_NOW,
         )
         m = result.supporting_metrics
         assert "bmi" in m
@@ -459,7 +468,11 @@ class TestBodyCompositionTrendRisk:
         lean_early = [(_ts(i * 3 + 14), 60.0) for i in range(25)]
         lean_recent = [(_ts(i), 57.0) for i in range(14)]
         result = assess_body_composition_trend_risk(
-            mass, fat_early + fat_recent, lean_mass_rows=lean_early + lean_recent, window=_WINDOW, now=_NOW
+            mass,
+            fat_early + fat_recent,
+            lean_mass_rows=lean_early + lean_recent,
+            window=_WINDOW,
+            now=_NOW,
         )
         assert result.score > 0
         assert result.severity in {"low", "medium", "high"}
@@ -471,7 +484,11 @@ class TestBodyCompositionTrendRisk:
         lean_early = [(_ts(i * 3 + 14), 60.0) for i in range(25)]
         lean_recent = [(_ts(i), 57.0) for i in range(14)]
         result = assess_body_composition_trend_risk(
-            mass, fat_early + fat_recent, lean_mass_rows=lean_early + lean_recent, window=_WINDOW, now=_NOW
+            mass,
+            fat_early + fat_recent,
+            lean_mass_rows=lean_early + lean_recent,
+            window=_WINDOW,
+            now=_NOW,
         )
         if result.severity not in {"none", "unknown"}:
             assert len(result.lifestyle_recommendations) > 0

@@ -3,6 +3,7 @@
 Requires a running PostgreSQL instance (see conftest.py / TEST_DB_URL).
 Tests are skipped automatically when the DB is unavailable.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -49,8 +50,12 @@ async def test_save_and_get_latest_report(db_conn, test_user_id):
 async def test_get_latest_returns_most_recent(db_conn, test_user_id):
     repo = AnalysisReportsRepository(db_conn)
 
-    old_risks = [{"type": "tachycardia_risk", "severity": "low", "confidence": 0.5, "description": "Old"}]
-    new_risks = [{"type": "sleep_apnea", "severity": "high", "confidence": 0.9, "description": "New"}]
+    old_risks = [
+        {"type": "tachycardia_risk", "severity": "low", "confidence": 0.5, "description": "Old"}
+    ]
+    new_risks = [
+        {"type": "sleep_apnea", "severity": "high", "confidence": 0.9, "description": "New"}
+    ]
 
     await repo.save_report(
         user_id=test_user_id,
@@ -193,9 +198,12 @@ async def test_get_users_due_now_matches_schedule(db_conn, test_user_id):
 
     # Inject a fake apns_device_token so the query can match
     from sqlalchemy import text
+
     token = "a" * 64
     await db_conn.execute(
-        text("UPDATE users SET apns_device_token = :t WHERE id = :id").bindparams(t=token, id=test_user_id)
+        text("UPDATE users SET apns_device_token = :t WHERE id = :id").bindparams(
+            t=token, id=test_user_id
+        )
     )
 
     users = await repo.get_users_due_now("07:30", "monday")

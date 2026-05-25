@@ -40,7 +40,8 @@ def test_metrics_not_in_openapi_schema(client: TestClient) -> None:
     """/metrics should be excluded from OpenAPI docs UI (include_in_schema=False)."""
     app = create_app()
     metrics_routes = [
-        r for r in app.routes
+        r
+        for r in app.routes
         if hasattr(r, "path") and r.path == "/metrics" and getattr(r, "include_in_schema", True)
     ]
     assert metrics_routes == [], "/metrics route should have include_in_schema=False"

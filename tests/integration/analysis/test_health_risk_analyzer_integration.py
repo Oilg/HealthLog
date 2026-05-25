@@ -22,10 +22,13 @@ _MOBILITY_START = _NOW - timedelta(days=90)
 
 async def _insert(conn, table_name: str, row: dict) -> None:
     from sqlalchemy import text
+
     cols = ", ".join(f'"{k}"' for k in row.keys())
     params = ", ".join(f":{k}" for k in row.keys())
     await conn.execute(
-        text(f'INSERT INTO {table_name} ({cols}) VALUES ({params}) ON CONFLICT DO NOTHING').bindparams(**row)
+        text(
+            f"INSERT INTO {table_name} ({cols}) VALUES ({params}) ON CONFLICT DO NOTHING"
+        ).bindparams(**row)
     )
 
 
@@ -38,9 +41,13 @@ def _make_rows(
 ) -> list[dict]:
     return [
         {
-            "user_id": uid, "sourceName": _SOURCE, "unit": unit,
-            "value": str(val), "creationDate": ts,
-            "startDate": ts, "endDate": ts + duration,
+            "user_id": uid,
+            "sourceName": _SOURCE,
+            "unit": unit,
+            "value": str(val),
+            "creationDate": ts,
+            "startDate": ts,
+            "endDate": ts + duration,
         }
         for ts in timestamps
     ]
@@ -54,11 +61,17 @@ def _hr_records(uid: int, n: int = 40, bpm: float = 65.0) -> list[dict]:
     rows = []
     for i in range(n):
         ts = _NOW - timedelta(hours=i * 2)
-        rows.append({
-            "user_id": uid, "sourceName": _SOURCE, "unit": "count/min",
-            "value": str(bpm), "creationDate": ts,
-            "startDate": ts, "endDate": ts + timedelta(seconds=30),
-        })
+        rows.append(
+            {
+                "user_id": uid,
+                "sourceName": _SOURCE,
+                "unit": "count/min",
+                "value": str(bpm),
+                "creationDate": ts,
+                "startDate": ts,
+                "endDate": ts + timedelta(seconds=30),
+            }
+        )
     return rows
 
 
@@ -66,10 +79,15 @@ def _sleep_records(uid: int, n: int = 14, hours: float = 7.0) -> list[dict]:
     rows = []
     for i in range(n):
         s = _NOW - timedelta(days=i + 1) + timedelta(hours=22)
-        rows.append({
-            "user_id": uid, "sourceName": _SOURCE, "creationDate": s,
-            "startDate": s, "endDate": s + timedelta(hours=hours),
-        })
+        rows.append(
+            {
+                "user_id": uid,
+                "sourceName": _SOURCE,
+                "creationDate": s,
+                "startDate": s,
+                "endDate": s + timedelta(hours=hours),
+            }
+        )
     return rows
 
 
@@ -77,11 +95,17 @@ def _qty_records(uid: int, table: str, val: float, n: int = 20, unit: str = "") 
     rows = []
     for i in range(n):
         ts = _NOW - timedelta(days=i)
-        rows.append({
-            "user_id": uid, "sourceName": _SOURCE, "unit": unit,
-            "value": str(val), "creationDate": ts,
-            "startDate": ts, "endDate": ts + timedelta(minutes=5),
-        })
+        rows.append(
+            {
+                "user_id": uid,
+                "sourceName": _SOURCE,
+                "unit": unit,
+                "value": str(val),
+                "creationDate": ts,
+                "startDate": ts,
+                "endDate": ts + timedelta(minutes=5),
+            }
+        )
     return rows
 
 
@@ -91,33 +115,51 @@ def _menstrual_records(uid: int, n_cycles: int = 5, cycle_len: int = 28) -> list
         s = _NOW - timedelta(days=cycle_len * (n_cycles - cycle))
         for day in range(4):
             ts = s + timedelta(days=day)
-            rows.append({
-                "user_id": uid, "sourceName": _SOURCE,
-                "value": "HKCategoryValueMenstrualFlowMedium",
-                "creationDate": ts, "startDate": ts, "endDate": ts + timedelta(hours=23),
-            })
+            rows.append(
+                {
+                    "user_id": uid,
+                    "sourceName": _SOURCE,
+                    "value": "HKCategoryValueMenstrualFlowMedium",
+                    "creationDate": ts,
+                    "startDate": ts,
+                    "endDate": ts + timedelta(hours=23),
+                }
+            )
     return rows
 
 
-async def _populate_hr_sleep(conn, uid: int, n_hr: int = 40, bpm: float = 65.0, n_sleep: int = 14) -> None:
+async def _populate_hr_sleep(
+    conn, uid: int, n_hr: int = 40, bpm: float = 65.0, n_sleep: int = 14
+) -> None:
     for r in _hr_records(uid, n=n_hr, bpm=bpm):
         await _insert(conn, "heart_rate", r)
     for r in _sleep_records(uid, n=n_sleep):
         await _insert(conn, "sleep_analysis", r)
 
 
-async def _insert_range(conn, uid: int, table: str, val: float, start: datetime, n_days: int, unit: str = "") -> None:
+async def _insert_range(
+    conn, uid: int, table: str, val: float, start: datetime, n_days: int, unit: str = ""
+) -> None:
     for r in _make_rows(uid, val, _daily_timestamps(start, n_days), unit=unit):
         await _insert(conn, table, r)
 
 
-async def _insert_sleep_range(conn, uid: int, start: datetime, n_days: int, hours: float = 7.0) -> None:
+async def _insert_sleep_range(
+    conn, uid: int, start: datetime, n_days: int, hours: float = 7.0
+) -> None:
     for i in range(n_days):
         night_start = start + timedelta(days=i) + timedelta(hours=22)
-        await _insert(conn, "sleep_analysis", {
-            "user_id": uid, "sourceName": _SOURCE, "creationDate": night_start,
-            "startDate": night_start, "endDate": night_start + timedelta(hours=hours),
-        })
+        await _insert(
+            conn,
+            "sleep_analysis",
+            {
+                "user_id": uid,
+                "sourceName": _SOURCE,
+                "creationDate": night_start,
+                "startDate": night_start,
+                "endDate": night_start + timedelta(hours=hours),
+            },
+        )
 
 
 async def test_analyze_window_returns_new_cardiac_assessments(db_conn, test_user_id):
@@ -127,10 +169,19 @@ async def test_analyze_window_returns_new_cardiac_assessments(db_conn, test_user
     episode_start = _NOW - timedelta(hours=1)
     for i in range(5):
         ts = episode_start + timedelta(seconds=i * 90)
-        await _insert(db_conn, "heart_rate", {
-            "user_id": uid, "sourceName": _SOURCE, "unit": "count/min",
-            "value": "42.0", "creationDate": ts, "startDate": ts, "endDate": ts + timedelta(seconds=30),
-        })
+        await _insert(
+            db_conn,
+            "heart_rate",
+            {
+                "user_id": uid,
+                "sourceName": _SOURCE,
+                "unit": "count/min",
+                "value": "42.0",
+                "creationDate": ts,
+                "startDate": ts,
+                "endDate": ts + timedelta(seconds=30),
+            },
+        )
 
     analyzer = HealthRiskAnalyzer(db_conn, uid)
     result = await analyzer.analyze_window(TimeWindow.MONTH, now=_NOW)
@@ -182,9 +233,13 @@ async def test_analyze_window_returns_new_fitness_assessments(db_conn, test_user
     await _insert_sleep_range(db_conn, uid, start=_NOW - timedelta(days=14), n_days=14, hours=5.0)
 
     await _insert_range(db_conn, uid, "heart_rate", 60.0, baseline_start, 60, unit="count/min")
-    await _insert_range(db_conn, uid, "heart_rate", 72.0, _NOW - timedelta(days=14), 14, unit="count/min")
+    await _insert_range(
+        db_conn, uid, "heart_rate", 72.0, _NOW - timedelta(days=14), 14, unit="count/min"
+    )
     await _insert_range(db_conn, uid, "heart_rate_variability", 50.0, baseline_start, 60, unit="ms")
-    await _insert_range(db_conn, uid, "heart_rate_variability", 35.0, _NOW - timedelta(days=14), 14, unit="ms")
+    await _insert_range(
+        db_conn, uid, "heart_rate_variability", 35.0, _NOW - timedelta(days=14), 14, unit="ms"
+    )
 
     for r in _qty_records(uid, "vo_2_max", 40.0, n=10, unit="mL/min·kg"):
         await _insert(db_conn, "vo_2_max", r)
@@ -256,9 +311,12 @@ async def test_analyze_window_returns_new_weight_activity_assessments(db_conn, t
 def _intermenstrual_records(uid: int, timestamps: list[datetime]) -> list[dict]:
     return [
         {
-            "user_id": uid, "sourceName": _SOURCE,
+            "user_id": uid,
+            "sourceName": _SOURCE,
             "value": "HKCategoryValueNotApplicable",
-            "creationDate": ts, "startDate": ts, "endDate": ts + timedelta(hours=24),
+            "creationDate": ts,
+            "startDate": ts,
+            "endDate": ts + timedelta(hours=24),
         }
         for ts in timestamps
     ]
@@ -270,29 +328,44 @@ def _prolonged_menstrual_records(uid: int) -> list[dict]:
     p1_start = _NOW - timedelta(days=66)
     for d in range(10):
         ts = p1_start + timedelta(days=d)
-        rows.append({
-            "user_id": uid, "sourceName": _SOURCE,
-            "value": "HKCategoryValueMenstrualFlowMedium",
-            "creationDate": ts, "startDate": ts, "endDate": ts + timedelta(hours=23),
-        })
+        rows.append(
+            {
+                "user_id": uid,
+                "sourceName": _SOURCE,
+                "value": "HKCategoryValueMenstrualFlowMedium",
+                "creationDate": ts,
+                "startDate": ts,
+                "endDate": ts + timedelta(hours=23),
+            }
+        )
     # Period 2: 4 days — normal.
     p2_start = _NOW - timedelta(days=38)
     for d in range(4):
         ts = p2_start + timedelta(days=d)
-        rows.append({
-            "user_id": uid, "sourceName": _SOURCE,
-            "value": "HKCategoryValueMenstrualFlowMedium",
-            "creationDate": ts, "startDate": ts, "endDate": ts + timedelta(hours=23),
-        })
+        rows.append(
+            {
+                "user_id": uid,
+                "sourceName": _SOURCE,
+                "value": "HKCategoryValueMenstrualFlowMedium",
+                "creationDate": ts,
+                "startDate": ts,
+                "endDate": ts + timedelta(hours=23),
+            }
+        )
     # Period 3: 4 days — normal.
     p3_start = _NOW - timedelta(days=10)
     for d in range(4):
         ts = p3_start + timedelta(days=d)
-        rows.append({
-            "user_id": uid, "sourceName": _SOURCE,
-            "value": "HKCategoryValueMenstrualFlowMedium",
-            "creationDate": ts, "startDate": ts, "endDate": ts + timedelta(hours=23),
-        })
+        rows.append(
+            {
+                "user_id": uid,
+                "sourceName": _SOURCE,
+                "value": "HKCategoryValueMenstrualFlowMedium",
+                "creationDate": ts,
+                "startDate": ts,
+                "endDate": ts + timedelta(hours=23),
+            }
+        )
     return rows
 
 
@@ -309,12 +382,16 @@ async def test_analyze_window_returns_new_menstrual_assessments_for_female_user(
     analyzer = HealthRiskAnalyzer(db_conn, uid)
     result = await analyzer.analyze_window(TimeWindow.MONTH, now=_NOW)
 
-    irregularity = next(a for a in result["assessments"] if a.condition == "menstrual_irregularity_risk")
+    irregularity = next(
+        a for a in result["assessments"] if a.condition == "menstrual_irregularity_risk"
+    )
     assert irregularity.severity != "unknown"
     assert "cycle_count" in irregularity.supporting_metrics or irregularity.score >= 0
 
     # No intermenstrual events inserted → both signal sources are absent → unknown.
-    atypical = next(a for a in result["assessments"] if a.condition == "atypical_menstrual_bleeding_risk")
+    atypical = next(
+        a for a in result["assessments"] if a.condition == "atypical_menstrual_bleeding_risk"
+    )
     assert "intermenstrual_events" in atypical.supporting_metrics
     assert "prolonged_period_events" in atypical.supporting_metrics
     assert atypical.supporting_metrics["intermenstrual_events"] == 0
@@ -415,7 +492,9 @@ async def test_serialize_assessment_includes_supporting_metrics_and_lifestyle_re
 
     for assessment in result["assessments"]:
         serialized = serialize_assessment(assessment)
-        assert "supporting_metrics" in serialized, f"Missing supporting_metrics for {assessment.condition}"
+        assert "supporting_metrics" in serialized, (
+            f"Missing supporting_metrics for {assessment.condition}"
+        )
         assert "condition" in serialized
         assert "severity" in serialized
 
@@ -426,25 +505,43 @@ async def test_serialize_assessment_includes_supporting_metrics_and_lifestyle_re
         assert len(serialized["lifestyle_recommendations"]) > 0
 
 
-async def test_analyze_window_week_uses_extended_history_for_temperature_shift(db_conn, test_user_id):
+async def test_analyze_window_week_uses_extended_history_for_temperature_shift(
+    db_conn, test_user_id
+):
     uid = test_user_id
 
     # Baseline nights: days 3-15 before _NOW — inside 16d fetch but outside 7d week window.
     for i in range(3, 16):
         ts = _NOW - timedelta(days=i)
-        await _insert(db_conn, "apple_sleeping_wrist_temperature", {
-            "user_id": uid, "sourceName": _SOURCE, "unit": "degC",
-            "value": "36.4", "creationDate": ts,
-            "startDate": ts, "endDate": ts + timedelta(hours=8),
-        })
+        await _insert(
+            db_conn,
+            "apple_sleeping_wrist_temperature",
+            {
+                "user_id": uid,
+                "sourceName": _SOURCE,
+                "unit": "degC",
+                "value": "36.4",
+                "creationDate": ts,
+                "startDate": ts,
+                "endDate": ts + timedelta(hours=8),
+            },
+        )
     # Recent nights: days 0-2 — inside both 16d fetch and week window.
     for i in range(0, 3):
         ts = _NOW - timedelta(days=i)
-        await _insert(db_conn, "apple_sleeping_wrist_temperature", {
-            "user_id": uid, "sourceName": _SOURCE, "unit": "degC",
-            "value": "37.2", "creationDate": ts,
-            "startDate": ts, "endDate": ts + timedelta(hours=8),
-        })
+        await _insert(
+            db_conn,
+            "apple_sleeping_wrist_temperature",
+            {
+                "user_id": uid,
+                "sourceName": _SOURCE,
+                "unit": "degC",
+                "value": "37.2",
+                "creationDate": ts,
+                "startDate": ts,
+                "endDate": ts + timedelta(hours=8),
+            },
+        )
 
     analyzer = HealthRiskAnalyzer(db_conn, uid)
     result = await analyzer.analyze_window(TimeWindow.WEEK, now=_NOW)
@@ -459,7 +556,9 @@ async def test_analyze_window_week_uses_extended_history_for_temperature_shift(d
     assert assessment.supporting_metrics["delta_c"] >= 0.3
 
 
-async def test_analyze_window_week_uses_extended_history_for_overload_recovery(db_conn, test_user_id):
+async def test_analyze_window_week_uses_extended_history_for_overload_recovery(
+    db_conn, test_user_id
+):
     uid = test_user_id
 
     # Baseline: 60 days of normal sleep+HR+HRV ending ~14 days before _NOW (outside week window).
@@ -513,20 +612,30 @@ async def test_analyze_window_week_uses_extended_history_for_fall_risk(db_conn, 
     assert assessment.supporting_metrics["step_length_decline_pct"] > 10
 
 
-async def test_analyze_window_night_uses_extended_history_for_respiratory_function(db_conn, test_user_id):
+async def test_analyze_window_night_uses_extended_history_for_respiratory_function(
+    db_conn, test_user_id
+):
     uid = test_user_id
 
     # Baseline RR: 60 days of normal breathing — mostly outside the 12h night window.
     baseline_start = _FITNESS_BASELINE_START
-    await _insert_range(db_conn, uid, "respiratory_rate", 14.0, baseline_start, 60, unit="breaths/min")
+    await _insert_range(
+        db_conn, uid, "respiratory_rate", 14.0, baseline_start, 60, unit="breaths/min"
+    )
 
     # Recent elevated RR: 14 days — outside the 12h night window but inside 74d fetch.
     recent_start = _NOW - timedelta(days=14)
-    await _insert_range(db_conn, uid, "respiratory_rate", 18.0, recent_start, 14, unit="breaths/min")
+    await _insert_range(
+        db_conn, uid, "respiratory_rate", 18.0, recent_start, 14, unit="breaths/min"
+    )
 
     # Load metric required by detector.
-    await _insert_range(db_conn, uid, "walking_heart_rate_average", 115.0, recent_start, 14, unit="count/min")
-    await _insert_range(db_conn, uid, "walking_heart_rate_average", 100.0, baseline_start, 60, unit="count/min")
+    await _insert_range(
+        db_conn, uid, "walking_heart_rate_average", 115.0, recent_start, 14, unit="count/min"
+    )
+    await _insert_range(
+        db_conn, uid, "walking_heart_rate_average", 100.0, baseline_start, 60, unit="count/min"
+    )
 
     # SpO2 to satisfy detector's alternative data path.
     for r in _qty_records(uid, "oxygen_saturation", 96.0, n=10, unit="%"):
@@ -535,7 +644,9 @@ async def test_analyze_window_night_uses_extended_history_for_respiratory_functi
     analyzer = HealthRiskAnalyzer(db_conn, uid)
     result = await analyzer.analyze_window(TimeWindow.NIGHT, now=_NOW)
 
-    assessment = next(a for a in result["assessments"] if a.condition == "respiratory_function_decline_risk")
+    assessment = next(
+        a for a in result["assessments"] if a.condition == "respiratory_function_decline_risk"
+    )
     assert assessment.severity != "unknown", (
         "respiratory_function_decline_risk returned 'unknown' — engine may be using start..end "
         "instead of the 74-day extended fetch for respiratory_rate"
@@ -594,15 +705,30 @@ async def test_analyze_window_vitals_assessment_uses_sleep_overlap_metrics(db_co
     for i in range(5):
         night_start = _NOW - timedelta(days=i + 1) + timedelta(hours=23)
         ts = night_start + timedelta(hours=2)
-        await _insert(db_conn, "oxygen_saturation", {
-            "user_id": uid, "sourceName": _SOURCE, "unit": "%",
-            "value": "90.5", "creationDate": ts,
-            "startDate": ts, "endDate": ts + timedelta(minutes=1),
-        })
-        await _insert(db_conn, "sleep_analysis", {
-            "user_id": uid, "sourceName": _SOURCE, "creationDate": night_start,
-            "startDate": night_start, "endDate": night_start + timedelta(hours=8),
-        })
+        await _insert(
+            db_conn,
+            "oxygen_saturation",
+            {
+                "user_id": uid,
+                "sourceName": _SOURCE,
+                "unit": "%",
+                "value": "90.5",
+                "creationDate": ts,
+                "startDate": ts,
+                "endDate": ts + timedelta(minutes=1),
+            },
+        )
+        await _insert(
+            db_conn,
+            "sleep_analysis",
+            {
+                "user_id": uid,
+                "sourceName": _SOURCE,
+                "creationDate": night_start,
+                "startDate": night_start,
+                "endDate": night_start + timedelta(hours=8),
+            },
+        )
 
     for r in _qty_records(uid, "oxygen_saturation", 97.0, n=15, unit="%"):
         await _insert(db_conn, "oxygen_saturation", r)
@@ -627,7 +753,9 @@ async def test_analyze_all_windows_preserves_full_detector_contract(db_conn, tes
     await _insert_range(db_conn, uid, "walking_speed", 1.2, _MOBILITY_START, 30, unit="m/s")
 
     # Provide wrist temp baseline for temperature_shift_risk.
-    await _insert_range(db_conn, uid, "apple_sleeping_wrist_temperature", 36.5, _TEMPERATURE_START, 14, unit="degC")
+    await _insert_range(
+        db_conn, uid, "apple_sleeping_wrist_temperature", 36.5, _TEMPERATURE_START, 14, unit="degC"
+    )
 
     analyzer = HealthRiskAnalyzer(db_conn, uid)
     all_results = await analyzer.analyze_all_windows(now=_NOW)

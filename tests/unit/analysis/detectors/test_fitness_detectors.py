@@ -181,7 +181,9 @@ class TestRespiratoryFunctionDecline:
     def test_stable_rr_with_load_metric_returns_none(self):
         rr = [(_ts(i), 14.0) for i in range(80)]
         whr = [(_ts(i), 95.0) for i in range(80)]
-        result = assess_respiratory_function_decline_risk(rr, walking_hr_rows=whr, window=_WINDOW, now=_NOW)
+        result = assess_respiratory_function_decline_risk(
+            rr, walking_hr_rows=whr, window=_WINDOW, now=_NOW
+        )
         assert result.severity == "none"
 
     def test_rr_rise_8_pct_returns_low(self):
