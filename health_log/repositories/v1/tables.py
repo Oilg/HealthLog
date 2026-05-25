@@ -25,7 +25,7 @@ users = sqlalchemy.Table(
         "subscription_status",
         sqlalchemy.String,
         nullable=False,
-        server_default=sqlalchemy.literal("free"),
+        server_default="free",
     ),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, server_default=func.now(), nullable=False),
     sqlalchemy.Column(
@@ -36,6 +36,9 @@ users = sqlalchemy.Table(
         nullable=False,
     ),
     sqlalchemy.CheckConstraint("sex in ('male', 'female')", name="ck_users_sex"),
+    sqlalchemy.CheckConstraint(
+        "subscription_status IN ('free', 'paid')", name="ck_users_subscription_status"
+    ),
 )
 
 auth_tokens = sqlalchemy.Table(
