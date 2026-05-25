@@ -57,7 +57,7 @@
       },
       "targets": [
         {
-          "rawSql": "SELECT COUNT(*) AS value FROM users WHERE created_at >= NOW() - INTERVAL '30 days'",
+          "rawSql": "SELECT COUNT(*) AS value FROM users WHERE is_active = true AND created_at >= NOW() - INTERVAL '30 days'",
           "format": "table",
           "refId": "A"
         }

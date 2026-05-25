@@ -1,7 +1,7 @@
 """add subscription_status to users
 
 Revision ID: d9e3f1a2b4c5
-Revises: f7a12d0e4b21
+Revises: c3d4e5f6a7b8
 Create Date: 2026-05-25 12:00:00.000000
 
 """
