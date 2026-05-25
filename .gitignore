@@ -29,3 +29,4 @@ health_log/services/watchData.xml
 
 # OS
 .DS_Store
+.claude/worktrees/
