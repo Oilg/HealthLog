@@ -15,6 +15,7 @@ class ScoreResult:
     score: float
     confidence: float
     severity: str
+    wrist_temp_delta: float | None
 
 
 def calculate_score(snapshot: TrendSnapshot) -> ScoreResult:
@@ -33,13 +34,28 @@ def calculate_score(snapshot: TrendSnapshot) -> ScoreResult:
         )
     consistency_component = snapshot.confirmed_days / RECENT_DAYS
 
-    score = min(
-        1.0,
-        hr_component * 0.4
-        + hrv_component * 0.3
-        + resp_component * 0.15
-        + consistency_component * 0.15,
-    )
+    if snapshot.wrist_temp_delta is not None:
+        # Температура запястья — самый прямой физиологический сигнал.
+        # +0.1°C начинает вносить вклад; +0.6°C — максимальный компонент.
+        # Перераспределяем веса: HR/HRV снижаем, temp получает 0.30.
+        temp_component = _clamp01((snapshot.wrist_temp_delta - 0.1) / 0.5)
+        score = min(
+            1.0,
+            temp_component * 0.30
+            + hr_component * 0.25
+            + hrv_component * 0.25
+            + resp_component * 0.10
+            + consistency_component * 0.10,
+        )
+    else:
+        temp_component = None
+        score = min(
+            1.0,
+            hr_component * 0.40
+            + hrv_component * 0.30
+            + resp_component * 0.15
+            + consistency_component * 0.15,
+        )
 
     valid_days_component = min(1.0, snapshot.valid_days_count / 63.0)
     hr_density_component = min(1.0, snapshot.total_hr_points / 500.0)
@@ -61,4 +77,9 @@ def calculate_score(snapshot: TrendSnapshot) -> ScoreResult:
     else:
         severity = "none"
 
-    return ScoreResult(score=score, confidence=confidence, severity=severity)
+    return ScoreResult(
+        score=score,
+        confidence=confidence,
+        severity=severity,
+        wrist_temp_delta=snapshot.wrist_temp_delta,
+    )

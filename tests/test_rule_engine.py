@@ -343,6 +343,98 @@ def test_illness_onset_risk_requires_five_day_persistent_trend():
     assert assessment.severity in {"medium", "high"}
 
 
+def test_illness_onset_risk_wrist_temp_boosts_score_when_elevated():
+    """Температура запястья +0.8°C при умеренном HR/HRV тренде (Watch 8+)
+    должна давать выше или равный скор по сравнению с тем же сигналом без температуры."""
+    now = datetime(2026, 2, 26, 10, 0, 0)
+    heart = []
+    hrv = []
+    resp = []
+    sleep = []
+
+    for day_idx in range(70):
+        day = now - timedelta(days=69 - day_idx)
+        sleep_start = day.replace(hour=23, minute=0, second=0, microsecond=0) - timedelta(days=1)
+        sleep_end = day.replace(hour=7, minute=0, second=0, microsecond=0)
+        sleep.append((sleep_start, sleep_end))
+        for m in range(24):
+            ts = day + timedelta(minutes=20 * m)
+            if day_idx < 65:
+                heart.append((ts, 62 + (m % 3)))
+                hrv.append((ts, 58 - (m % 2)))
+                resp.append((ts, 13.0 + (m % 2) * 0.2))
+            else:
+                heart.append((ts, 68 + (m % 3)))  # умеренный +6
+                hrv.append((ts, 49 - (m % 2)))  # умеренный −15%
+                resp.append((ts, 14.5 + (m % 2) * 0.2))
+
+    baseline_temp = 36.1
+    wrist_temp = []
+    for night_idx in range(16):
+        ts = now - timedelta(days=15 - night_idx, hours=3)
+        # Последние 2 ночи: +0.8°C относительно baseline
+        val = baseline_temp + 0.8 if night_idx >= 14 else baseline_temp + 0.05
+        wrist_temp.append((ts, val))
+
+    with_temp = assess_illness_onset_risk(
+        heart,
+        hrv,
+        respiratory_rows=resp,
+        sleep_rows=sleep,
+        wrist_temp_rows=wrist_temp,
+        window=TimeWindow.WEEK,
+    )
+    without_temp = assess_illness_onset_risk(
+        heart,
+        hrv,
+        respiratory_rows=resp,
+        sleep_rows=sleep,
+        window=TimeWindow.WEEK,
+    )
+
+    assert with_temp.score >= without_temp.score
+    assert with_temp.severity in {"medium", "high"}
+    assert "°C" in with_temp.summary
+
+
+def test_illness_onset_risk_without_wrist_temp_unchanged():
+    """Без данных температуры (Watch 6 и старше) детектор работает как прежде — без деградации."""
+    now = datetime(2026, 2, 26, 10, 0, 0)
+    heart = []
+    hrv = []
+    resp = []
+    sleep = []
+
+    for day_idx in range(70):
+        day = now - timedelta(days=69 - day_idx)
+        sleep_start = day.replace(hour=23, minute=0, second=0, microsecond=0) - timedelta(days=1)
+        sleep_end = day.replace(hour=7, minute=0, second=0, microsecond=0)
+        sleep.append((sleep_start, sleep_end))
+        for m in range(24):
+            ts = day + timedelta(minutes=20 * m)
+            if day_idx < 65:
+                heart.append((ts, 62 + (m % 3)))
+                hrv.append((ts, 58 - (m % 2)))
+                resp.append((ts, 13.0))
+            else:
+                heart.append((ts, 72 + (m % 3)))
+                hrv.append((ts, 40 - (m % 2)))
+                resp.append((ts, 15.0))
+
+    assessment = assess_illness_onset_risk(
+        heart,
+        hrv,
+        respiratory_rows=resp,
+        sleep_rows=sleep,
+        wrist_temp_rows=None,
+        window=TimeWindow.WEEK,
+    )
+
+    assert assessment.score >= 0.5
+    assert assessment.severity in {"medium", "high"}
+    assert "°C" not in assessment.summary
+
+
 def test_health_risk_analyzer_uses_extended_history_for_illness_onset():
     now = datetime(2026, 2, 26, 10, 0, 0)
     heart = []

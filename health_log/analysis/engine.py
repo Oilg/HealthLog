@@ -534,6 +534,7 @@ class HealthRiskAnalyzer:
             illness_hrv_rows,
             respiratory_rows=illness_respiratory_rows,
             sleep_rows=illness_sleep_segments,
+            wrist_temp_rows=wrist_temp_rows_16d,
             window=window,
         )
 
