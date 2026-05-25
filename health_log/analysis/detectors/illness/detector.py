@@ -51,7 +51,7 @@ def assess_illness_onset_risk(
         hrv=hrv,
         respiratory=respiratory,
         sleep_rows=sleep_rows or [],
-        wrist_temp=wrist_temp or None,
+        wrist_temp=wrist_temp if wrist_temp else None,
     )
 
     if snapshot is None:
