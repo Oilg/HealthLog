@@ -179,8 +179,8 @@ def build_trend_snapshot(
         day_hr_v = day_hr.get(d)
         day_hrv_v = day_hrv.get(d)
         day_rr_v = day_rr.get(d)
-        hr_flag = day_hr_v is not None and day_hr_v >= baseline_rest_hr + 4
-        hrv_flag = day_hrv_v is not None and day_hrv_v <= baseline_hrv * 0.9
+        hr_flag = day_hr_v is not None and day_hr_v >= baseline_rest_hr + 6
+        hrv_flag = day_hrv_v is not None and day_hrv_v <= baseline_hrv * 0.85
         resp_flag = (
             day_rr_v is not None and baseline_rr is not None and day_rr_v >= baseline_rr * 1.08
         )

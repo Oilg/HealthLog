@@ -31,9 +31,9 @@ def test_sleep_apnea_risk_uses_multi_signal_evidence():
     anomaly_start = base + timedelta(hours=3)
     for k in range(3):
         ts = anomaly_start + timedelta(minutes=3 * k)
-        respiratory.append((ts, 7.0))   # RR < 10
-        heart.append((ts, 82.0))        # 82 >= 68 + 12 = 80 → supported_by_hr
-        hrv.append((ts, 32.0))          # 32 <= 42 * 0.8 = 33.6 → supported_by_hrv
+        respiratory.append((ts, 7.0))  # RR < 10
+        heart.append((ts, 82.0))  # 82 >= 68 + 12 = 80 → supported_by_hr
+        hrv.append((ts, 32.0))  # 32 <= 42 * 0.8 = 33.6 → supported_by_hrv
 
     assessment = assess_sleep_apnea_risk(
         respiratory, heart, hrv, sleep_segments=segments, window=TimeWindow.NIGHT
@@ -156,9 +156,7 @@ def test_sleep_apnea_event_builder_returns_insertable_rows():
         heart.append((ts, 82.0))
         hrv.append((ts, 32.0))
 
-    events = build_sleep_apnea_event_rows(
-        respiratory, heart, hrv, sleep_segments=segments
-    )
+    events = build_sleep_apnea_event_rows(respiratory, heart, hrv, sleep_segments=segments)
 
     assert len(events) >= 1
     event = events[0]
@@ -229,7 +227,9 @@ def test_sleep_apnea_insufficient_short_night():
     respiratory = [(base + timedelta(minutes=i * 5), 12.0) for i in range(25)]
     heart = [(base + timedelta(minutes=i * 5), 68.0) for i in range(25)]
     hrv = [(base + timedelta(minutes=i * 5), 40.0) for i in range(25)]
-    a = assess_sleep_apnea_risk(respiratory, heart, hrv, sleep_segments=seg, window=TimeWindow.NIGHT)
+    a = assess_sleep_apnea_risk(
+        respiratory, heart, hrv, sleep_segments=seg, window=TimeWindow.NIGHT
+    )
     assert a.severity == "unknown"
 
 
@@ -254,6 +254,77 @@ def test_illness_onset_risk_detects_hr_up_and_hrv_down_trend():
             else:
                 heart_val = 72 + (m % 3)
                 hrv_val = 40 - (m % 2)
+                resp_val = 15 + (m % 2) * 0.2
+            heart.append((ts, heart_val))
+            hrv.append((ts, hrv_val))
+            resp.append((ts, resp_val))
+
+    assessment = assess_illness_onset_risk(
+        heart,
+        hrv,
+        respiratory_rows=resp,
+        sleep_rows=sleep,
+        window=TimeWindow.WEEK,
+    )
+
+    assert assessment.score >= 0.5
+    assert assessment.confidence > 0.5
+    assert assessment.severity in {"medium", "high"}
+
+
+def test_illness_onset_risk_ignores_transient_mild_fluctuation():
+    """Кратковременный подъём пульса на 4 уд/мин и падение HRV на ~9% за 3 дня
+    — типичный паттерн после стресса или тренировки — не должен порождать сигнал."""
+    now = datetime(2026, 2, 26, 10, 0, 0)
+    heart = []
+    hrv = []
+
+    for day_idx in range(70):
+        day = now - timedelta(days=69 - day_idx)
+        for m in range(24):
+            ts = day + timedelta(minutes=20 * m)
+            if day_idx < 67:
+                heart_val = 62 + (m % 3)
+                hrv_val = 58 - (m % 2)
+            else:
+                heart_val = 66 + (m % 3)  # +4 BPM — ниже нового порога +6
+                hrv_val = 53 - (m % 2)  # −9 % — ниже нового порога −15 %
+            heart.append((ts, heart_val))
+            hrv.append((ts, hrv_val))
+
+    assessment = assess_illness_onset_risk(
+        heart,
+        hrv,
+        window=TimeWindow.WEEK,
+    )
+
+    assert assessment.score < 0.20
+    assert assessment.severity == "none"
+
+
+def test_illness_onset_risk_requires_five_day_persistent_trend():
+    """Стабильные симптомы на протяжении 5 дней (новое RECENT_DAYS) должны
+    уверенно детектироваться: score >= 0.5, severity medium или high."""
+    now = datetime(2026, 2, 26, 10, 0, 0)
+    heart = []
+    hrv = []
+    resp = []
+    sleep = []
+
+    for day_idx in range(70):
+        day = now - timedelta(days=69 - day_idx)
+        sleep_start = day.replace(hour=23, minute=0, second=0, microsecond=0) - timedelta(days=1)
+        sleep_end = day.replace(hour=7, minute=0, second=0, microsecond=0)
+        sleep.append((sleep_start, sleep_end))
+        for m in range(24):
+            ts = day + timedelta(minutes=20 * m)
+            if day_idx < 65:
+                heart_val = 62 + (m % 3)
+                hrv_val = 58 - (m % 2)
+                resp_val = 13 + (m % 2) * 0.2
+            else:
+                heart_val = 72 + (m % 3)  # +10 BPM, все 5 последних дней
+                hrv_val = 40 - (m % 2)  # −31 %
                 resp_val = 15 + (m % 2) * 0.2
             heart.append((ts, heart_val))
             hrv.append((ts, hrv_val))
@@ -324,7 +395,8 @@ def test_health_risk_analyzer_uses_extended_history_for_illness_onset():
 
     min_required_start = now - timedelta(days=63)
     assert any(
-        name == tables.heart_rate.name and start <= min_required_start for name, start, _ in call_ranges
+        name == tables.heart_rate.name and start <= min_required_start
+        for name, start, _ in call_ranges
     )
     assert illness.severity in {"medium", "high"}
 
