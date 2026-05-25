@@ -78,7 +78,9 @@ class HealthRiskAnalyzer:
         )
         return (await self._connection.execute(query)).all()
 
-    async def _fetch_sleep_segments(self, start: datetime, end: datetime) -> list[tuple[datetime, datetime]]:
+    async def _fetch_sleep_segments(
+        self, start: datetime, end: datetime
+    ) -> list[tuple[datetime, datetime]]:
         query = (
             select(tables.sleep_analysis.c.startDate, tables.sleep_analysis.c.endDate)
             .where(
@@ -434,7 +436,9 @@ class HealthRiskAnalyzer:
             ),
         ]
 
-    async def analyze_window(self, window: TimeWindow, now: datetime | None = None) -> dict[str, object]:
+    async def analyze_window(
+        self, window: TimeWindow, now: datetime | None = None
+    ) -> dict[str, object]:
         now = now or utcnow()
         start, end = resolve_window_range(window, now)
 
@@ -455,26 +459,40 @@ class HealthRiskAnalyzer:
 
         # Extended: needed by baseline+recent detectors regardless of window size.
         heart_rows_180d = await self._fetch_rows(tables.heart_rate, extended_start, end)
-        hrv_rows_74d = await self._fetch_rows(tables.heart_rate_variability, fitness_baseline_start, end)
-        respiratory_rows_74d = await self._fetch_rows(tables.respiratory_rate, fitness_baseline_start, end)
+        hrv_rows_74d = await self._fetch_rows(
+            tables.heart_rate_variability, fitness_baseline_start, end
+        )
+        respiratory_rows_74d = await self._fetch_rows(
+            tables.respiratory_rate, fitness_baseline_start, end
+        )
         sleep_segments_74d = await self._fetch_sleep_segments(fitness_baseline_start, end)
-        wrist_temp_rows_16d = await self._fetch_rows(tables.apple_sleeping_wrist_temperature, temperature_start, end)
-        wrist_temp_rows = await self._fetch_rows(tables.apple_sleeping_wrist_temperature, cycle_start, end)
+        wrist_temp_rows_16d = await self._fetch_rows(
+            tables.apple_sleeping_wrist_temperature, temperature_start, end
+        )
+        wrist_temp_rows = await self._fetch_rows(
+            tables.apple_sleeping_wrist_temperature, cycle_start, end
+        )
 
         vo2max_rows = await self._fetch_rows(tables.vo_2_max, extended_start, end)
 
         illness_heart_rows = await self._fetch_rows(tables.heart_rate, illness_start, end)
         illness_hrv_rows = await self._fetch_rows(tables.heart_rate_variability, illness_start, end)
-        illness_respiratory_rows = await self._fetch_rows(tables.respiratory_rate, illness_start, end)
+        illness_respiratory_rows = await self._fetch_rows(
+            tables.respiratory_rate, illness_start, end
+        )
         illness_sleep_segments = await self._fetch_sleep_segments(illness_start, end)
 
         spo2_rows = await self._fetch_rows(tables.oxygen_saturation, end - timedelta(days=30), end)
         sbp_rows = await self._fetch_rows(tables.blood_pressure_systolic, start, end)
         dbp_rows = await self._fetch_rows(tables.blood_pressure_diastolic, start, end)
-        walking_hr_rows = await self._fetch_rows(tables.walking_heart_rate_average, extended_start, end)
+        walking_hr_rows = await self._fetch_rows(
+            tables.walking_heart_rate_average, extended_start, end
+        )
         walking_speed_rows = await self._fetch_rows(tables.walking_speed, mobility_start, end)
         step_length_rows = await self._fetch_rows(tables.walking_step_length, mobility_start, end)
-        double_support_rows = await self._fetch_rows(tables.walking_double_support_percentage, mobility_start, end)
+        double_support_rows = await self._fetch_rows(
+            tables.walking_double_support_percentage, mobility_start, end
+        )
         steadiness_rows = await self._fetch_rows(tables.walking_steadiness, mobility_start, end)
         env_audio_rows = await self._fetch_rows(tables.environmental_audio_exposure, start, end)
         headphone_audio_rows = await self._fetch_rows(tables.headphone_audio_exposure, start, end)
@@ -487,13 +505,17 @@ class HealthRiskAnalyzer:
         exercise_rows = await self._fetch_rows(tables.apple_exercise_time, extended_start, end)
         afib_burden_rows = await self._fetch_rows(tables.apple_afib_burden, extended_start, end)
         low_hr_event_rows = await self._fetch_rows(tables.low_heart_rate_event, extended_start, end)
-        irregular_rhythm_rows = await self._fetch_rows(tables.irregular_heart_rhythm_event, extended_start, end)
+        irregular_rhythm_rows = await self._fetch_rows(
+            tables.irregular_heart_rhythm_event, extended_start, end
+        )
 
         menstrual_rows = []
         intermenstrual_rows = []
         if user_sex == "female":
             menstrual_rows = await self._fetch_rows(tables.menstrual_flow, cycle_start, end)
-            intermenstrual_rows = await self._fetch_rows(tables.intermenstrual_bleeding, extended_start, end)
+            intermenstrual_rows = await self._fetch_rows(
+                tables.intermenstrual_bleeding, extended_start, end
+            )
 
         sleep_apnea_result = assess_sleep_apnea_risk(
             respiratory_rows,
@@ -595,7 +617,9 @@ class HealthRiskAnalyzer:
                 hrv_rows,
                 sleep_segments=sleep_segments,
             )
-            inserted_events = await self._records_repo.insert_sleep_apnea_events(self._user_id, events)
+            inserted_events = await self._records_repo.insert_sleep_apnea_events(
+                self._user_id, events
+            )
 
         assessments = [
             sleep_apnea_result,
@@ -633,6 +657,7 @@ class HealthRiskAnalyzer:
                 )
         except Exception:
             import logging
+
             logging.getLogger(__name__).warning(
                 "Не удалось сохранить отчёт об анализе (user=%d, window=%s)",
                 self._user_id,
@@ -648,7 +673,9 @@ class HealthRiskAnalyzer:
             "inserted_sleep_apnea_events": inserted_events,
         }
 
-    async def analyze_all_windows(self, now: datetime | None = None) -> dict[TimeWindow, dict[str, object]]:
+    async def analyze_all_windows(
+        self, now: datetime | None = None
+    ) -> dict[TimeWindow, dict[str, object]]:
         return {
             window: await self.analyze_window(window, now=now)
             for window in (TimeWindow.NIGHT, TimeWindow.WEEK, TimeWindow.MONTH)
@@ -707,22 +734,22 @@ def _build_data_points(condition: str, metrics: dict) -> list[dict]:
             value_str = fmt.format(val) + (f" {unit}" if unit else "")
             points.append({"label": label, "value": value_str})
 
+    def _bp(sbp_key: str, dbp_key: str | None = None) -> None:
+        sbp = metrics.get(sbp_key)
+        dbp = metrics.get(dbp_key) if dbp_key else None
+        if sbp is not None:
+            dbp_str = f"/{dbp:.0f}" if dbp is not None else ""
+            points.append(
+                {"label": "Артериальное давление", "value": f"{sbp:.0f}{dbp_str} мм рт.ст."}
+            )
+
+    # ── Метаболизм / вес / активность ──────────────────────────────────────
     if condition == "metabolic_syndrome_risk":
         _add("ИМТ", metrics.get("bmi"), "{:.1f}")
         _add("Масса тела", metrics.get("mass_kg"), "{:.1f}", "кг")
         _add("Обхват талии", metrics.get("waist_cm"), "{:.0f}", "см")
-        sbp = metrics.get("sbp")
-        dbp = metrics.get("dbp")
-        if sbp is not None and dbp is not None:
-            points.append({"label": "Артериальное давление", "value": f"{sbp:.0f}/{dbp:.0f} мм рт.ст."})
+        _bp("sbp", "dbp")
         _add("Шагов в день", metrics.get("steps_per_day"), "{:.0f}")
-
-    elif condition in ("hypertension_risk", "hypotension_risk"):
-        sbp = metrics.get("avg_sbp")
-        dbp = metrics.get("avg_dbp")
-        if sbp is not None:
-            dbp_str = f"/{dbp:.0f}" if dbp is not None else ""
-            points.append({"label": "Артериальное давление", "value": f"{sbp:.0f}{dbp_str} мм рт.ст."})
 
     elif condition in ("obesity_risk", "overweight_risk"):
         _add("ИМТ", metrics.get("bmi"), "{:.1f}")
@@ -730,18 +757,116 @@ def _build_data_points(condition: str, metrics: dict) -> list[dict]:
     elif condition == "abdominal_obesity_risk":
         _add("Обхват талии", metrics.get("waist_cm"), "{:.0f}", "см")
 
+    elif condition == "high_body_fat_risk":
+        _add("Процент жира", metrics.get("body_fat_pct"), "{:.1f}", "%")
+
     elif condition in ("sedentary_lifestyle_risk", "insufficient_activity_risk"):
         _add("Шагов в день", metrics.get("median_daily_steps"), "{:.0f}")
 
+    elif condition == "lean_mass_decline_risk":
+        _add("Безжировая масса (базовая)", metrics.get("baseline_lean_kg"), "{:.1f}", "кг")
+        _add("Безжировая масса (текущая)", metrics.get("recent_lean_kg"), "{:.1f}", "кг")
+        _add("Снижение", metrics.get("decline_pct"), "{:.1f}", "%")
+
+    elif condition == "weight_trend_risk":
+        _add("Масса тела (начало)", metrics.get("start_weight_kg"), "{:.1f}", "кг")
+        _add("Масса тела (сейчас)", metrics.get("end_weight_kg"), "{:.1f}", "кг")
+        _add("Изменение", metrics.get("change_pct"), "{:.1f}", "%")
+
+    elif condition == "fat_mass_trend_risk":
+        _add("Жировая масса (начало)", metrics.get("fat_mass_start_kg"), "{:.1f}", "кг")
+        _add("Жировая масса (сейчас)", metrics.get("fat_mass_end_kg"), "{:.1f}", "кг")
+        _add("Изменение", metrics.get("change_pct"), "{:.1f}", "%")
+
+    elif condition == "body_composition_trend_risk":
+        _add("Изменение веса", metrics.get("weight_change_pct"), "{:.1f}", "%")
+        _add("Прирост жира (п.п.)", metrics.get("fat_pct_point_change"), "{:.1f}")
+        _add("Снижение мышц", metrics.get("lean_decline_pct"), "{:.1f}", "%")
+
+    elif condition == "cardiometabolic_profile_risk":
+        _add("ИМТ", metrics.get("bmi"), "{:.1f}")
+        _add("Шагов в день", metrics.get("median_steps"), "{:.0f}")
+
+    elif condition == "cardiovascular_obesity_risk":
+        _add("ИМТ", metrics.get("bmi"), "{:.1f}")
+        _add("Шагов в день", metrics.get("median_steps"), "{:.0f}")
+
+    elif condition == "fitness_weight_gain_risk":
+        _add("Изменение веса", metrics.get("weight_change_pct"), "{:+.1f}", "%")
+        _add("Снижение VO₂ max", metrics.get("vo2max_decline_pct"), "{:.1f}", "%")
+        _add("Прирост пульса при ходьбе", metrics.get("walking_hr_delta"), "{:.0f}", "уд/мин")
+
+    elif condition == "recovery_obesity_risk":
+        _add("ИМТ", metrics.get("bmi"), "{:.1f}")
+        _add("Шагов в день", metrics.get("median_daily_steps"), "{:.0f}")
+
+    # ── Давление ───────────────────────────────────────────────────────────
+    elif condition == "hypertension_risk":
+        _bp("avg_sbp", "avg_dbp")
+
+    elif condition == "hypotension_risk":
+        _add("Систолическое АД", metrics.get("avg_sbp"), "{:.0f}", "мм рт.ст.")
+        _add("ЧСС в покое", metrics.get("avg_resting_hr"), "{:.0f}", "уд/мин")
+
+    # ── Кардио / ритм ──────────────────────────────────────────────────────
+    elif condition == "bradycardia_risk":
+        _add("Мин. ЧСС в покое", metrics.get("min_rest_hr"), "{:.0f}", "уд/мин")
+        _add("Медиана ЧСС в покое", metrics.get("median_rest_hr"), "{:.0f}", "уд/мин")
+
+    elif condition == "irregular_rhythm_risk":
+        _add("Событий за 90 дней", metrics.get("events_90d"), "{:.0f}")
+        _add("Событий за 30 дней", metrics.get("events_30d"), "{:.0f}")
+
+    elif condition == "atrial_fibrillation_risk":
+        _add("Средний AFib burden", metrics.get("avg_burden_pct"), "{:.1f}", "%")
+        _add("Макс. AFib burden", metrics.get("max_burden_pct"), "{:.1f}", "%")
+        _add("Событий нерегулярного ритма (30 дн.)", metrics.get("irregular_events_30d"), "{:.0f}")
+
+    # ── SpO₂ ───────────────────────────────────────────────────────────────
+    elif condition == "low_oxygen_saturation_risk":
+        _add("Мин. SpO₂", metrics.get("min_spo2"), "{:.1f}", "%")
+        _add("Медиана SpO₂", metrics.get("median_spo2"), "{:.1f}", "%")
+        _add("Измерений <94%", metrics.get("count_below_94"), "{:.0f}")
+        _add("Измерений <92%", metrics.get("count_below_92"), "{:.0f}")
+
+    # ── Фитнес ─────────────────────────────────────────────────────────────
+    elif condition == "overload_recovery_risk":
+        _add("ЧСС в покое (базовая)", metrics.get("baseline_resting_hr"), "{:.0f}", "уд/мин")
+        _add("HRV (базовая)", metrics.get("baseline_hrv"), "{:.0f}", "мс")
+        _add("Сон (базовый)", metrics.get("baseline_sleep_hours"), "{:.1f}", "ч")
+
+    elif condition == "hrr_decline_risk":
+        _add(
+            "Пульс при ходьбе (базовый)", metrics.get("baseline_walking_hr_bpm"), "{:.0f}", "уд/мин"
+        )
+        _add("Пульс при ходьбе (текущий)", metrics.get("recent_walking_hr_bpm"), "{:.0f}", "уд/мин")
+        _add("Прирост", metrics.get("rise_bpm"), "{:.0f}", "уд/мин")
+
+    elif condition == "vo2max_decline_risk":
+        _add("VO₂ max (базовый)", metrics.get("baseline_median_vo2max"), "{:.1f}", "мл/кг/мин")
+        _add("VO₂ max (текущий)", metrics.get("recent_vo2max"), "{:.1f}", "мл/кг/мин")
+        _add("Снижение", metrics.get("decline_pct"), "{:.1f}", "%")
+
+    elif condition == "walking_tolerance_decline_risk":
+        _add("Пульс при ходьбе (базовый)", metrics.get("baseline_walking_hr"), "{:.0f}", "уд/мин")
+        _add("Пульс при ходьбе (текущий)", metrics.get("recent_walking_hr"), "{:.0f}", "уд/мин")
+        _add("Прирост", metrics.get("delta_bpm"), "{:.0f}", "уд/мин")
+
+    elif condition == "respiratory_function_decline_risk":
+        _add("Изменение ЧД", metrics.get("rr_delta_pct"), "{:.1f}", "%")
+        _add("Измерений SpO₂ <94%", metrics.get("spo2_below_94_count"), "{:.0f}")
+        _add("Измерений SpO₂ <92%", metrics.get("spo2_below_92_count"), "{:.0f}")
+
+    # ── Мобильность ────────────────────────────────────────────────────────
+    elif condition == "fall_risk":
+        _add("Снижение устойчивости", metrics.get("steadiness_decline_pct"), "{:.0f}", "%")
+        _add("Снижение скорости ходьбы", metrics.get("speed_decline_pct"), "{:.0f}", "%")
+        _add("Снижение длины шага", metrics.get("step_length_decline_pct"), "{:.0f}", "%")
+
+    # ── Шум ────────────────────────────────────────────────────────────────
     elif condition == "noise_exposure_risk":
         _add("Макс. уровень звука (30 дн.)", metrics.get("max_db_30d"), "{:.0f}", "дБ")
         _add("Средний уровень звука (7 дн.)", metrics.get("avg_db_7d"), "{:.0f}", "дБ")
-
-    elif condition in ("overload_recovery_risk", "hrr_decline_risk"):
-        _add("ЧСС в покое", metrics.get("median_rest_hr"), "{:.0f}", "уд/мин")
-
-    elif condition == "high_body_fat_risk":
-        _add("Процент жира", metrics.get("body_fat_pct"), "{:.1f}", "%")
 
     return points
 
