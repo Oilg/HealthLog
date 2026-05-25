@@ -21,6 +21,12 @@ users = sqlalchemy.Table(
     sqlalchemy.Column("last_sync_at", sqlalchemy.DateTime, nullable=True),
     sqlalchemy.Column("last_sync_records_count", sqlalchemy.Integer, nullable=True),
     sqlalchemy.Column("apns_device_token", sqlalchemy.String, nullable=True),
+    sqlalchemy.Column(
+        "subscription_status",
+        sqlalchemy.String,
+        nullable=False,
+        server_default=sqlalchemy.literal("free"),
+    ),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, server_default=func.now(), nullable=False),
     sqlalchemy.Column(
         "updated_at",

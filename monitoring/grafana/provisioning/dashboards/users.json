@@ -1,0 +1,164 @@
+{
+  "title": "Users",
+  "uid": "healthlog-users",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": { "from": "now-30d", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Total Users",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT COUNT(*) AS value FROM users WHERE is_active = true",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Paid Subscriptions",
+      "type": "stat",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT COUNT(*) AS value FROM users WHERE is_active = true AND subscription_status = 'paid'",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "New Users (last 30d)",
+      "type": "stat",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT COUNT(*) AS value FROM users WHERE created_at >= NOW() - INTERVAL '30 days'",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Active Last 7d",
+      "type": "stat",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT COUNT(DISTINCT u.id) AS value FROM users u JOIN auth_tokens t ON t.user_id = u.id WHERE t.created_at >= NOW() - INTERVAL '7 days' AND u.is_active = true",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "User List",
+      "type": "table",
+      "gridPos": { "x": 0, "y": 4, "w": 24, "h": 20 },
+      "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+      "options": {
+        "sortBy": [{ "displayName": "Last Seen", "desc": true }],
+        "footer": { "show": false }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "filterable": true,
+            "minWidth": 80
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "User ID" },
+            "properties": [
+              { "id": "custom.width", "value": 80 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Username" },
+            "properties": [
+              { "id": "custom.width", "value": 180 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Status" },
+            "properties": [
+              { "id": "custom.width", "value": 100 },
+              {
+                "id": "mappings",
+                "value": [
+                  { "type": "value", "options": { "free":  { "text": "Free",  "color": "blue"  }, "paid": { "text": "Paid", "color": "green" } } }
+                ]
+              },
+              { "id": "custom.displayMode", "value": "color-background" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Last Seen" },
+            "properties": [
+              { "id": "unit", "value": "dateTimeAsLocal" },
+              { "id": "custom.width", "value": 160 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Registered" },
+            "properties": [
+              { "id": "unit", "value": "dateTimeAsLocal" },
+              { "id": "custom.width", "value": 160 }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT\n  u.id AS \"User ID\",\n  u.first_name || ' ' || u.last_name AS \"Username\",\n  u.email AS \"Email\",\n  u.subscription_status AS \"Status\",\n  COALESCE(MAX(t.created_at), u.created_at) AS \"Last Seen\",\n  u.created_at AS \"Registered\"\nFROM users u\nLEFT JOIN auth_tokens t ON t.user_id = u.id\nWHERE u.is_active = true\nGROUP BY u.id, u.first_name, u.last_name, u.email, u.subscription_status, u.created_at\nORDER BY \"Last Seen\" DESC",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "DS_POSTGRESQL",
+        "type": "datasource",
+        "query": "postgres",
+        "current": { "text": "PostgreSQL", "value": "PostgreSQL" },
+        "hide": 2
+      }
+    ]
+  }
+}
