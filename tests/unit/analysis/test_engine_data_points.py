@@ -6,8 +6,12 @@ class TestBuildDataPoints:
 
     def test_metabolic_syndrome_with_all_metrics(self):
         metrics = {
-            "bmi": 32.1, "mass_kg": 95.2, "waist_cm": 102.0,
-            "sbp": 135.0, "dbp": 87.0, "steps_per_day": 3200.0,
+            "bmi": 32.1,
+            "mass_kg": 95.2,
+            "waist_cm": 102.0,
+            "sbp": 135.0,
+            "dbp": 87.0,
+            "steps_per_day": 3200.0,
         }
         points = _build_data_points("metabolic_syndrome_risk", metrics)
         labels = [p["label"] for p in points]
@@ -43,11 +47,19 @@ class TestBuildDataPoints:
 
     def test_abdominal_obesity_waist(self):
         points = _build_data_points("abdominal_obesity_risk", {"waist_cm": 102.0})
-        assert points[0]["label"] == "Обхват талии" and "102" in points[0]["value"] and "см" in points[0]["value"]
+        assert (
+            points[0]["label"] == "Обхват талии"
+            and "102" in points[0]["value"]
+            and "см" in points[0]["value"]
+        )
 
     def test_high_body_fat(self):
         points = _build_data_points("high_body_fat_risk", {"body_fat_pct": 32.5})
-        assert points[0]["label"] == "Процент жира" and "32.5" in points[0]["value"] and "%" in points[0]["value"]
+        assert (
+            points[0]["label"] == "Процент жира"
+            and "32.5" in points[0]["value"]
+            and "%" in points[0]["value"]
+        )
 
     def test_sedentary_lifestyle(self):
         points = _build_data_points("sedentary_lifestyle_risk", {"median_daily_steps": 3500.0})
@@ -90,7 +102,9 @@ class TestBuildDataPoints:
         assert "Шагов в день" in labels
 
     def test_cardiometabolic_profile_without_steps(self):
-        points = _build_data_points("cardiometabolic_profile_risk", {"bmi": 28.5, "median_steps": None})
+        points = _build_data_points(
+            "cardiometabolic_profile_risk", {"bmi": 28.5, "median_steps": None}
+        )
         assert len(points) == 1
         assert points[0]["label"] == "ИМТ"
 
@@ -121,7 +135,11 @@ class TestBuildDataPoints:
     def test_hypertension_blood_pressure(self):
         points = _build_data_points("hypertension_risk", {"avg_sbp": 145.0, "avg_dbp": 92.0})
         assert len(points) == 1
-        assert "145" in points[0]["value"] and "92" in points[0]["value"] and "мм рт.ст." in points[0]["value"]
+        assert (
+            "145" in points[0]["value"]
+            and "92" in points[0]["value"]
+            and "мм рт.ст." in points[0]["value"]
+        )
 
     def test_hypotension_sbp_and_hr(self):
         points = _build_data_points("hypotension_risk", {"avg_sbp": 88.0, "avg_resting_hr": 96.0})
@@ -202,14 +220,20 @@ class TestBuildDataPoints:
     # ── Мобильность ─────────────────────────────────────────────────────────
 
     def test_fall_risk(self):
-        metrics = {"steadiness_decline_pct": 15.5, "speed_decline_pct": 22.0, "step_length_decline_pct": 18.5}
+        metrics = {
+            "steadiness_decline_pct": 15.5,
+            "speed_decline_pct": 22.0,
+            "step_length_decline_pct": 18.5,
+        }
         points = _build_data_points("fall_risk", metrics)
         labels = [p["label"] for p in points]
         assert "Снижение устойчивости" in labels
         assert "%" in points[0]["value"]
 
     def test_fall_risk_partial_metrics(self):
-        points = _build_data_points("fall_risk", {"steadiness_decline_pct": 10.0, "speed_decline_pct": None})
+        points = _build_data_points(
+            "fall_risk", {"steadiness_decline_pct": 10.0, "speed_decline_pct": None}
+        )
         assert len(points) == 1
 
     # ── Шум ─────────────────────────────────────────────────────────────────
@@ -228,7 +252,64 @@ class TestBuildDataPoints:
         assert _build_data_points("metabolic_syndrome_risk", {}) == []
 
     def test_none_values_are_skipped(self):
-        points = _build_data_points("bradycardia_risk", {"median_rest_hr": None, "min_rest_hr": 42.0})
+        points = _build_data_points(
+            "bradycardia_risk", {"median_rest_hr": None, "min_rest_hr": 42.0}
+        )
         labels = [p["label"] for p in points]
         assert "Медиана ЧСС в покое" not in labels
         assert "Мин. ЧСС в покое" in labels
+
+    # ── Reference values ─────────────────────────────────────────────────────
+
+    def test_bmi_has_reference(self):
+        points = _build_data_points("obesity_risk", {"bmi": 33.5})
+        assert points[0].get("reference") == "18.5–24.9"
+
+    def test_steps_has_reference(self):
+        points = _build_data_points("sedentary_lifestyle_risk", {"median_daily_steps": 3000.0})
+        assert points[0].get("reference") == "≥7 500"
+
+    def test_blood_pressure_has_reference(self):
+        points = _build_data_points("hypertension_risk", {"avg_sbp": 145.0, "avg_dbp": 92.0})
+        assert points[0].get("reference") == "<120/80 мм рт.ст."
+
+    def test_spo2_has_reference(self):
+        points = _build_data_points(
+            "low_oxygen_saturation_risk",
+            {"min_spo2": 88.0, "median_spo2": 93.0, "count_below_94": 4, "count_below_92": 1},
+        )
+        spo2_points = [p for p in points if "SpO₂" in p["label"] and "Мин" in p["label"]]
+        assert spo2_points[0].get("reference") == "≥95%"
+
+    def test_bradycardia_has_reference(self):
+        points = _build_data_points(
+            "bradycardia_risk", {"min_rest_hr": 48.0, "median_rest_hr": 52.0}
+        )
+        min_point = next(p for p in points if "Мин." in p["label"])
+        assert min_point.get("reference") == "≥60 уд/мин"
+
+    def test_noise_exposure_has_reference(self):
+        points = _build_data_points("noise_exposure_risk", {"max_db_30d": 92.0, "avg_db_7d": 78.0})
+        assert points[0].get("reference") == "<85 дБ"
+        assert points[1].get("reference") == "<70 дБ"
+
+    def test_lean_mass_decline_reference_on_decline_only(self):
+        metrics = {"baseline_lean_kg": 65.0, "recent_lean_kg": 61.0, "decline_pct": 6.1}
+        points = _build_data_points("lean_mass_decline_risk", metrics)
+        decline_point = next(p for p in points if p["label"] == "Снижение")
+        assert decline_point.get("reference") == "<3%"
+        baseline_point = next(p for p in points if "базовая" in p["label"])
+        assert "reference" not in baseline_point
+
+    def test_waist_has_reference(self):
+        points = _build_data_points("abdominal_obesity_risk", {"waist_cm": 102.0})
+        assert "<94 см" in points[0].get("reference", "")
+
+    def test_irregular_rhythm_events_reference_zero(self):
+        points = _build_data_points("irregular_rhythm_risk", {"events_90d": 5, "events_30d": 2})
+        assert all(p.get("reference") == "0" for p in points)
+
+    def test_no_reference_for_mass_kg(self):
+        points = _build_data_points("metabolic_syndrome_risk", {"mass_kg": 95.0})
+        mass_point = next(p for p in points if p["label"] == "Масса тела")
+        assert "reference" not in mass_point

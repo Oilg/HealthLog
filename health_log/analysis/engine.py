@@ -726,13 +726,16 @@ _CONDITION_LABELS: dict[str, str] = {
 
 
 def _build_data_points(condition: str, metrics: dict) -> list[dict]:
-    """Convert supporting_metrics to display-ready [{label, value}] list for the mobile app."""
+    """Convert supporting_metrics to display-ready [{label, value, reference?}] list."""
     points: list[dict] = []
 
-    def _add(label: str, val: float | None, fmt: str, unit: str = "") -> None:
+    def _add(label: str, val: float | None, fmt: str, unit: str = "", ref: str = "") -> None:
         if val is not None:
             value_str = fmt.format(val) + (f" {unit}" if unit else "")
-            points.append({"label": label, "value": value_str})
+            point: dict = {"label": label, "value": value_str}
+            if ref:
+                point["reference"] = ref
+            points.append(point)
 
     def _bp(sbp_key: str, dbp_key: str | None = None) -> None:
         sbp = metrics.get(sbp_key)
@@ -740,133 +743,212 @@ def _build_data_points(condition: str, metrics: dict) -> list[dict]:
         if sbp is not None:
             dbp_str = f"/{dbp:.0f}" if dbp is not None else ""
             points.append(
-                {"label": "Артериальное давление", "value": f"{sbp:.0f}{dbp_str} мм рт.ст."}
+                {
+                    "label": "Артериальное давление",
+                    "value": f"{sbp:.0f}{dbp_str} мм рт.ст.",
+                    "reference": "<120/80 мм рт.ст.",
+                }
             )
 
     # ── Метаболизм / вес / активность ──────────────────────────────────────
     if condition == "metabolic_syndrome_risk":
-        _add("ИМТ", metrics.get("bmi"), "{:.1f}")
+        _add("ИМТ", metrics.get("bmi"), "{:.1f}", ref="18.5–24.9")
         _add("Масса тела", metrics.get("mass_kg"), "{:.1f}", "кг")
-        _add("Обхват талии", metrics.get("waist_cm"), "{:.0f}", "см")
+        _add(
+            "Обхват талии",
+            metrics.get("waist_cm"),
+            "{:.0f}",
+            "см",
+            ref="<94 см (муж.) / <80 см (жен.)",
+        )
         _bp("sbp", "dbp")
-        _add("Шагов в день", metrics.get("steps_per_day"), "{:.0f}")
+        _add("Шагов в день", metrics.get("steps_per_day"), "{:.0f}", ref="≥7 500")
 
     elif condition in ("obesity_risk", "overweight_risk"):
-        _add("ИМТ", metrics.get("bmi"), "{:.1f}")
+        _add("ИМТ", metrics.get("bmi"), "{:.1f}", ref="18.5–24.9")
 
     elif condition == "abdominal_obesity_risk":
-        _add("Обхват талии", metrics.get("waist_cm"), "{:.0f}", "см")
+        _add(
+            "Обхват талии",
+            metrics.get("waist_cm"),
+            "{:.0f}",
+            "см",
+            ref="<94 см (муж.) / <80 см (жен.)",
+        )
 
     elif condition == "high_body_fat_risk":
-        _add("Процент жира", metrics.get("body_fat_pct"), "{:.1f}", "%")
+        _add(
+            "Процент жира",
+            metrics.get("body_fat_pct"),
+            "{:.1f}",
+            "%",
+            ref="<25% (муж.) / <32% (жен.)",
+        )
 
     elif condition in ("sedentary_lifestyle_risk", "insufficient_activity_risk"):
-        _add("Шагов в день", metrics.get("median_daily_steps"), "{:.0f}")
+        _add("Шагов в день", metrics.get("median_daily_steps"), "{:.0f}", ref="≥7 500")
 
     elif condition == "lean_mass_decline_risk":
         _add("Безжировая масса (базовая)", metrics.get("baseline_lean_kg"), "{:.1f}", "кг")
         _add("Безжировая масса (текущая)", metrics.get("recent_lean_kg"), "{:.1f}", "кг")
-        _add("Снижение", metrics.get("decline_pct"), "{:.1f}", "%")
+        _add("Снижение", metrics.get("decline_pct"), "{:.1f}", "%", ref="<3%")
 
     elif condition == "weight_trend_risk":
         _add("Масса тела (начало)", metrics.get("start_weight_kg"), "{:.1f}", "кг")
         _add("Масса тела (сейчас)", metrics.get("end_weight_kg"), "{:.1f}", "кг")
-        _add("Изменение", metrics.get("change_pct"), "{:.1f}", "%")
+        _add("Изменение", metrics.get("change_pct"), "{:.1f}", "%", ref="<5%")
 
     elif condition == "fat_mass_trend_risk":
         _add("Жировая масса (начало)", metrics.get("fat_mass_start_kg"), "{:.1f}", "кг")
         _add("Жировая масса (сейчас)", metrics.get("fat_mass_end_kg"), "{:.1f}", "кг")
-        _add("Изменение", metrics.get("change_pct"), "{:.1f}", "%")
+        _add("Изменение", metrics.get("change_pct"), "{:.1f}", "%", ref="<10%")
 
     elif condition == "body_composition_trend_risk":
-        _add("Изменение веса", metrics.get("weight_change_pct"), "{:.1f}", "%")
-        _add("Прирост жира (п.п.)", metrics.get("fat_pct_point_change"), "{:.1f}")
-        _add("Снижение мышц", metrics.get("lean_decline_pct"), "{:.1f}", "%")
+        _add("Изменение веса", metrics.get("weight_change_pct"), "{:.1f}", "%", ref="<5%")
+        _add("Прирост жира (п.п.)", metrics.get("fat_pct_point_change"), "{:.1f}", ref="<1 п.п.")
+        _add("Снижение мышц", metrics.get("lean_decline_pct"), "{:.1f}", "%", ref="<3%")
 
     elif condition == "cardiometabolic_profile_risk":
-        _add("ИМТ", metrics.get("bmi"), "{:.1f}")
-        _add("Шагов в день", metrics.get("median_steps"), "{:.0f}")
+        _add("ИМТ", metrics.get("bmi"), "{:.1f}", ref="18.5–24.9")
+        _add("Шагов в день", metrics.get("median_steps"), "{:.0f}", ref="≥7 500")
 
     elif condition == "cardiovascular_obesity_risk":
-        _add("ИМТ", metrics.get("bmi"), "{:.1f}")
-        _add("Шагов в день", metrics.get("median_steps"), "{:.0f}")
+        _add("ИМТ", metrics.get("bmi"), "{:.1f}", ref="18.5–24.9")
+        _add("Шагов в день", metrics.get("median_steps"), "{:.0f}", ref="≥7 500")
 
     elif condition == "fitness_weight_gain_risk":
-        _add("Изменение веса", metrics.get("weight_change_pct"), "{:+.1f}", "%")
-        _add("Снижение VO₂ max", metrics.get("vo2max_decline_pct"), "{:.1f}", "%")
-        _add("Прирост пульса при ходьбе", metrics.get("walking_hr_delta"), "{:.0f}", "уд/мин")
+        _add("Изменение веса", metrics.get("weight_change_pct"), "{:+.1f}", "%", ref="<5%")
+        _add("Снижение VO₂ max", metrics.get("vo2max_decline_pct"), "{:.1f}", "%", ref="<5%")
+        _add(
+            "Прирост пульса при ходьбе",
+            metrics.get("walking_hr_delta"),
+            "{:.0f}",
+            "уд/мин",
+            ref="<10 уд/мин",
+        )
 
     elif condition == "recovery_obesity_risk":
-        _add("ИМТ", metrics.get("bmi"), "{:.1f}")
-        _add("Шагов в день", metrics.get("median_daily_steps"), "{:.0f}")
+        _add("ИМТ", metrics.get("bmi"), "{:.1f}", ref="18.5–24.9")
+        _add("Шагов в день", metrics.get("median_daily_steps"), "{:.0f}", ref="≥7 500")
 
     # ── Давление ───────────────────────────────────────────────────────────
     elif condition == "hypertension_risk":
         _bp("avg_sbp", "avg_dbp")
 
     elif condition == "hypotension_risk":
-        _add("Систолическое АД", metrics.get("avg_sbp"), "{:.0f}", "мм рт.ст.")
-        _add("ЧСС в покое", metrics.get("avg_resting_hr"), "{:.0f}", "уд/мин")
+        _add(
+            "Систолическое АД",
+            metrics.get("avg_sbp"),
+            "{:.0f}",
+            "мм рт.ст.",
+            ref="≥90 мм рт.ст.",
+        )
+        _add(
+            "ЧСС в покое",
+            metrics.get("avg_resting_hr"),
+            "{:.0f}",
+            "уд/мин",
+            ref="60–100 уд/мин",
+        )
 
     # ── Кардио / ритм ──────────────────────────────────────────────────────
     elif condition == "bradycardia_risk":
-        _add("Мин. ЧСС в покое", metrics.get("min_rest_hr"), "{:.0f}", "уд/мин")
-        _add("Медиана ЧСС в покое", metrics.get("median_rest_hr"), "{:.0f}", "уд/мин")
+        _add("Мин. ЧСС в покое", metrics.get("min_rest_hr"), "{:.0f}", "уд/мин", ref="≥60 уд/мин")
+        _add(
+            "Медиана ЧСС в покое",
+            metrics.get("median_rest_hr"),
+            "{:.0f}",
+            "уд/мин",
+            ref="60–100 уд/мин",
+        )
 
     elif condition == "irregular_rhythm_risk":
-        _add("Событий за 90 дней", metrics.get("events_90d"), "{:.0f}")
-        _add("Событий за 30 дней", metrics.get("events_30d"), "{:.0f}")
+        _add("Событий за 90 дней", metrics.get("events_90d"), "{:.0f}", ref="0")
+        _add("Событий за 30 дней", metrics.get("events_30d"), "{:.0f}", ref="0")
 
     elif condition == "atrial_fibrillation_risk":
-        _add("Средний AFib burden", metrics.get("avg_burden_pct"), "{:.1f}", "%")
-        _add("Макс. AFib burden", metrics.get("max_burden_pct"), "{:.1f}", "%")
-        _add("Событий нерегулярного ритма (30 дн.)", metrics.get("irregular_events_30d"), "{:.0f}")
+        _add("Средний AFib burden", metrics.get("avg_burden_pct"), "{:.1f}", "%", ref="<0.5%")
+        _add("Макс. AFib burden", metrics.get("max_burden_pct"), "{:.1f}", "%", ref="<1%")
+        _add(
+            "Событий нерегулярного ритма (30 дн.)",
+            metrics.get("irregular_events_30d"),
+            "{:.0f}",
+            ref="0",
+        )
 
     # ── SpO₂ ───────────────────────────────────────────────────────────────
     elif condition == "low_oxygen_saturation_risk":
-        _add("Мин. SpO₂", metrics.get("min_spo2"), "{:.1f}", "%")
-        _add("Медиана SpO₂", metrics.get("median_spo2"), "{:.1f}", "%")
-        _add("Измерений <94%", metrics.get("count_below_94"), "{:.0f}")
-        _add("Измерений <92%", metrics.get("count_below_92"), "{:.0f}")
+        _add("Мин. SpO₂", metrics.get("min_spo2"), "{:.1f}", "%", ref="≥95%")
+        _add("Медиана SpO₂", metrics.get("median_spo2"), "{:.1f}", "%", ref="≥95%")
+        _add("Измерений <94%", metrics.get("count_below_94"), "{:.0f}", ref="0")
+        _add("Измерений <92%", metrics.get("count_below_92"), "{:.0f}", ref="0")
 
     # ── Фитнес ─────────────────────────────────────────────────────────────
     elif condition == "overload_recovery_risk":
-        _add("ЧСС в покое (базовая)", metrics.get("baseline_resting_hr"), "{:.0f}", "уд/мин")
+        _add(
+            "ЧСС в покое (базовая)",
+            metrics.get("baseline_resting_hr"),
+            "{:.0f}",
+            "уд/мин",
+            ref="60–100 уд/мин",
+        )
         _add("HRV (базовая)", metrics.get("baseline_hrv"), "{:.0f}", "мс")
-        _add("Сон (базовый)", metrics.get("baseline_sleep_hours"), "{:.1f}", "ч")
+        _add("Сон (базовый)", metrics.get("baseline_sleep_hours"), "{:.1f}", "ч", ref="7–9 ч")
 
     elif condition == "hrr_decline_risk":
         _add(
             "Пульс при ходьбе (базовый)", metrics.get("baseline_walking_hr_bpm"), "{:.0f}", "уд/мин"
         )
         _add("Пульс при ходьбе (текущий)", metrics.get("recent_walking_hr_bpm"), "{:.0f}", "уд/мин")
-        _add("Прирост", metrics.get("rise_bpm"), "{:.0f}", "уд/мин")
+        _add("Прирост", metrics.get("rise_bpm"), "{:.0f}", "уд/мин", ref="<10 уд/мин")
 
     elif condition == "vo2max_decline_risk":
         _add("VO₂ max (базовый)", metrics.get("baseline_median_vo2max"), "{:.1f}", "мл/кг/мин")
         _add("VO₂ max (текущий)", metrics.get("recent_vo2max"), "{:.1f}", "мл/кг/мин")
-        _add("Снижение", metrics.get("decline_pct"), "{:.1f}", "%")
+        _add("Снижение", metrics.get("decline_pct"), "{:.1f}", "%", ref="<5%")
 
     elif condition == "walking_tolerance_decline_risk":
         _add("Пульс при ходьбе (базовый)", metrics.get("baseline_walking_hr"), "{:.0f}", "уд/мин")
         _add("Пульс при ходьбе (текущий)", metrics.get("recent_walking_hr"), "{:.0f}", "уд/мин")
-        _add("Прирост", metrics.get("delta_bpm"), "{:.0f}", "уд/мин")
+        _add("Прирост", metrics.get("delta_bpm"), "{:.0f}", "уд/мин", ref="<10 уд/мин")
 
     elif condition == "respiratory_function_decline_risk":
-        _add("Изменение ЧД", metrics.get("rr_delta_pct"), "{:.1f}", "%")
-        _add("Измерений SpO₂ <94%", metrics.get("spo2_below_94_count"), "{:.0f}")
-        _add("Измерений SpO₂ <92%", metrics.get("spo2_below_92_count"), "{:.0f}")
+        _add("Изменение ЧД", metrics.get("rr_delta_pct"), "{:.1f}", "%", ref="<10%")
+        _add("Измерений SpO₂ <94%", metrics.get("spo2_below_94_count"), "{:.0f}", ref="0")
+        _add("Измерений SpO₂ <92%", metrics.get("spo2_below_92_count"), "{:.0f}", ref="0")
 
     # ── Мобильность ────────────────────────────────────────────────────────
     elif condition == "fall_risk":
-        _add("Снижение устойчивости", metrics.get("steadiness_decline_pct"), "{:.0f}", "%")
-        _add("Снижение скорости ходьбы", metrics.get("speed_decline_pct"), "{:.0f}", "%")
-        _add("Снижение длины шага", metrics.get("step_length_decline_pct"), "{:.0f}", "%")
+        _add(
+            "Снижение устойчивости",
+            metrics.get("steadiness_decline_pct"),
+            "{:.0f}",
+            "%",
+            ref="<10%",
+        )
+        _add(
+            "Снижение скорости ходьбы",
+            metrics.get("speed_decline_pct"),
+            "{:.0f}",
+            "%",
+            ref="<10%",
+        )
+        _add(
+            "Снижение длины шага",
+            metrics.get("step_length_decline_pct"),
+            "{:.0f}",
+            "%",
+            ref="<10%",
+        )
 
     # ── Шум ────────────────────────────────────────────────────────────────
     elif condition == "noise_exposure_risk":
-        _add("Макс. уровень звука (30 дн.)", metrics.get("max_db_30d"), "{:.0f}", "дБ")
-        _add("Средний уровень звука (7 дн.)", metrics.get("avg_db_7d"), "{:.0f}", "дБ")
+        _add(
+            "Макс. уровень звука (30 дн.)", metrics.get("max_db_30d"), "{:.0f}", "дБ", ref="<85 дБ"
+        )
+        _add(
+            "Средний уровень звука (7 дн.)", metrics.get("avg_db_7d"), "{:.0f}", "дБ", ref="<70 дБ"
+        )
 
     return points
 
