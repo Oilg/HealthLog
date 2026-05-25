@@ -92,7 +92,7 @@ def assess_cardiometabolic_profile_risk(
 
     if hr_points:
         rest_hr = sorted([p.value for p in hr_points])
-        low_20 = rest_hr[:max(1, int(len(rest_hr) * 0.2))]
+        low_20 = rest_hr[: max(1, int(len(rest_hr) * 0.2))]
         resting_hr = median(low_20)
         comp = min(1.0, max(0.0, (resting_hr - 55) / 25))
         components.append(comp)
@@ -105,20 +105,28 @@ def assess_cardiometabolic_profile_risk(
         component_names.append("elevated_bp")
 
     if not components:
-        return _insufficient("cardiometabolic_profile_risk", window, 0, "нет достаточных данных для составного сигнала")
+        return _insufficient(
+            "cardiometabolic_profile_risk",
+            window,
+            0,
+            "нет достаточных данных для составного сигнала",
+        )
 
     score = sum(components) / len(components)
     score = round(score, 3)
     severity = _severity_from_score(score)
     confidence = round(min(1.0, len(components) / 4.0), 3)
 
-    recs = build_weight_activity_recommendations({
-        "weight_issue": "bmi" in component_names,
-        "fat_issue": "body_fat" in component_names,
-        "low_activity": "inactivity" in component_names,
-        "metabolic_risk": True,
-        "cardiovascular_symptom_risk": "elevated_hr" in component_names or "elevated_bp" in component_names,
-    })
+    recs = build_weight_activity_recommendations(
+        {
+            "weight_issue": "bmi" in component_names,
+            "fat_issue": "body_fat" in component_names,
+            "low_activity": "inactivity" in component_names,
+            "metabolic_risk": True,
+            "cardiovascular_symptom_risk": "elevated_hr" in component_names
+            or "elevated_bp" in component_names,
+        }
+    )
 
     return RiskAssessment(
         condition="cardiometabolic_profile_risk",
@@ -133,11 +141,14 @@ def assess_cardiometabolic_profile_risk(
         summary=f"Подозрение на ухудшение кардиометаболического профиля: score {score:.2f} по {len(components)} компонентам ({', '.join(component_names)}).",
         recommendation="Проверь давление, глюкозу и липиды. При выраженном сигнале обратись к терапевту.",
         clinical_safety_note=CLINICAL_SAFETY_NOTE,
-        supporting_metrics={"components_used": component_names, "component_scores": [round(c, 2) for c in components]},
+        supporting_metrics={
+            "components_used": component_names,
+            "component_scores": [round(c, 2) for c in components],
+            "bmi": round(bmi_val, 1) if bmi_val else None,
+            "median_steps": round(med_steps, 0) if step_points else None,
+        },
         lifestyle_recommendations=recs,
     )
-
-
 
 
 def assess_metabolic_syndrome_risk(
@@ -214,7 +225,9 @@ def assess_metabolic_syndrome_risk(
         met_criteria.append("дислипидемия")
 
     if criteria_count == 0:
-        return _insufficient("metabolic_syndrome_risk", window, 0, "нет достаточных данных для оценки")
+        return _insufficient(
+            "metabolic_syndrome_risk", window, 0, "нет достаточных данных для оценки"
+        )
 
     if criteria_count >= 4:
         severity, score = "high", 0.85
@@ -236,15 +249,21 @@ def assess_metabolic_syndrome_risk(
             supporting_metrics={"criteria_count": criteria_count},
         )
 
-    labs_note = "" if (has_abnormal_glucose or has_abnormal_lipids) else " Оценка предварительная — данные анализов отсутствуют."
+    labs_note = (
+        ""
+        if (has_abnormal_glucose or has_abnormal_lipids)
+        else " Оценка предварительная — данные анализов отсутствуют."
+    )
     confidence = round(min(1.0, criteria_count / 5.0), 3)
 
-    recs = build_weight_activity_recommendations({
-        "weight_issue": "ожирение" in str(met_criteria),
-        "metabolic_risk": True,
-        "low_activity": "активность" in str(met_criteria),
-        "persistent_weight_gain": True,
-    })
+    recs = build_weight_activity_recommendations(
+        {
+            "weight_issue": "ожирение" in str(met_criteria),
+            "metabolic_risk": True,
+            "low_activity": "активность" in str(met_criteria),
+            "persistent_weight_gain": True,
+        }
+    )
 
     return RiskAssessment(
         condition="metabolic_syndrome_risk",
@@ -256,7 +275,9 @@ def assess_metabolic_syndrome_risk(
             "Метаболический синдром — сочетание факторов, значительно повышающих риск диабета 2 типа "
             "и сердечно-сосудистых заболеваний." + labs_note
         ),
-        summary=f"Подозрение на метаболический синдром: {criteria_count} из 5+ критериев. " + "; ".join(met_criteria) + ".",
+        summary=f"Подозрение на метаболический синдром: {criteria_count} из 5+ критериев. "
+        + "; ".join(met_criteria)
+        + ".",
         recommendation="Обратись к терапевту или эндокринологу. Проверь глюкозу, липиды и давление.",
         clinical_safety_note=CLINICAL_SAFETY_NOTE,
         supporting_metrics={
@@ -271,8 +292,6 @@ def assess_metabolic_syndrome_risk(
         },
         lifestyle_recommendations=recs,
     )
-
-
 
 
 def assess_cardiovascular_obesity_risk(
@@ -325,7 +344,10 @@ def assess_cardiovascular_obesity_risk(
             summary="Сигнал не активирован: нет сочетания лишнего веса и низкой активности.",
             recommendation="Поддерживай здоровый вес и регулярную активность.",
             clinical_safety_note=CLINICAL_SAFETY_NOTE,
-            supporting_metrics={"bmi": round(bmi_val, 1) if bmi_val else None, "median_steps": round(step_median, 0) if step_median else None},
+            supporting_metrics={
+                "bmi": round(bmi_val, 1) if bmi_val else None,
+                "median_steps": round(step_median, 0) if step_median else None,
+            },
         )
 
     score = 0.35
@@ -343,7 +365,7 @@ def assess_cardiovascular_obesity_risk(
 
     if hr_points:
         rest_hr = sorted([p.value for p in hr_points])
-        low_20_hr = rest_hr[:max(1, int(len(rest_hr) * 0.2))]
+        low_20_hr = rest_hr[: max(1, int(len(rest_hr) * 0.2))]
         rhr = median(low_20_hr)
         if rhr > 75:
             score = min(1.0, score + 0.15)
@@ -366,18 +388,26 @@ def assess_cardiovascular_obesity_risk(
     else:
         severity = "low"
 
-    boosters = [x for x, flag in [
-        ("низкий VO2 max", poor_vo2), ("высокий покоящийся пульс", high_resting_hr),
-        ("высокое АД", high_bp), ("выраженное ожирение", severe_obesity),
-    ] if flag]
+    boosters = [
+        x
+        for x, flag in [
+            ("низкий VO2 max", poor_vo2),
+            ("высокий покоящийся пульс", high_resting_hr),
+            ("высокое АД", high_bp),
+            ("выраженное ожирение", severe_obesity),
+        ]
+        if flag
+    ]
 
-    recs = build_weight_activity_recommendations({
-        "weight_issue": True,
-        "low_activity": True,
-        "metabolic_risk": True,
-        "cardiovascular_symptom_risk": high_bp or poor_vo2 or high_resting_hr,
-        "persistent_weight_gain": severe_obesity,
-    })
+    recs = build_weight_activity_recommendations(
+        {
+            "weight_issue": True,
+            "low_activity": True,
+            "metabolic_risk": True,
+            "cardiovascular_symptom_risk": high_bp or poor_vo2 or high_resting_hr,
+            "persistent_weight_gain": severe_obesity,
+        }
+    )
 
     return RiskAssessment(
         condition="cardiovascular_obesity_risk",
@@ -411,8 +441,6 @@ def assess_cardiovascular_obesity_risk(
     )
 
 
-
-
 def assess_fitness_weight_gain_risk(
     body_mass_rows: Iterable[tuple],
     vo2max_rows: Iterable[tuple] | None = None,
@@ -423,32 +451,48 @@ def assess_fitness_weight_gain_risk(
 ) -> RiskAssessment:
     now = now or utcnow()
     cutoff_90d = now - timedelta(days=90)
-    mass_points = sorted([p for p in to_points(body_mass_rows) if p.timestamp >= cutoff_90d], key=lambda p: p.timestamp)
-    vo2_points = sorted([p for p in to_points(vo2max_rows or []) if p.timestamp >= cutoff_90d], key=lambda p: p.timestamp)
-    whr_points = sorted([p for p in to_points(walking_hr_rows or []) if p.timestamp >= cutoff_90d], key=lambda p: p.timestamp)
+    mass_points = sorted(
+        [p for p in to_points(body_mass_rows) if p.timestamp >= cutoff_90d],
+        key=lambda p: p.timestamp,
+    )
+    vo2_points = sorted(
+        [p for p in to_points(vo2max_rows or []) if p.timestamp >= cutoff_90d],
+        key=lambda p: p.timestamp,
+    )
+    whr_points = sorted(
+        [p for p in to_points(walking_hr_rows or []) if p.timestamp >= cutoff_90d],
+        key=lambda p: p.timestamp,
+    )
 
     if len(mass_points) < MIN_WEIGHT_MEASUREMENTS:
-        return _insufficient("fitness_weight_gain_risk", window, len(mass_points), "мало измерений веса")
+        return _insufficient(
+            "fitness_weight_gain_risk", window, len(mass_points), "мало измерений веса"
+        )
 
     start_med = window_median(mass_points, cutoff_90d, cutoff_90d + timedelta(days=14))
     end_med = window_median(mass_points, now - timedelta(days=14), now)
 
     if start_med is None or end_med is None or start_med <= 0:
-        return _insufficient("fitness_weight_gain_risk", window, len(mass_points), "недостаточно точек для сглаживания")
+        return _insufficient(
+            "fitness_weight_gain_risk",
+            window,
+            len(mass_points),
+            "недостаточно точек для сглаживания",
+        )
 
     weight_change_pct = (end_med - start_med) / start_med * 100
 
     vo2_decline_pct = 0.0
     if len(vo2_points) >= 2:
-        vo2_base = median([p.value for p in vo2_points[:max(1, len(vo2_points) // 2)]])
+        vo2_base = median([p.value for p in vo2_points[: max(1, len(vo2_points) // 2)]])
         vo2_recent = vo2_points[-1].value
         if vo2_base > 0:
             vo2_decline_pct = (vo2_base - vo2_recent) / vo2_base * 100
 
     whr_delta = 0.0
     if len(whr_points) >= 4:
-        whr_base = median([p.value for p in whr_points[:len(whr_points) // 2]])
-        whr_recent = median([p.value for p in whr_points[len(whr_points) // 2:]])
+        whr_base = median([p.value for p in whr_points[: len(whr_points) // 2]])
+        whr_recent = median([p.value for p in whr_points[len(whr_points) // 2 :]])
         whr_delta = whr_recent - whr_base
 
     if weight_change_pct >= 5 and vo2_decline_pct >= 10 and whr_delta >= 10:
@@ -475,11 +519,13 @@ def assess_fitness_weight_gain_risk(
             },
         )
 
-    recs = build_weight_activity_recommendations({
-        "weight_issue": True,
-        "low_activity": True,
-        "cardiovascular_symptom_risk": whr_delta >= 10,
-    })
+    recs = build_weight_activity_recommendations(
+        {
+            "weight_issue": True,
+            "low_activity": True,
+            "cardiovascular_symptom_risk": whr_delta >= 10,
+        }
+    )
 
     return RiskAssessment(
         condition="fitness_weight_gain_risk",
@@ -509,8 +555,6 @@ def assess_fitness_weight_gain_risk(
         },
         lifestyle_recommendations=recs,
     )
-
-
 
 
 def assess_recovery_obesity_risk(
@@ -578,8 +622,13 @@ def assess_recovery_obesity_risk(
 
     if segments:
         from health_log.analysis.detectors.fitness.overload_recovery import _sleep_hours_per_day
-        baseline_sleep = _sleep_hours_per_day([(s, e) for s, e in segments if s and s < recent_start])
-        recent_sleep = _sleep_hours_per_day([(s, e) for s, e in segments if s and s >= recent_start])
+
+        baseline_sleep = _sleep_hours_per_day(
+            [(s, e) for s, e in segments if s and s < recent_start]
+        )
+        recent_sleep = _sleep_hours_per_day(
+            [(s, e) for s, e in segments if s and s >= recent_start]
+        )
         if baseline_sleep and recent_sleep:
             b_sleep = median(baseline_sleep.values())
             r_sleep = median(recent_sleep.values())
@@ -610,14 +659,19 @@ def assess_recovery_obesity_risk(
             summary="Показатели восстановления в норме.",
             recommendation="Поддерживай режим сна и умеренную активность.",
             clinical_safety_note=CLINICAL_SAFETY_NOTE,
-            supporting_metrics={"bmi": round(bmi_val, 1) if bmi_val else None, "recovery_flags": recovery_flags},
+            supporting_metrics={
+                "bmi": round(bmi_val, 1) if bmi_val else None,
+                "recovery_flags": recovery_flags,
+            },
         )
 
-    recs = build_weight_activity_recommendations({
-        "weight_issue": True,
-        "low_activity": True,
-        "sedentary": inactive,
-    })
+    recs = build_weight_activity_recommendations(
+        {
+            "weight_issue": True,
+            "low_activity": True,
+            "sedentary": inactive,
+        }
+    )
 
     return RiskAssessment(
         condition="recovery_obesity_risk",
@@ -639,5 +693,3 @@ def assess_recovery_obesity_risk(
         },
         lifestyle_recommendations=recs,
     )
-
-

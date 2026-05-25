@@ -82,6 +82,40 @@ class TestBuildDataPoints:
         points = _build_data_points("body_composition_trend_risk", metrics)
         assert len(points) == 3
 
+    def test_cardiometabolic_profile(self):
+        metrics = {"bmi": 28.5, "median_steps": 4200.0}
+        points = _build_data_points("cardiometabolic_profile_risk", metrics)
+        labels = [p["label"] for p in points]
+        assert "ИМТ" in labels
+        assert "Шагов в день" in labels
+
+    def test_cardiometabolic_profile_without_steps(self):
+        points = _build_data_points("cardiometabolic_profile_risk", {"bmi": 28.5, "median_steps": None})
+        assert len(points) == 1
+        assert points[0]["label"] == "ИМТ"
+
+    def test_cardiovascular_obesity(self):
+        metrics = {"bmi": 32.0, "median_steps": 3800.0}
+        points = _build_data_points("cardiovascular_obesity_risk", metrics)
+        labels = [p["label"] for p in points]
+        assert "ИМТ" in labels
+        assert "Шагов в день" in labels
+
+    def test_fitness_weight_gain(self):
+        metrics = {"weight_change_pct": 8.5, "vo2max_decline_pct": 12.0, "walking_hr_delta": 11.0}
+        points = _build_data_points("fitness_weight_gain_risk", metrics)
+        labels = [p["label"] for p in points]
+        assert "Изменение веса" in labels
+        assert "Снижение VO₂ max" in labels
+        assert "Прирост пульса при ходьбе" in labels
+
+    def test_recovery_obesity(self):
+        metrics = {"bmi": 30.5, "median_daily_steps": 3200.0}
+        points = _build_data_points("recovery_obesity_risk", metrics)
+        labels = [p["label"] for p in points]
+        assert "ИМТ" in labels
+        assert "Шагов в день" in labels
+
     # ── Давление ────────────────────────────────────────────────────────────
 
     def test_hypertension_blood_pressure(self):

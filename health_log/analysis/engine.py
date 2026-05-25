@@ -789,12 +789,16 @@ def _build_data_points(condition: str, metrics: dict) -> list[dict]:
 
     elif condition == "cardiovascular_obesity_risk":
         _add("ИМТ", metrics.get("bmi"), "{:.1f}")
+        _add("Шагов в день", metrics.get("median_steps"), "{:.0f}")
 
     elif condition == "fitness_weight_gain_risk":
-        _add("ИМТ", metrics.get("bmi"), "{:.1f}")
+        _add("Изменение веса", metrics.get("weight_change_pct"), "{:+.1f}", "%")
+        _add("Снижение VO₂ max", metrics.get("vo2max_decline_pct"), "{:.1f}", "%")
+        _add("Прирост пульса при ходьбе", metrics.get("walking_hr_delta"), "{:.0f}", "уд/мин")
 
     elif condition == "recovery_obesity_risk":
         _add("ИМТ", metrics.get("bmi"), "{:.1f}")
+        _add("Шагов в день", metrics.get("median_daily_steps"), "{:.0f}")
 
     # ── Давление ───────────────────────────────────────────────────────────
     elif condition == "hypertension_risk":
