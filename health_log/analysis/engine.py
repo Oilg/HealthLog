@@ -615,6 +615,7 @@ class HealthRiskAnalyzer:
                 "severity": a.severity,
                 "confidence": round(a.confidence, 4),
                 "interpretation": _CONDITION_LABELS.get(a.condition, a.condition),
+                "data_points": _build_data_points(a.condition, a.supporting_metrics),
             }
             for a in assessments
             if a.score > 0
@@ -695,6 +696,54 @@ _CONDITION_LABELS: dict[str, str] = {
     "recovery_obesity_risk": "Подозрение на неэффективное восстановление на фоне избытка массы",
     "body_composition_trend_risk": "Подозрение на неблагоприятный тренд состава тела",
 }
+
+
+def _build_data_points(condition: str, metrics: dict) -> list[dict]:
+    """Convert supporting_metrics to display-ready [{label, value}] list for the mobile app."""
+    points: list[dict] = []
+
+    def _add(label: str, val: float | None, fmt: str, unit: str = "") -> None:
+        if val is not None:
+            value_str = fmt.format(val) + (f" {unit}" if unit else "")
+            points.append({"label": label, "value": value_str})
+
+    if condition == "metabolic_syndrome_risk":
+        _add("ИМТ", metrics.get("bmi"), "{:.1f}")
+        _add("Масса тела", metrics.get("mass_kg"), "{:.1f}", "кг")
+        _add("Обхват талии", metrics.get("waist_cm"), "{:.0f}", "см")
+        sbp = metrics.get("sbp")
+        dbp = metrics.get("dbp")
+        if sbp is not None and dbp is not None:
+            points.append({"label": "Артериальное давление", "value": f"{sbp:.0f}/{dbp:.0f} мм рт.ст."})
+        _add("Шагов в день", metrics.get("steps_per_day"), "{:.0f}")
+
+    elif condition in ("hypertension_risk", "hypotension_risk"):
+        sbp = metrics.get("avg_sbp")
+        dbp = metrics.get("avg_dbp")
+        if sbp is not None:
+            dbp_str = f"/{dbp:.0f}" if dbp is not None else ""
+            points.append({"label": "Артериальное давление", "value": f"{sbp:.0f}{dbp_str} мм рт.ст."})
+
+    elif condition in ("obesity_risk", "overweight_risk"):
+        _add("ИМТ", metrics.get("bmi"), "{:.1f}")
+
+    elif condition == "abdominal_obesity_risk":
+        _add("Обхват талии", metrics.get("waist_cm"), "{:.0f}", "см")
+
+    elif condition in ("sedentary_lifestyle_risk", "insufficient_activity_risk"):
+        _add("Шагов в день", metrics.get("median_daily_steps"), "{:.0f}")
+
+    elif condition == "noise_exposure_risk":
+        _add("Макс. уровень звука (30 дн.)", metrics.get("max_db_30d"), "{:.0f}", "дБ")
+        _add("Средний уровень звука (7 дн.)", metrics.get("avg_db_7d"), "{:.0f}", "дБ")
+
+    elif condition in ("overload_recovery_risk", "hrr_decline_risk"):
+        _add("ЧСС в покое", metrics.get("median_rest_hr"), "{:.0f}", "уд/мин")
+
+    elif condition == "high_body_fat_risk":
+        _add("Процент жира", metrics.get("body_fat_pct"), "{:.1f}", "%")
+
+    return points
 
 
 def serialize_assessment(assessment: RiskAssessment) -> dict[str, object]:

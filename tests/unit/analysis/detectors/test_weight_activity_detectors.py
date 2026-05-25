@@ -333,6 +333,31 @@ class TestMetabolicSyndromeRisk:
         if result.severity != "none":
             assert "предварительная" in result.interpretation.lower()
 
+    def test_supporting_metrics_includes_numeric_values(self):
+        waist = [(_ts(i), 96.0) for i in range(5)]
+        steps = [(_ts(i), 3000.0) for i in range(15)]
+        mass = [(_ts(i * 5), 90.0) for i in range(5)]
+        result = assess_metabolic_syndrome_risk(
+            waist_rows=waist, step_rows=steps, body_mass_rows=mass,
+            height_m=1.75, sex="male", window=_WINDOW, now=_NOW,
+        )
+        m = result.supporting_metrics
+        assert "bmi" in m
+        assert "mass_kg" in m
+        assert "waist_cm" in m
+        assert "steps_per_day" in m
+        assert isinstance(m["bmi"], float)
+        assert isinstance(m["mass_kg"], float)
+        assert isinstance(m["steps_per_day"], float)
+
+    def test_supporting_metrics_none_for_missing_data(self):
+        steps = [(_ts(i), 3000.0) for i in range(15)]
+        result = assess_metabolic_syndrome_risk(step_rows=steps, window=_WINDOW, now=_NOW)
+        m = result.supporting_metrics
+        assert m.get("bmi") is None
+        assert m.get("waist_cm") is None
+        assert m.get("sbp") is None
+
 
 class TestCardiovascularObesityRisk:
     def test_no_overweight_returns_none(self):

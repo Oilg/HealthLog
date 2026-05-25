@@ -168,31 +168,37 @@ def assess_metabolic_syndrome_risk(
     criteria_count = 0
     met_criteria: list[str] = []
 
+    waist_cm_val: float | None = None
     if waist_points:
-        waist_cm = median([p.value for p in waist_points])
+        waist_cm_val = median([p.value for p in waist_points])
         thresholds = WAIST_THRESHOLDS_FEMALE if sex == "female" else WAIST_THRESHOLDS_MALE
-        if waist_cm >= thresholds["low"]:
+        if waist_cm_val >= thresholds["low"]:
             criteria_count += 1
-            met_criteria.append(f"абдоминальное ожирение (талия {waist_cm:.0f} см)")
+            met_criteria.append(f"абдоминальное ожирение (талия {waist_cm_val:.0f} см)")
 
+    sbp_val: float | None = None
+    dbp_val: float | None = None
     if sbp_points:
-        avg_sbp = median([p.value for p in sbp_points])
-        avg_dbp = median([p.value for p in dbp_points]) if dbp_points else 0.0
-        if avg_sbp >= 130 or avg_dbp >= 85:
+        sbp_val = median([p.value for p in sbp_points])
+        dbp_val = median([p.value for p in dbp_points]) if dbp_points else 0.0
+        if sbp_val >= 130 or dbp_val >= 85:
             criteria_count += 1
-            met_criteria.append(f"повышенное АД ({avg_sbp:.0f}/{avg_dbp:.0f} мм рт.ст.)")
+            met_criteria.append(f"повышенное АД ({sbp_val:.0f}/{dbp_val:.0f} мм рт.ст.)")
 
+    steps_val: float | None = None
     if step_points:
         daily_steps = daily_medians(step_points, cutoff, now)
-        if median(daily_steps) < 5000:
+        steps_val = median(daily_steps)
+        if steps_val < 5000:
             criteria_count += 1
-            met_criteria.append(f"низкая активность ({median(daily_steps):.0f} шагов/день)")
+            met_criteria.append(f"низкая активность ({steps_val:.0f} шагов/день)")
 
+    mass_kg_val: float | None = median([p.value for p in mass_points]) if mass_points else None
     bmi_val_meta: float | None
     if bmi_points:
         bmi_val_meta = median([p.value for p in bmi_points])
-    elif mass_points and height_m is not None:
-        bmi_val_meta = compute_bmi(median([p.value for p in mass_points]), height_m)
+    elif mass_kg_val is not None and height_m is not None:
+        bmi_val_meta = compute_bmi(mass_kg_val, height_m)
     else:
         bmi_val_meta = None
     if bmi_val_meta and bmi_val_meta >= 30:
@@ -253,7 +259,16 @@ def assess_metabolic_syndrome_risk(
         summary=f"Подозрение на метаболический синдром: {criteria_count} из 5+ критериев. " + "; ".join(met_criteria) + ".",
         recommendation="Обратись к терапевту или эндокринологу. Проверь глюкозу, липиды и давление.",
         clinical_safety_note=CLINICAL_SAFETY_NOTE,
-        supporting_metrics={"criteria_count": criteria_count, "criteria_met": met_criteria},
+        supporting_metrics={
+            "criteria_count": criteria_count,
+            "criteria_met": met_criteria,
+            "bmi": round(bmi_val_meta, 1) if bmi_val_meta is not None else None,
+            "mass_kg": round(mass_kg_val, 1) if mass_kg_val is not None else None,
+            "waist_cm": round(waist_cm_val, 0) if waist_cm_val is not None else None,
+            "sbp": round(sbp_val, 0) if sbp_val is not None else None,
+            "dbp": round(dbp_val, 0) if dbp_val is not None else None,
+            "steps_per_day": round(steps_val, 0) if steps_val is not None else None,
+        },
         lifestyle_recommendations=recs,
     )
 
