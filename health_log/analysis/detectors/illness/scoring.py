@@ -18,7 +18,7 @@ class ScoreResult:
 
 
 def calculate_score(snapshot: TrendSnapshot) -> ScoreResult:
-    hr_component = _clamp01((snapshot.recent_rest_hr - snapshot.baseline_rest_hr) / 10.0)
+    hr_component = _clamp01((snapshot.recent_rest_hr - snapshot.baseline_rest_hr) / 15.0)
     hrv_component = _clamp01(
         (snapshot.baseline_hrv - snapshot.recent_hrv) / snapshot.baseline_hrv / 0.35
     )
@@ -56,7 +56,7 @@ def calculate_score(snapshot: TrendSnapshot) -> ScoreResult:
         severity = "high"
     elif score >= 0.4:
         severity = "medium"
-    elif score > 0:
+    elif score >= 0.20:
         severity = "low"
     else:
         severity = "none"
