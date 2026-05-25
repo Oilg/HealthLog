@@ -11,8 +11,10 @@ logger = logging.getLogger(__name__)
 async def _make_client():
     """Create and return a configured APNs client."""
     from aioapns import APNs, PushType  # noqa: F401
+    with open(settings.apns_auth_key_path, "r") as f:
+        key_content = f.read()
     return APNs(
-        key=settings.apns_auth_key_path,
+        key=key_content,
         key_id=settings.apns_key_id,
         team_id=settings.apns_team_id,
         topic=settings.apns_bundle_id,
