@@ -65,6 +65,46 @@ class AnalysisReportsRepository:
             "risks": row.risks,
         }
 
+    async def get_latest_weekly_pair(self, user_id: int) -> tuple[dict | None, dict | None]:
+        """Return the two latest reports with window='week' for ``user_id``.
+
+        Output: ``(current, previous)`` where ``current`` is the most recent
+        weekly report and ``previous`` is the one immediately before it.
+        Either or both may be ``None`` if not enough history exists.
+        """
+        rows = (
+            await self._connection.execute(
+                select(
+                    tables.analysis_reports.c.analyzed_at,
+                    tables.analysis_reports.c.period_from,
+                    tables.analysis_reports.c.period_to,
+                    tables.analysis_reports.c.window,
+                    tables.analysis_reports.c.risks,
+                )
+                .where(
+                    tables.analysis_reports.c.user_id == user_id,
+                    tables.analysis_reports.c.window == "week",
+                )
+                .order_by(desc(tables.analysis_reports.c.analyzed_at))
+                .limit(2)
+            )
+        ).all()
+
+        def _to_dict(row) -> dict:
+            return {
+                "analyzed_at": row.analyzed_at,
+                "period_from": row.period_from,
+                "period_to": row.period_to,
+                "window": row.window,
+                "risks": row.risks,
+            }
+
+        if not rows:
+            return None, None
+        if len(rows) == 1:
+            return _to_dict(rows[0]), None
+        return _to_dict(rows[0]), _to_dict(rows[1])
+
     async def get_history(
         self, user_id: int, *, limit: int = 30, offset: int = 0
     ) -> tuple[list[dict], int]:
