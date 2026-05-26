@@ -1,10 +1,16 @@
-"""Unit tests for health_log/api/v1/analysis.py — _format_report helper."""
+"""Unit tests for health_log/api/v1/analysis.py — _format_report helper and schemas."""
 
 from __future__ import annotations
 
 from datetime import datetime
 
+import pytest
+
 from health_log.api.v1.analysis import _format_report
+from health_log.schemas.weekly_progress import (
+    WeeklyProgressItemSchema,
+    WeeklyProgressResponseSchema,
+)
 
 
 def _make_row(
@@ -75,3 +81,57 @@ def test_format_report_none_dates_become_none():
     assert result["analyzed_at"] is None
     assert result["period_from"] is None
     assert result["period_to"] is None
+
+
+# --- Fix 6: response schemas ---
+
+
+def test_weekly_progress_response_schema_validates_correctly():
+    item = WeeklyProgressItemSchema(
+        condition="tachycardia_risk",
+        label="Тахикардия",
+        current_severity="moderate",
+        previous_severity="low",
+        severity_delta=1,
+        direction="worsened",
+        current_confidence=0.82,
+        previous_confidence=0.65,
+    )
+    response = WeeklyProgressResponseSchema(
+        current_period_from="2026-01-01T00:00:00",
+        current_period_to="2026-01-08T00:00:00",
+        previous_period_from="2025-12-25T00:00:00",
+        previous_period_to="2026-01-01T00:00:00",
+        has_previous=True,
+        items=[item],
+    )
+    assert response.has_previous is True
+    assert response.items[0].condition == "tachycardia_risk"
+    assert response.items[0].current_confidence == pytest.approx(0.82)
+
+
+def test_weekly_progress_response_schema_allows_none_confidence():
+    item = WeeklyProgressItemSchema(
+        condition="x_risk",
+        label="X",
+        current_severity="none",
+        previous_severity="none",
+        severity_delta=0,
+        direction="unchanged",
+        current_confidence=None,
+        previous_confidence=None,
+    )
+    assert item.current_confidence is None
+    assert item.previous_confidence is None
+
+
+def test_weekly_progress_response_schema_empty_items():
+    response = WeeklyProgressResponseSchema(
+        current_period_from=None,
+        current_period_to=None,
+        previous_period_from=None,
+        previous_period_to=None,
+        has_previous=False,
+        items=[],
+    )
+    assert response.items == []
