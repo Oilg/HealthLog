@@ -13,9 +13,16 @@ from tests.integration.conftest import requires_db
 pytestmark = [pytest.mark.asyncio, requires_db]
 
 
-async def _save(repo: AnalysisReportsRepository, *, user_id: int, analyzed_at: datetime,
-                period_from: datetime, period_to: datetime, window: str,
-                risks: list[dict]) -> None:
+async def _save(
+    repo: AnalysisReportsRepository,
+    *,
+    user_id: int,
+    analyzed_at: datetime,
+    period_from: datetime,
+    period_to: datetime,
+    window: str,
+    risks: list[dict],
+) -> None:
     await repo.save_report(
         user_id=user_id,
         analyzed_at=analyzed_at,
@@ -142,7 +149,11 @@ async def test_end_to_end_compute_progress_from_db(db_conn, test_user_id):
         risks=[
             # obesity disappeared -> improved
             {"condition": "fall_risk", "severity": "moderate", "confidence": 0.6},  # unchanged
-            {"condition": "tachycardia_risk", "severity": "low", "confidence": 0.5},  # new -> worsened
+            {
+                "condition": "tachycardia_risk",
+                "severity": "low",
+                "confidence": 0.5,
+            },  # new -> worsened
         ],
     )
     current, previous = await repo.get_latest_weekly_pair(test_user_id)

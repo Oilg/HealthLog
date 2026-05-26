@@ -390,6 +390,9 @@ analysis_reports = sqlalchemy.Table(
     sqlalchemy.Column("window", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("risks", sqlalchemy.JSON, nullable=False),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, server_default=func.now(), nullable=False),
+    sqlalchemy.CheckConstraint(
+        "window IN ('night', 'week', 'month')", name="ck_analysis_reports_window"
+    ),
 )
 
 sync_schedules = sqlalchemy.Table(

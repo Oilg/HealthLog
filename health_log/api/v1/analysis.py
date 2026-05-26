@@ -8,6 +8,7 @@ from health_log.dependencies import db_connect, get_current_user
 from health_log.limiter import limiter
 from health_log.repositories.analysis import AnalysisReportsRepository
 from health_log.repositories.auth import AuthUser
+from health_log.schemas.weekly_progress import WeeklyProgressResponseSchema
 
 router = APIRouter(prefix="/api/v1/analysis", tags=["analysis"])
 
@@ -39,7 +40,7 @@ async def get_latest_analysis(
     return _format_report(report)
 
 
-@router.get("/weekly-progress")
+@router.get("/weekly-progress", response_model=WeeklyProgressResponseSchema)
 @limiter.limit("60/minute")
 async def get_weekly_progress(
     request: Request,
@@ -53,6 +54,11 @@ async def get_weekly_progress(
     """
     repo = AnalysisReportsRepository(conn)
     current, previous = await repo.get_latest_weekly_pair(current_user.id)
+    if current is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No weekly analysis reports found",
+        )
     return compute_weekly_progress(current, previous)
 
 

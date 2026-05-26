@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 
 import pytest
 
 from health_log.analysis.weekly_progress import (
     CONDITION_LABELS,
+    _index_risks,
+    _severity_rank,
     compute_weekly_progress,
 )
 
@@ -69,7 +72,9 @@ def test_risk_disappeared_marked_as_improved():
 
 
 def test_severity_dropped_marked_as_improved():
-    prv = _report(datetime(2025, 12, 25), datetime(2026, 1, 1), [_risk("hypertension_risk", "high")])
+    prv = _report(
+        datetime(2025, 12, 25), datetime(2026, 1, 1), [_risk("hypertension_risk", "high")]
+    )
     cur = _report(datetime(2026, 1, 1), datetime(2026, 1, 8), [_risk("hypertension_risk", "low")])
     item = compute_weekly_progress(cur, prv)["items"][0]
     assert item["direction"] == "improved"
@@ -224,3 +229,36 @@ def test_confidence_pass_through():
     item = compute_weekly_progress(cur, prv)["items"][0]
     assert item["current_confidence"] == pytest.approx(0.81)
     assert item["previous_confidence"] == pytest.approx(0.55)
+
+
+# --- Fix 2: _index_risks guards against non-list risks ---
+
+
+def test_index_risks_returns_empty_dict_for_string_input():
+    """If SQLAlchemy returns risks as a raw string, _index_risks must not iterate chars."""
+    assert _index_risks('{"condition":"x"}') == {}  # type: ignore[arg-type]
+
+
+def test_index_risks_returns_empty_dict_for_none():
+    assert _index_risks(None) == {}
+
+
+def test_index_risks_returns_empty_dict_for_empty_list():
+    assert _index_risks([]) == {}
+
+
+# --- Fix 5: unknown severity logs warning, returns 0 ---
+
+
+def test_severity_rank_unknown_returns_zero_and_logs_warning(caplog):
+    with caplog.at_level(logging.WARNING, logger="health_log.analysis.weekly_progress"):
+        rank = _severity_rank("critical")
+    assert rank == 0
+    assert "critical" in caplog.text
+
+
+def test_severity_rank_none_returns_zero_without_warning(caplog):
+    with caplog.at_level(logging.WARNING, logger="health_log.analysis.weekly_progress"):
+        rank = _severity_rank(None)
+    assert rank == 0
+    assert not caplog.records

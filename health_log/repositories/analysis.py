@@ -96,7 +96,7 @@ class AnalysisReportsRepository:
                 "period_from": row.period_from,
                 "period_to": row.period_to,
                 "window": row.window,
-                "risks": row.risks,
+                "risks": row.risks or [],
             }
 
         if not rows:

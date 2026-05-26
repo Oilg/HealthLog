@@ -12,7 +12,10 @@ so the direction mapping is unambiguous:
 
 from __future__ import annotations
 
+import logging
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 # Severity ranks — keep aligned with detectors' severity vocabulary.
 _SEVERITY_RANK: dict[str, int] = {
@@ -72,11 +75,17 @@ def _severity_rank(severity: str | None) -> int:
     """Map severity string to a comparable rank. Unknown values default to 0."""
     if severity is None:
         return 0
-    return _SEVERITY_RANK.get(severity.lower(), 0)
+    rank = _SEVERITY_RANK.get(severity.lower())
+    if rank is None:
+        logger.warning("Unknown severity %r, treating as 0", severity)
+        return 0
+    return rank
 
 
 def _index_risks(risks: list[dict[str, Any]] | None) -> dict[str, dict[str, Any]]:
     """Index a risks list by condition string for O(1) lookup."""
+    if not isinstance(risks, list):
+        return {}
     if not risks:
         return {}
     out: dict[str, dict[str, Any]] = {}
