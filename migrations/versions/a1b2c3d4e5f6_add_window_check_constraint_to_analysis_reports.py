@@ -19,7 +19,7 @@ def upgrade() -> None:
     op.create_check_constraint(
         "ck_analysis_reports_window",
         "analysis_reports",
-        "window IN ('night', 'week', 'month')",
+        '"window" IN (\'night\', \'week\', \'month\')',
     )
 
 
