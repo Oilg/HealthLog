@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from health_log.analysis.weekly_progress import compute_weekly_progress
 from health_log.dependencies import db_connect, get_current_user
 from health_log.limiter import limiter
 from health_log.repositories.analysis import AnalysisReportsRepository
@@ -36,6 +37,23 @@ async def get_latest_analysis(
             detail="Отчётов об анализе пока нет. Запустите анализ после синхронизации данных.",
         )
     return _format_report(report)
+
+
+@router.get("/weekly-progress")
+@limiter.limit("60/minute")
+async def get_weekly_progress(
+    request: Request,
+    current_user: AuthUser = Depends(get_current_user),
+    conn: AsyncConnection = Depends(db_connect),
+):
+    """Return per-detector progress/regress between the two most recent weekly reports.
+
+    If only one weekly report exists, ``has_previous`` is ``false`` and every item
+    is reported as ``unchanged`` (previous severity treated as ``none``).
+    """
+    repo = AnalysisReportsRepository(conn)
+    current, previous = await repo.get_latest_weekly_pair(current_user.id)
+    return compute_weekly_progress(current, previous)
 
 
 @router.get("/history")
