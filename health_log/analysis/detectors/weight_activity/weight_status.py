@@ -20,9 +20,12 @@ from health_log.analysis.detectors.weight_activity.constants import (
     MIN_WEIGHT_MEASUREMENTS,
     WAIST_THRESHOLDS_FEMALE,
     WAIST_THRESHOLDS_MALE,
+    inactive_threshold_for_age,
 )
 from health_log.analysis.detectors.weight_activity.helpers import (
     compute_bmi,
+    daily_step_totals,
+    latest_complete_day_end,
 )
 from health_log.analysis.detectors.weight_activity.recommendations import (
     build_weight_activity_recommendations,
@@ -114,14 +117,17 @@ def assess_obesity_risk(
     *,
     window: TimeWindow,
     now: datetime | None = None,
+    age: int | None = None,
 ) -> RiskAssessment:
     now = now or utcnow()
-    cutoff = now - timedelta(days=MIN_WEIGHT_DAYS)
+    eval_end = latest_complete_day_end(now)
+    cutoff = eval_end - timedelta(days=MIN_WEIGHT_DAYS)
+    inactive_threshold = inactive_threshold_for_age(age)
 
     mass_points = [p for p in to_points(body_mass_rows) if p.timestamp >= cutoff]
     bmi_points = [p for p in to_points(bmi_rows or []) if p.timestamp >= cutoff]
     fat_points = [p for p in to_points(body_fat_rows or []) if p.timestamp >= cutoff]
-    step_points = [p for p in to_points(step_rows or []) if p.timestamp >= cutoff]
+    step_points = [p for p in to_points(step_rows or []) if cutoff <= p.timestamp < eval_end]
 
     bmi_val: float | None
     if bmi_points:
@@ -156,9 +162,12 @@ def assess_obesity_risk(
         severity, score_base = "low", 0.45
 
     score = score_base
-    median_steps = median([p.value for p in step_points]) if step_points else None
+    daily_steps = (
+        daily_step_totals(step_points, cutoff, eval_end, exclude_zero=True) if step_points else []
+    )
+    median_steps = median(daily_steps) if daily_steps else None
     fat_pct = median([p.value for p in fat_points]) if fat_points else None
-    low_activity = median_steps is not None and median_steps < 5000
+    low_activity = median_steps is not None and median_steps < inactive_threshold
 
     if fat_pct is not None and fat_pct > 30 and low_activity:
         score = min(1.0, score + 0.1)
@@ -196,6 +205,7 @@ def assess_obesity_risk(
             "bmi": round(bmi_val, 1),
             "body_fat_pct": round(fat_pct, 1) if fat_pct else None,
             "median_daily_steps": round(median_steps, 0) if median_steps else None,
+            "inactive_threshold": inactive_threshold,
         },
         lifestyle_recommendations=recs,
     )

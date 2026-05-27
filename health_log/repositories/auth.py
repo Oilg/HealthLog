@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import and_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -21,6 +21,7 @@ class AuthUser:
     phone: str
     password_hash: str
     is_active: bool
+    date_of_birth: date | None = None
 
 
 @dataclass(slots=True)
@@ -33,6 +34,7 @@ class PublicUser:
     phone: str
     is_active: bool
     created_at: datetime
+    date_of_birth: date | None = None
 
 
 class UsersRepository:
@@ -48,6 +50,7 @@ class UsersRepository:
         email: str,
         phone: str,
         password_hash: str,
+        date_of_birth: date | None = None,
     ) -> PublicUser:
         stmt = (
             pg_insert(tables.users)
@@ -59,6 +62,7 @@ class UsersRepository:
                 phone=phone,
                 password_hash=password_hash,
                 is_active=True,
+                date_of_birth=date_of_birth,
             )
             .returning(
                 tables.users.c.id,
@@ -69,6 +73,7 @@ class UsersRepository:
                 tables.users.c.phone,
                 tables.users.c.is_active,
                 tables.users.c.created_at,
+                tables.users.c.date_of_birth,
             )
         )
         row = (await self._connection.execute(stmt)).one()
@@ -81,6 +86,7 @@ class UsersRepository:
             phone=row.phone,
             is_active=row.is_active,
             created_at=row.created_at,
+            date_of_birth=row.date_of_birth,
         )
 
     async def _select_auth_user(
@@ -97,6 +103,7 @@ class UsersRepository:
                     tables.users.c.phone,
                     tables.users.c.password_hash,
                     tables.users.c.is_active,
+                    tables.users.c.date_of_birth,
                 ).where(where_clause)
             )
         ).one_or_none()
@@ -113,6 +120,7 @@ class UsersRepository:
             phone=row.phone,
             password_hash=row.password_hash,
             is_active=row.is_active,
+            date_of_birth=row.date_of_birth,
         )
 
     async def get_auth_user_by_email_or_phone(
@@ -151,6 +159,7 @@ class UsersRepository:
                     tables.users.c.phone,
                     tables.users.c.is_active,
                     tables.users.c.created_at,
+                    tables.users.c.date_of_birth,
                 ).where(tables.users.c.id == user_id)
             )
         ).one_or_none()
@@ -165,6 +174,7 @@ class UsersRepository:
             phone=row.phone,
             is_active=row.is_active,
             created_at=row.created_at,
+            date_of_birth=row.date_of_birth,
         )
 
     async def update_me(
@@ -176,8 +186,10 @@ class UsersRepository:
         sex: str | None = None,
         email: str | None = None,
         phone: str | None = None,
+        date_of_birth: date | None = None,
+        update_date_of_birth: bool = False,
     ) -> PublicUser:
-        values: dict[str, object] = {}
+        values: dict[str, object | None] = {}
         if first_name is not None:
             values["first_name"] = first_name
         if last_name is not None:
@@ -188,6 +200,8 @@ class UsersRepository:
             values["email"] = email
         if phone is not None:
             values["phone"] = phone
+        if update_date_of_birth:
+            values["date_of_birth"] = date_of_birth
 
         if values:
             await self._connection.execute(
@@ -218,6 +232,7 @@ class UsersRepository:
         email: str,
         phone: str,
         password_hash: str,
+        date_of_birth: date | None = None,
     ) -> PublicUser:
         await self._connection.execute(
             update(tables.users)
@@ -230,6 +245,7 @@ class UsersRepository:
                 phone=phone,
                 password_hash=password_hash,
                 is_active=True,
+                date_of_birth=date_of_birth,
                 updated_at=utcnow(),
             )
         )
@@ -360,6 +376,7 @@ class AuthTokenRepository:
                     tables.users.c.phone,
                     tables.users.c.password_hash,
                     tables.users.c.is_active,
+                    tables.users.c.date_of_birth,
                 )
                 .select_from(
                     tables.auth_tokens.join(
@@ -389,4 +406,5 @@ class AuthTokenRepository:
             phone=row.phone,
             password_hash=row.password_hash,
             is_active=row.is_active,
+            date_of_birth=row.date_of_birth,
         )

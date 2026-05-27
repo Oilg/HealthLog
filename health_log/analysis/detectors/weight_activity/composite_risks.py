@@ -15,10 +15,12 @@ from health_log.analysis.detectors.weight_activity.constants import (
     MIN_WEIGHT_MEASUREMENTS,
     WAIST_THRESHOLDS_FEMALE,
     WAIST_THRESHOLDS_MALE,
+    inactive_threshold_for_age,
 )
 from health_log.analysis.detectors.weight_activity.helpers import (
     compute_bmi,
-    daily_medians,
+    daily_step_totals,
+    latest_complete_day_end,
     window_median,
 )
 from health_log.analysis.detectors.weight_activity.recommendations import (
@@ -43,13 +45,16 @@ def assess_cardiometabolic_profile_risk(
     sex: str = "male",
     window: TimeWindow,
     now: datetime | None = None,
+    age: int | None = None,
 ) -> RiskAssessment:
     now = now or utcnow()
-    cutoff = now - timedelta(days=60)
+    eval_end = latest_complete_day_end(now)
+    cutoff = eval_end - timedelta(days=60)
+    inactive_threshold = inactive_threshold_for_age(age)
 
     mass_points = [p for p in to_points(body_mass_rows or []) if p.timestamp >= cutoff]
     fat_points = [p for p in to_points(body_fat_rows or []) if p.timestamp >= cutoff]
-    step_points = [p for p in to_points(step_rows or []) if p.timestamp >= cutoff]
+    step_points = [p for p in to_points(step_rows or []) if cutoff <= p.timestamp < eval_end]
     hr_points = [p for p in to_points(heart_rows or []) if p.timestamp >= cutoff]
     sbp_points = [p for p in to_points(sbp_rows or []) if p.timestamp >= cutoff]
     bmi_points = [p for p in to_points(bmi_rows or []) if p.timestamp >= cutoff]
@@ -77,12 +82,15 @@ def assess_cardiometabolic_profile_risk(
         components.append(comp)
         component_names.append("body_fat")
 
+    med_steps: float | None = None
     if step_points:
-        daily_steps = daily_medians(step_points, cutoff, now)
-        med_steps = median(daily_steps) if daily_steps else 5000.0
-        comp = min(1.0, max(0.0, (5000 - med_steps) / 5000))
-        components.append(comp)
-        component_names.append("inactivity")
+        daily_steps = daily_step_totals(step_points, cutoff, eval_end, exclude_zero=True)
+        if daily_steps:
+            med_steps = median(daily_steps)
+            # Компонент гиподинамии: 0 при шагах >= inactive_threshold, растёт линейно до 1 при шагах=0.
+            comp = min(1.0, max(0.0, (inactive_threshold - med_steps) / inactive_threshold))
+            components.append(comp)
+            component_names.append("inactivity")
 
     if vo2_points:
         vo2_val = vo2_points[-1].value
@@ -145,7 +153,8 @@ def assess_cardiometabolic_profile_risk(
             "components_used": component_names,
             "component_scores": [round(c, 2) for c in components],
             "bmi": round(bmi_val, 1) if bmi_val else None,
-            "median_steps": round(med_steps, 0) if step_points else None,
+            "median_steps": round(med_steps, 0) if med_steps is not None else None,
+            "inactive_threshold": inactive_threshold,
         },
         lifestyle_recommendations=recs,
     )
@@ -165,15 +174,18 @@ def assess_metabolic_syndrome_risk(
     has_abnormal_lipids: bool = False,
     window: TimeWindow,
     now: datetime | None = None,
+    age: int | None = None,
 ) -> RiskAssessment:
     now = now or utcnow()
-    cutoff = now - timedelta(days=60)
+    eval_end = latest_complete_day_end(now)
+    cutoff = eval_end - timedelta(days=60)
+    inactive_threshold = inactive_threshold_for_age(age)
 
     waist_points = [p for p in to_points(waist_rows or []) if p.timestamp >= cutoff]
     sbp_points = [p for p in to_points(sbp_rows or []) if p.timestamp >= cutoff]
     dbp_points = [p for p in to_points(dbp_rows or []) if p.timestamp >= cutoff]
     mass_points = [p for p in to_points(body_mass_rows or []) if p.timestamp >= cutoff]
-    step_points = [p for p in to_points(step_rows or []) if p.timestamp >= cutoff]
+    step_points = [p for p in to_points(step_rows or []) if cutoff <= p.timestamp < eval_end]
     bmi_points = [p for p in to_points(bmi_rows or []) if p.timestamp >= cutoff]
 
     criteria_count = 0
@@ -198,11 +210,12 @@ def assess_metabolic_syndrome_risk(
 
     steps_val: float | None = None
     if step_points:
-        daily_steps = daily_medians(step_points, cutoff, now)
-        steps_val = median(daily_steps)
-        if steps_val < 5000:
-            criteria_count += 1
-            met_criteria.append(f"низкая активность ({steps_val:.0f} шагов/день)")
+        daily_steps = daily_step_totals(step_points, cutoff, eval_end, exclude_zero=True)
+        if daily_steps:
+            steps_val = median(daily_steps)
+            if steps_val < inactive_threshold:
+                criteria_count += 1
+                met_criteria.append(f"низкая активность ({steps_val:.0f} шагов/день)")
 
     mass_kg_val: float | None = median([p.value for p in mass_points]) if mass_points else None
     bmi_val_meta: float | None
@@ -289,6 +302,7 @@ def assess_metabolic_syndrome_risk(
             "sbp": round(sbp_val, 0) if sbp_val is not None else None,
             "dbp": round(dbp_val, 0) if dbp_val is not None else None,
             "steps_per_day": round(steps_val, 0) if steps_val is not None else None,
+            "inactive_threshold": inactive_threshold,
         },
         lifestyle_recommendations=recs,
     )
@@ -308,13 +322,16 @@ def assess_cardiovascular_obesity_risk(
     sex: str = "male",
     window: TimeWindow,
     now: datetime | None = None,
+    age: int | None = None,
 ) -> RiskAssessment:
     now = now or utcnow()
-    cutoff = now - timedelta(days=60)
+    eval_end = latest_complete_day_end(now)
+    cutoff = eval_end - timedelta(days=60)
+    inactive_threshold = inactive_threshold_for_age(age)
 
     mass_points = [p for p in to_points(body_mass_rows or []) if p.timestamp >= cutoff]
     bmi_points = [p for p in to_points(bmi_rows or []) if p.timestamp >= cutoff]
-    step_points = [p for p in to_points(step_rows or []) if p.timestamp >= cutoff]
+    step_points = [p for p in to_points(step_rows or []) if cutoff <= p.timestamp < eval_end]
     vo2_points = [p for p in to_points(vo2max_rows or []) if p.timestamp >= cutoff]
     hr_points = [p for p in to_points(heart_rows or []) if p.timestamp >= cutoff]
     sbp_points = [p for p in to_points(sbp_rows or []) if p.timestamp >= cutoff]
@@ -327,11 +344,11 @@ def assess_cardiovascular_obesity_risk(
 
     step_median = None
     if step_points:
-        daily_steps = daily_medians(step_points, cutoff, now)
+        daily_steps = daily_step_totals(step_points, cutoff, eval_end, exclude_zero=True)
         step_median = median(daily_steps) if daily_steps else None
 
     overweight = bmi_val is not None and bmi_val >= 25
-    inactive = step_median is not None and step_median < 5000
+    inactive = step_median is not None and step_median < inactive_threshold
 
     if not overweight or not inactive:
         return RiskAssessment(
@@ -347,6 +364,7 @@ def assess_cardiovascular_obesity_risk(
             supporting_metrics={
                 "bmi": round(bmi_val, 1) if bmi_val else None,
                 "median_steps": round(step_median, 0) if step_median else None,
+                "inactive_threshold": inactive_threshold,
             },
         )
 
@@ -433,6 +451,7 @@ def assess_cardiovascular_obesity_risk(
         supporting_metrics={
             "bmi": round(bmi_val, 1) if bmi_val else None,
             "median_steps": round(step_median, 0) if step_median else None,
+            "inactive_threshold": inactive_threshold,
             "poor_vo2max": poor_vo2,
             "high_resting_hr": high_resting_hr,
             "high_bp": high_bp,
@@ -569,14 +588,17 @@ def assess_recovery_obesity_risk(
     *,
     window: TimeWindow,
     now: datetime | None = None,
+    age: int | None = None,
 ) -> RiskAssessment:
     now = now or utcnow()
-    cutoff = now - timedelta(days=60)
-    recent_start = now - timedelta(days=14)
+    eval_end = latest_complete_day_end(now)
+    cutoff = eval_end - timedelta(days=60)
+    recent_start = eval_end - timedelta(days=14)
+    inactive_threshold = inactive_threshold_for_age(age)
 
     mass_points = [p for p in to_points(body_mass_rows or []) if p.timestamp >= cutoff]
     bmi_points = [p for p in to_points(bmi_rows or []) if p.timestamp >= cutoff]
-    step_points = [p for p in to_points(step_rows or []) if p.timestamp >= cutoff]
+    step_points = [p for p in to_points(step_rows or []) if cutoff <= p.timestamp < eval_end]
     hrv_points = [p for p in to_points(hrv_rows or []) if p.timestamp >= cutoff]
     hr_points = [p for p in to_points(heart_rows or []) if p.timestamp >= cutoff]
     segments = list(sleep_segments or [])
@@ -589,11 +611,11 @@ def assess_recovery_obesity_risk(
 
     step_median = None
     if step_points:
-        daily_steps = daily_medians(step_points, cutoff, now)
+        daily_steps = daily_step_totals(step_points, cutoff, eval_end, exclude_zero=True)
         step_median = median(daily_steps) if daily_steps else None
 
     overweight = bmi_val is not None and bmi_val >= 25
-    inactive = step_median is not None and step_median < 5000
+    inactive = step_median is not None and step_median < inactive_threshold
 
     if not overweight or not inactive:
         return RiskAssessment(
@@ -688,6 +710,7 @@ def assess_recovery_obesity_risk(
         supporting_metrics={
             "bmi": round(bmi_val, 1) if bmi_val else None,
             "median_daily_steps": round(step_median, 0) if step_median else None,
+            "inactive_threshold": inactive_threshold,
             "recovery_flags": recovery_flags,
         },
         lifestyle_recommendations=recs,

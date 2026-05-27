@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -8,6 +8,7 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from health_log.api.v1.auth import _validate_date_of_birth
 from health_log.dependencies import db_connect, get_current_user
 from health_log.repositories.auth import AuthTokenRepository, AuthUser, UsersRepository
 
@@ -23,6 +24,7 @@ class UserResponse(BaseModel):
     phone: str
     is_active: bool
     created_at: datetime
+    date_of_birth: date | None = None
 
 
 class UpdateMeRequest(BaseModel):
@@ -31,6 +33,7 @@ class UpdateMeRequest(BaseModel):
     sex: Literal["male", "female"] | None = None
     email: str | None = None
     phone: str | None = None
+    date_of_birth: date | None = None
 
     @field_validator("first_name", "last_name")
     @classmethod
@@ -41,6 +44,11 @@ class UpdateMeRequest(BaseModel):
         if not cleaned:
             raise ValueError("Имя и фамилия не могут быть пустыми")
         return cleaned
+
+    @field_validator("date_of_birth")
+    @classmethod
+    def validate_dob(cls, value: date | None) -> date | None:
+        return _validate_date_of_birth(value)
 
 
 def _normalize_email(value: str | None) -> str | None:
@@ -73,6 +81,7 @@ async def me(
         phone=user.phone,
         is_active=user.is_active,
         created_at=user.created_at,
+        date_of_birth=user.date_of_birth,
     )
 
 
@@ -84,6 +93,10 @@ async def update_me(
 ) -> UserResponse:
     users_repo = UsersRepository(conn)
 
+    # Поле date_of_birth подразумевает "установить" семантику: передавать только если есть значение.
+    # Пустое значение (None) явно не обнуляет — для очистки нужно отдельное действие в будущем.
+    update_dob = "date_of_birth" in payload.model_fields_set and payload.date_of_birth is not None
+
     try:
         user = await users_repo.update_me(
             current_user.id,
@@ -92,6 +105,8 @@ async def update_me(
             sex=payload.sex,
             email=_normalize_email(payload.email),
             phone=_normalize_phone(payload.phone),
+            date_of_birth=payload.date_of_birth if update_dob else None,
+            update_date_of_birth=update_dob,
         )
     except IntegrityError as exc:
         raise HTTPException(
@@ -107,6 +122,7 @@ async def update_me(
         phone=user.phone,
         is_active=user.is_active,
         created_at=user.created_at,
+        date_of_birth=user.date_of_birth,
     )
 
 

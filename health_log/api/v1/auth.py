@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal, cast
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
@@ -19,8 +19,25 @@ from health_log.security import (
     verify_password,
 )
 from health_log.settings import settings
+from health_log.utils import utcnow
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+
+
+MIN_AGE_YEARS = 5
+MAX_AGE_YEARS = 130
+
+
+def _validate_date_of_birth(value: date | None) -> date | None:
+    if value is None:
+        return None
+    today = utcnow().date()
+    age_years = (today - value).days / 365.25
+    if age_years < MIN_AGE_YEARS:
+        raise ValueError(f"Возраст должен быть не менее {MIN_AGE_YEARS} лет")
+    if age_years > MAX_AGE_YEARS:
+        raise ValueError(f"Возраст должен быть не более {MAX_AGE_YEARS} лет")
+    return value
 
 
 class RegisterRequest(BaseModel):
@@ -30,6 +47,7 @@ class RegisterRequest(BaseModel):
     email: str
     phone: str
     password: str = Field(min_length=8, max_length=128)
+    date_of_birth: date | None = None
 
     @field_validator("first_name", "last_name")
     @classmethod
@@ -38,6 +56,11 @@ class RegisterRequest(BaseModel):
         if not cleaned:
             raise ValueError("Имя и фамилия не могут быть пустыми")
         return cleaned
+
+    @field_validator("date_of_birth")
+    @classmethod
+    def validate_dob(cls, value: date | None) -> date | None:
+        return _validate_date_of_birth(value)
 
 
 class LoginRequest(BaseModel):
@@ -58,6 +81,7 @@ class UserResponse(BaseModel):
     phone: str
     is_active: bool
     created_at: datetime
+    date_of_birth: date | None = None
 
 
 class TokenResponse(BaseModel):
@@ -89,6 +113,7 @@ def _to_user_response(user: PublicUser) -> UserResponse:
         phone=user.phone,
         is_active=user.is_active,
         created_at=user.created_at,
+        date_of_birth=user.date_of_birth,
     )
 
 
@@ -129,6 +154,7 @@ async def register(
     first_name = payload.first_name.strip()
     last_name = payload.last_name.strip()
     sex = payload.sex
+    date_of_birth = payload.date_of_birth
 
     email_user = await users_repo.get_auth_user_by_email(email, include_inactive=True)
     phone_user = await users_repo.get_auth_user_by_phone(phone, include_inactive=True)
@@ -160,6 +186,7 @@ async def register(
                 email=email,
                 phone=phone,
                 password_hash=password_hash,
+                date_of_birth=date_of_birth,
             )
         else:
             public_user = await users_repo.create_user(
@@ -169,6 +196,7 @@ async def register(
                 email=email,
                 phone=phone,
                 password_hash=password_hash,
+                date_of_birth=date_of_birth,
             )
     except IntegrityError as exc:
         raise HTTPException(
@@ -184,6 +212,7 @@ async def register(
         phone=public_user.phone,
         password_hash=password_hash,
         is_active=public_user.is_active,
+        date_of_birth=public_user.date_of_birth,
     )
     tokens = await _issue_tokens(conn, auth_user)
     return AuthResponse(user=_to_user_response(public_user), tokens=tokens)
