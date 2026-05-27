@@ -12,6 +12,7 @@ users = sqlalchemy.Table(
     sqlalchemy.Column("first_name", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("last_name", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("sex", sqlalchemy.String, nullable=False),
+    sqlalchemy.Column("date_of_birth", sqlalchemy.Date, nullable=True),
     sqlalchemy.Column("email", sqlalchemy.String, nullable=False, unique=True),
     sqlalchemy.Column("phone", sqlalchemy.String, nullable=False, unique=True),
     sqlalchemy.Column("password_hash", sqlalchemy.String, nullable=False),
@@ -38,6 +39,12 @@ users = sqlalchemy.Table(
     sqlalchemy.CheckConstraint("sex in ('male', 'female')", name="ck_users_sex"),
     sqlalchemy.CheckConstraint(
         "subscription_status IN ('free', 'paid')", name="ck_users_subscription_status"
+    ),
+    sqlalchemy.CheckConstraint(
+        "date_of_birth IS NULL OR ("
+        "date_of_birth <= (CURRENT_DATE - INTERVAL '5 years') "
+        "AND date_of_birth >= (CURRENT_DATE - INTERVAL '130 years'))",
+        name="ck_users_date_of_birth_range",
     ),
 )
 

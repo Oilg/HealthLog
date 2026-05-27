@@ -1,4 +1,5 @@
 import asyncio
+from datetime import date, timedelta
 from unittest.mock import MagicMock
 
 import pytest
@@ -80,6 +81,69 @@ def test_update_me_rejects_blank_names(field):
     payload = {field: "   "}
     with pytest.raises(ValidationError):
         users_api.UpdateMeRequest(**payload)
+
+
+def _valid_register_payload(**overrides) -> dict:
+    payload = {
+        "first_name": "Ivan",
+        "last_name": "Ivanov",
+        "sex": "male",
+        "email": "a@a.com",
+        "phone": "+70000000000",
+        "password": "StrongPass123",
+    }
+    payload.update(overrides)
+    return payload
+
+
+class TestRegisterDateOfBirthValidation:
+    def test_no_dob_accepted(self):
+        req = RegisterRequest(**_valid_register_payload())
+        assert req.date_of_birth is None
+
+    def test_valid_dob_accepted(self):
+        req = RegisterRequest(**_valid_register_payload(date_of_birth="1990-01-15"))
+        assert req.date_of_birth == date(1990, 1, 15)
+
+    def test_dob_too_young_rejected(self):
+        # 4 года — меньше минимума 5
+        too_young = (date.today() - timedelta(days=4 * 365)).isoformat()
+        with pytest.raises(ValidationError):
+            RegisterRequest(**_valid_register_payload(date_of_birth=too_young))
+
+    def test_dob_in_future_rejected(self):
+        future = (date.today() + timedelta(days=30)).isoformat()
+        with pytest.raises(ValidationError):
+            RegisterRequest(**_valid_register_payload(date_of_birth=future))
+
+    def test_dob_too_old_rejected(self):
+        # 131 год — больше максимума 130
+        too_old = (date.today() - timedelta(days=131 * 366)).isoformat()
+        with pytest.raises(ValidationError):
+            RegisterRequest(**_valid_register_payload(date_of_birth=too_old))
+
+    def test_dob_boundary_5_years_accepted(self):
+        # 5 лет ровно (с запасом 1 день)
+        five_years = (date.today() - timedelta(days=5 * 365 + 30)).isoformat()
+        req = RegisterRequest(**_valid_register_payload(date_of_birth=five_years))
+        assert req.date_of_birth is not None
+
+
+class TestUpdateMeDateOfBirthValidation:
+    def test_no_dob_field_accepted(self):
+        req = users_api.UpdateMeRequest()
+        assert req.date_of_birth is None
+        assert "date_of_birth" not in req.model_fields_set
+
+    def test_valid_dob_accepted(self):
+        req = users_api.UpdateMeRequest(date_of_birth="1985-06-20")
+        assert req.date_of_birth == date(1985, 6, 20)
+        assert "date_of_birth" in req.model_fields_set
+
+    def test_dob_too_young_rejected(self):
+        too_young = (date.today() - timedelta(days=4 * 365)).isoformat()
+        with pytest.raises(ValidationError):
+            users_api.UpdateMeRequest(date_of_birth=too_young)
 
 
 def test_register_restores_inactive_account(monkeypatch):

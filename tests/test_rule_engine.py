@@ -518,6 +518,7 @@ def test_health_risk_analyzer_uses_extended_history_for_illness_onset():
 
     analyzer = HealthRiskAnalyzer(connection=None, user_id=1)  # type: ignore[arg-type]
     analyzer._user_sex = "female"
+    analyzer._user_dob_fetched = True
     call_ranges: list[tuple[str, datetime, datetime]] = []
 
     async def fake_fetch_rows(table, start: datetime, end: datetime):
@@ -552,6 +553,7 @@ def test_health_risk_analyzer_skips_menstrual_signal_for_male() -> None:
     now = datetime(2026, 2, 26, 10, 0, 0)
     analyzer = HealthRiskAnalyzer(connection=None, user_id=1)  # type: ignore[arg-type]
     analyzer._user_sex = "male"
+    analyzer._user_dob_fetched = True
 
     async def fake_fetch_rows(table, start: datetime, end: datetime):
         return []
@@ -576,6 +578,7 @@ def test_health_risk_analyzer_adds_menstrual_signal_for_female() -> None:
     now = datetime(2026, 2, 26, 10, 0, 0)
     analyzer = HealthRiskAnalyzer(connection=None, user_id=1)  # type: ignore[arg-type]
     analyzer._user_sex = "female"
+    analyzer._user_dob_fetched = True
 
     period_starts = [
         datetime(2025, 10, 1, 8, 0, 0),
@@ -627,9 +630,18 @@ def test_patch_me_sex_enables_menstrual_forecast(monkeypatch) -> None:
 
     class FakeConnection:
         async def execute(self, query):
+            # Возвращаем разные значения для запросов sex и date_of_birth.
+            # Простейшая проверка по строковому представлению запроса.
+            query_str = str(query).lower()
+            value: object | None
+            if "date_of_birth" in query_str:
+                value = None
+            else:
+                value = state["sex"]
+
             class Result:
-                def scalar_one_or_none(self):
-                    return state["sex"]
+                def scalar_one_or_none(self_inner):
+                    return value
 
             return Result()
 

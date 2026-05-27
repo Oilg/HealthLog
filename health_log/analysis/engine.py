@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncConnection
@@ -61,6 +61,8 @@ class HealthRiskAnalyzer:
         self._connection = connection
         self._user_id = user_id
         self._user_sex: str | None = None
+        self._user_dob: date | None = None
+        self._user_dob_fetched: bool = False
         self._records_repo = RecordsRepository(connection)
         self._reports_repo = AnalysisReportsRepository(connection)
 
@@ -102,6 +104,26 @@ class HealthRiskAnalyzer:
         sex = (await self._connection.execute(query)).scalar_one_or_none() or "male"
         self._user_sex = str(sex)
         return self._user_sex
+
+    async def _fetch_user_dob(self) -> date | None:
+        if self._user_dob_fetched:
+            return self._user_dob
+        query = select(tables.users.c.date_of_birth).where(tables.users.c.id == self._user_id)
+        dob = (await self._connection.execute(query)).scalar_one_or_none()
+        self._user_dob = dob
+        self._user_dob_fetched = True
+        return self._user_dob
+
+    @staticmethod
+    def _compute_age(dob: date | None, now: datetime) -> int | None:
+        """Возраст в полных годах на дату now.date(). None если DOB не задан."""
+        if dob is None:
+            return None
+        today = now.date()
+        age = today.year - dob.year - (
+            (today.month, today.day) < (dob.month, dob.day)
+        )
+        return max(0, age)
 
     def _build_cardiac_assessments(
         self,
@@ -281,6 +303,7 @@ class HealthRiskAnalyzer:
         hrv_rows,
         walking_hr_rows,
         user_sex: str,
+        user_age: int | None,
         window: TimeWindow,
         now: datetime,
     ) -> list[RiskAssessment]:
@@ -298,6 +321,7 @@ class HealthRiskAnalyzer:
                 step_rows=step_rows,
                 window=window,
                 now=now,
+                age=user_age,
             ),
             assess_high_body_fat_risk(
                 fat_rows,
@@ -332,11 +356,13 @@ class HealthRiskAnalyzer:
                 exercise_time_rows=exercise_rows,
                 window=window,
                 now=now,
+                age=user_age,
             ),
             assess_insufficient_activity_risk(
                 step_rows,
                 window=window,
                 now=now,
+                age=user_age,
             ),
             assess_cardiometabolic_profile_risk(
                 body_mass_rows,
@@ -350,6 +376,7 @@ class HealthRiskAnalyzer:
                 sex=user_sex,
                 window=window,
                 now=now,
+                age=user_age,
             ),
             assess_metabolic_syndrome_risk(
                 waist_rows,
@@ -361,6 +388,7 @@ class HealthRiskAnalyzer:
                 sex=user_sex,
                 window=window,
                 now=now,
+                age=user_age,
             ),
             assess_cardiovascular_obesity_risk(
                 body_mass_rows,
@@ -374,6 +402,7 @@ class HealthRiskAnalyzer:
                 sex=user_sex,
                 window=window,
                 now=now,
+                age=user_age,
             ),
             assess_fitness_weight_gain_risk(
                 body_mass_rows,
@@ -392,6 +421,7 @@ class HealthRiskAnalyzer:
                 heart_rows=heart_rows,
                 window=window,
                 now=now,
+                age=user_age,
             ),
             assess_body_composition_trend_risk(
                 body_mass_rows,
@@ -450,6 +480,8 @@ class HealthRiskAnalyzer:
         mobility_start = end - timedelta(days=90)
 
         user_sex = await self._fetch_user_sex()
+        user_dob = await self._fetch_user_dob()
+        user_age = self._compute_age(user_dob, now)
 
         # Window-bounded: used by window-specific detectors (sleep_apnea, tachycardia, bradycardia).
         heart_rows = await self._fetch_rows(tables.heart_rate, start, end)
@@ -596,6 +628,7 @@ class HealthRiskAnalyzer:
             hrv_rows=hrv_rows_74d,
             walking_hr_rows=walking_hr_rows,
             user_sex=user_sex,
+            user_age=user_age,
             window=window,
             now=now,
         )
