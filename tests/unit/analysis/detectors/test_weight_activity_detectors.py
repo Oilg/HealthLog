@@ -240,6 +240,37 @@ class TestSedentaryLifestyleRisk:
         result = assess_sedentary_lifestyle_risk(rows, window=_WINDOW, now=_NOW)
         assert len(result.lifestyle_recommendations) > 0
 
+    def test_medium_steps_no_exercise_penalty_stays_medium(self):
+        # score=0.65 (medium) без exercise → severity остаётся medium, не повышается до high
+        rows = [(_ts(i), 4500.0) for i in range(15)]
+        result = assess_sedentary_lifestyle_risk(rows, window=_WINDOW, now=_NOW)
+        assert result.severity == "medium"
+
+    def test_medium_steps_with_insufficient_exercise_can_upgrade(self):
+        # score=0.65 + 0.1 (exercise penalty) = 0.75 → severity должна стать high
+        rows = [(_ts(i), 4500.0) for i in range(15)]
+        # 5 мин/день * 14 дней / 14 * 7 = 35 мин/нед < 60 мин/нед → penalty применяется
+        exercise = [(_ts(i), 5.0) for i in range(15)]
+        result = assess_sedentary_lifestyle_risk(
+            rows, exercise_time_rows=exercise, window=_WINDOW, now=_NOW
+        )
+        assert result.severity == "high"
+
+    def test_exercise_weekly_scaling_uses_fixed_window(self):
+        # Замечание 3: только 1 день из 14 с упражнениями.
+        # Если бы делили на len(ex_totals)=1, weekly = 100/1*7 = 700 >= 60 → нет штрафа.
+        # С исправлением: 100/14*7 ≈ 50 < 60 → штраф применяется.
+        rows = [(_ts(i), 4500.0) for i in range(15)]
+        # Только 1 запись с exercise (100 мин) внутри окна (_ts(1) попадает в [cutoff, eval_end)).
+        # _ts(0)=_NOW попадает за eval_end (сегодня исключается), поэтому используем _ts(1).
+        exercise = [(_ts(1), 100.0)]
+        without_ex = assess_sedentary_lifestyle_risk(rows, window=_WINDOW, now=_NOW)
+        with_ex = assess_sedentary_lifestyle_risk(
+            rows, exercise_time_rows=exercise, window=_WINDOW, now=_NOW
+        )
+        # С исправлением: 100/14*7=50 < 60 → штраф применён → score выше
+        assert with_ex.score > without_ex.score
+
 
 class TestInsufficientActivityRisk:
     def test_sufficient_steps_returns_none(self):

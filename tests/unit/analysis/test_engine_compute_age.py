@@ -47,3 +47,19 @@ def test_age_never_negative() -> None:
     # На случай если DOB в будущем (теоретически — БД и API запрещают, но защита)
     future_dob = date(2099, 1, 1)
     assert HealthRiskAnalyzer._compute_age(future_dob, datetime(2026, 5, 27, 12, 0)) == 0
+
+
+def test_age_with_timezone_ahead_of_utc() -> None:
+    # UTC+12: 2026-05-28 00:30 local, тогда как UTC 2026-05-27 12:30
+    # DOB = 1990-05-28: в UTC ещё не наступил → 35 лет, но локально уже 2026-05-28 → 36 лет
+    dob = date(1990, 5, 28)
+    now_utc = datetime(2026, 5, 27, 12, 30, tzinfo=__import__("datetime").timezone.utc)
+    assert HealthRiskAnalyzer._compute_age(dob, now_utc, user_timezone=None) == 35
+    assert HealthRiskAnalyzer._compute_age(dob, now_utc, user_timezone="Pacific/Auckland") == 36
+
+
+def test_age_with_invalid_timezone_falls_back_to_utc() -> None:
+    dob = date(1990, 5, 15)
+    now_utc = datetime(2026, 5, 27, 12, 0, tzinfo=__import__("datetime").timezone.utc)
+    # Невалидная таймзона — должна упасть на UTC без исключения
+    assert HealthRiskAnalyzer._compute_age(dob, now_utc, user_timezone="Invalid/Zone") == 36

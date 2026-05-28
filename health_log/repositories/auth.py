@@ -261,15 +261,14 @@ class UsersRepository:
             phone=phone,
             password_hash=password_hash,
             is_active=True,
-            date_of_birth=date_of_birth,
             updated_at=utcnow(),
         )
+        if date_of_birth is not None:
+            values["date_of_birth"] = date_of_birth
         if timezone is not None:
             values["timezone"] = timezone
         await self._connection.execute(
-            update(tables.users)
-            .where(tables.users.c.id == user_id)
-            .values(**values)
+            update(tables.users).where(tables.users.c.id == user_id).values(**values)
         )
         user = await self.get_public_user(user_id)
         if user is None:
