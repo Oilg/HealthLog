@@ -33,10 +33,10 @@ def _validate_date_of_birth(value: date | None) -> date | None:
     if value is None:
         return None
     today = utcnow().date()
-    age_years = (today - value).days / 365.25
-    if age_years < MIN_AGE_YEARS:
+    age = today.year - value.year - ((today.month, today.day) < (value.month, value.day))
+    if age < MIN_AGE_YEARS:
         raise ValueError(f"Возраст должен быть не менее {MIN_AGE_YEARS} лет")
-    if age_years > MAX_AGE_YEARS:
+    if age > MAX_AGE_YEARS:
         raise ValueError(f"Возраст должен быть не более {MAX_AGE_YEARS} лет")
     return value
 

@@ -179,3 +179,44 @@ async def test_engine_returns_none_dob_for_user_without_dob(
 
     analyzer = HealthRiskAnalyzer(db_conn, user.id)
     assert await analyzer._fetch_user_dob() is None
+
+
+async def test_restore_user_preserves_dob_when_not_provided(
+    db_conn, unique_email, unique_phone
+) -> None:
+    """Замечание 1: restore_user не должна затирать DOB при date_of_birth=None."""
+    repo = UsersRepository(db_conn)
+    dob = date(1985, 7, 10)
+
+    # Создаём пользователя с DOB
+    user = await repo.create_user(
+        first_name="Restore",
+        last_name="Test",
+        sex="male",
+        email=unique_email,
+        phone=unique_phone,
+        password_hash="oldhash",
+        date_of_birth=dob,
+    )
+    assert user.date_of_birth == dob
+
+    # Деактивируем вручную
+    from sqlalchemy import update as sa_update
+
+    from health_log.repositories.v1 import tables
+
+    await db_conn.execute(
+        sa_update(tables.users).where(tables.users.c.id == user.id).values(is_active=False)
+    )
+
+    # restore_user без date_of_birth → DOB должен сохраниться
+    restored = await repo.restore_user(
+        user.id,
+        first_name="Restore",
+        last_name="Test",
+        sex="male",
+        email=unique_email,
+        phone=unique_phone,
+        password_hash="newhash",
+    )
+    assert restored.date_of_birth == dob

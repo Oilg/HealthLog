@@ -45,9 +45,7 @@ def _sedentary_severity_for_steps(median_steps: float, target: int) -> tuple[str
     return "low", 0.35
 
 
-def _insufficient_severity_for_steps(
-    median_steps: float, target: int
-) -> tuple[str, float] | None:
+def _insufficient_severity_for_steps(median_steps: float, target: int) -> tuple[str, float] | None:
     """Категория severity для assess_insufficient_activity_risk.
 
     Ступени относительно целевого порога:
@@ -119,19 +117,24 @@ def assess_sedentary_lifestyle_risk(
     severity, score = severity_pair
 
     weekly_exercise = None
+    exercise_penalty_applied = False
     if exercise_points:
         # Exercise time — суммы за день без фильтрации нулей.
         ex_totals = list(daily_totals(exercise_points, cutoff, eval_end).values())
-        weekly_exercise = sum(ex_totals) / len(ex_totals) * 7 if ex_totals else 0.0
+        # Делим на фиксированное окно MIN_ACTIVITY_DAYS, а не на len(ex_totals),
+        # чтобы 1 записанный день из 14 не давал некорректного масштабирования.
+        weekly_exercise = sum(ex_totals) / MIN_ACTIVITY_DAYS * 7 if ex_totals else 0.0
         if weekly_exercise < EXERCISE_TIME_WEEKLY_MIN:
             score = min(1.0, score + 0.1)
+            exercise_penalty_applied = True
 
-    if score >= 0.75:
-        severity = "high"
-    elif score >= 0.45:
-        severity = "medium"
-    elif score > 0:
-        severity = "low"
+    if exercise_penalty_applied:
+        if score >= 0.75:
+            severity = "high"
+        elif score >= 0.45:
+            severity = "medium"
+        elif score > 0:
+            severity = "low"
 
     recs = build_weight_activity_recommendations(
         {

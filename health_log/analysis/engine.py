@@ -135,14 +135,22 @@ class HealthRiskAnalyzer:
         return self._user_timezone
 
     @staticmethod
-    def _compute_age(dob: date | None, now: datetime) -> int | None:
-        """Возраст в полных годах на дату now.date(). None если DOB не задан."""
+    def _compute_age(
+        dob: date | None, now: datetime, user_timezone: str | None = None
+    ) -> int | None:
+        """Возраст в полных годах на локальную дату пользователя. None если DOB не задан."""
         if dob is None:
             return None
-        today = now.date()
-        age = today.year - dob.year - (
-            (today.month, today.day) < (dob.month, dob.day)
-        )
+        if user_timezone:
+            try:
+                from zoneinfo import ZoneInfo
+
+                today = now.astimezone(ZoneInfo(user_timezone)).date()
+            except Exception:
+                today = now.date()
+        else:
+            today = now.date()
+        age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
         return max(0, age)
 
     def _build_cardiac_assessments(
@@ -509,8 +517,8 @@ class HealthRiskAnalyzer:
 
         user_sex = await self._fetch_user_sex()
         user_dob = await self._fetch_user_dob()
-        user_age = self._compute_age(user_dob, now)
         user_timezone = await self._fetch_user_timezone()
+        user_age = self._compute_age(user_dob, now, user_timezone)
 
         # Window-bounded: used by window-specific detectors (sleep_apnea, tachycardia, bradycardia).
         heart_rows = await self._fetch_rows(tables.heart_rate, start, end)
