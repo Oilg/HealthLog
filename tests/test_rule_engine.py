@@ -344,8 +344,13 @@ def test_illness_onset_risk_requires_five_day_persistent_trend():
 
 
 def test_illness_onset_risk_wrist_temp_boosts_score_when_elevated():
-    """Температура запястья +0.8°C при умеренном HR/HRV тренде (Watch 8+)
-    должна давать выше или равный скор по сравнению с тем же сигналом без температуры."""
+    """Температура запястья +0.8°C при выраженном HR/HRV тренде (Watch 8+)
+    должна давать выше или равный скор по сравнению с тем же сигналом без температуры.
+
+    Используем устойчивый паттерн над новыми порогами confirmed-day
+    (HR +8 bpm и -22 % HRV держатся 5 дней), чтобы гейт MIN_CONFIRMED_DAYS_FOR_SIGNAL
+    был пройден и severity отражала реальную физиологическую динамику.
+    """
     now = datetime(2026, 2, 26, 10, 0, 0)
     heart = []
     hrv = []
@@ -364,9 +369,9 @@ def test_illness_onset_risk_wrist_temp_boosts_score_when_elevated():
                 hrv.append((ts, 58 - (m % 2)))
                 resp.append((ts, 13.0 + (m % 2) * 0.2))
             else:
-                heart.append((ts, 68 + (m % 3)))  # умеренный +6
-                hrv.append((ts, 49 - (m % 2)))  # умеренный −15%
-                resp.append((ts, 14.5 + (m % 2) * 0.2))
+                heart.append((ts, 70 + (m % 3)))  # +8 bpm (~+13 %)
+                hrv.append((ts, 45 - (m % 2)))  # ~−22 %
+                resp.append((ts, 14.7 + (m % 2) * 0.2))
 
     baseline_temp = 36.1
     wrist_temp = []
@@ -435,9 +440,16 @@ def test_illness_onset_risk_without_wrist_temp_unchanged():
     assert "°C" not in assessment.summary
 
 
-def test_illness_onset_risk_stable_wrist_temp_does_not_penalise_score():
-    """Watch 8+ с δT ≤ 0 (стабильная или чуть сниженная температура) не должен
-    получать штраф: скор должен быть не ниже, чем без данных температуры."""
+def test_illness_onset_risk_stable_wrist_temp_downweights_score():
+    """Watch 8+ с δT ≤ 0 (стабильная или чуть сниженная температура запястья)
+    физиологически опровергает воспалительный процесс — даже если HR/HRV дали
+    тренд (overreaching после нагрузки, плохой сон, алкоголь). Скор должен
+    быть существенно ниже, чем без данных температуры.
+
+    Это ключевая anti-false-positive мера: пользователи с Watch 8+ не должны
+    получать алерты «начало простуды», когда объективная температура говорит
+    обратное.
+    """
     now = datetime(2026, 2, 26, 10, 0, 0)
     heart = []
     hrv = []
@@ -485,9 +497,182 @@ def test_illness_onset_risk_stable_wrist_temp_does_not_penalise_score():
         window=TimeWindow.WEEK,
     )
 
-    # Стабильная температура не должна снижать скор
-    assert with_stable_temp.score == without_temp.score
-    assert "°C" not in with_stable_temp.summary
+    # Стабильная температура снижает скор (anti-false-positive veto)
+    assert with_stable_temp.score < without_temp.score
+    # Снижение должно быть существенным — не косметическим
+    assert with_stable_temp.score <= without_temp.score * 0.7
+    # И обязательно отражается в summary как стабильная температура
+    assert "стабильна" in with_stable_temp.summary
+
+
+def test_illness_onset_risk_ignores_two_day_overreaching_spike():
+    """Посттренировочный overreaching: 2 ночи подряд +8 уд/мин и −22 % HRV,
+    остальные 3 дня окна — норма. Это типичный спортивный паттерн (тяжёлая
+    тренировочная пара дней), не болезнь. Должно быть severity == 'none',
+    потому что MIN_CONFIRMED_DAYS_FOR_SIGNAL = 3 не достигается."""
+    now = datetime(2026, 2, 26, 10, 0, 0)
+    heart = []
+    hrv = []
+    resp = []
+    sleep = []
+
+    for day_idx in range(70):
+        day = now - timedelta(days=69 - day_idx)
+        sleep_start = day.replace(hour=23, minute=0, second=0, microsecond=0) - timedelta(days=1)
+        sleep_end = day.replace(hour=7, minute=0, second=0, microsecond=0)
+        sleep.append((sleep_start, sleep_end))
+        for m in range(24):
+            ts = day + timedelta(minutes=20 * m)
+            # Только последние 2 дня "плохие", дни 65-67 — нормальные:
+            # confirmed_days получится максимум 2 → ниже гейта 3.
+            if day_idx in (68, 69):
+                heart.append((ts, 70 + (m % 3)))  # +8 bpm
+                hrv.append((ts, 45 - (m % 2)))  # ~−22 %
+                resp.append((ts, 13.0))
+            else:
+                heart.append((ts, 62 + (m % 3)))
+                hrv.append((ts, 58 - (m % 2)))
+                resp.append((ts, 13.0))
+
+    assessment = assess_illness_onset_risk(
+        heart,
+        hrv,
+        respiratory_rows=resp,
+        sleep_rows=sleep,
+        window=TimeWindow.WEEK,
+    )
+
+    assert assessment.severity == "none"
+
+
+def test_illness_onset_risk_athlete_low_baseline_not_triggered_by_small_bpm_jump():
+    """У спортсмена с RHR ~50 эпизодический +6 bpm — это всего ~+12 %, но
+    оба порога (абсолютный +7 и относительный +10 %) совместно отсекут
+    одиночный канал, если HRV не сваливается синхронно. Сценарий: 5 ночей
+    плохого сна с +6 bpm RHR, HRV держится в норме (−10 %). Не должно
+    срабатывать."""
+    now = datetime(2026, 2, 26, 10, 0, 0)
+    heart = []
+    hrv = []
+    resp = []
+    sleep = []
+
+    for day_idx in range(70):
+        day = now - timedelta(days=69 - day_idx)
+        sleep_start = day.replace(hour=23, minute=0, second=0, microsecond=0) - timedelta(days=1)
+        sleep_end = day.replace(hour=7, minute=0, second=0, microsecond=0)
+        sleep.append((sleep_start, sleep_end))
+        for m in range(24):
+            ts = day + timedelta(minutes=20 * m)
+            if day_idx < 65:
+                heart.append((ts, 50 + (m % 3)))  # athlete baseline ~50
+                hrv.append((ts, 80 - (m % 2)))  # high HRV baseline
+                resp.append((ts, 12.0))
+            else:
+                heart.append((ts, 56 + (m % 3)))  # +6 bpm (~+12 %) — порог HR_CONFIRM_DELTA_BPM=7 не достигнут
+                hrv.append((ts, 72 - (m % 2)))  # −10 %, далеко не -20 %
+                resp.append((ts, 12.5))
+
+    assessment = assess_illness_onset_risk(
+        heart,
+        hrv,
+        respiratory_rows=resp,
+        sleep_rows=sleep,
+        window=TimeWindow.WEEK,
+    )
+
+    assert assessment.severity == "none"
+
+
+def test_illness_onset_risk_isolated_hrv_dip_not_triggered():
+    """Изолированное падение HRV (стресс, алкоголь) без сопутствующего HR/RR
+    тренда не должно давать сигнал. Раньше HRV −15 % давал hrv_flag = True, и
+    в сочетании с одним малым HR-флагом получалось confirmed_day. Теперь HRV
+    flag требует -20 %, а здесь только -15 % → не флаг, confirmed = 0."""
+    now = datetime(2026, 2, 26, 10, 0, 0)
+    heart = []
+    hrv = []
+    resp = []
+    sleep = []
+
+    for day_idx in range(70):
+        day = now - timedelta(days=69 - day_idx)
+        sleep_start = day.replace(hour=23, minute=0, second=0, microsecond=0) - timedelta(days=1)
+        sleep_end = day.replace(hour=7, minute=0, second=0, microsecond=0)
+        sleep.append((sleep_start, sleep_end))
+        for m in range(24):
+            ts = day + timedelta(minutes=20 * m)
+            if day_idx < 65:
+                heart.append((ts, 62 + (m % 3)))
+                hrv.append((ts, 60 - (m % 2)))
+                resp.append((ts, 13.0))
+            else:
+                heart.append((ts, 63 + (m % 3)))  # +1 bpm — шум
+                hrv.append((ts, 51 - (m % 2)))  # -15 %, ниже нового порога -20 %
+                resp.append((ts, 13.0))
+
+    assessment = assess_illness_onset_risk(
+        heart,
+        hrv,
+        respiratory_rows=resp,
+        sleep_rows=sleep,
+        window=TimeWindow.WEEK,
+    )
+
+    assert assessment.severity == "none"
+
+
+def test_illness_onset_risk_wrist_temp_veto_blocks_signal_without_fever():
+    """Watch 8+ пользователь: HR/HRV дают полный паттерн (+10/-31 % за 5 дней),
+    но температура запястья стабильна. Это сценарий overreaching у атлета
+    или серия плохих ночей сна — НЕ инфекция. Severity должна стать ниже
+    severity без температурного veto на ту же физиологию."""
+    now = datetime(2026, 2, 26, 10, 0, 0)
+    heart = []
+    hrv = []
+    resp = []
+    sleep = []
+
+    for day_idx in range(70):
+        day = now - timedelta(days=69 - day_idx)
+        sleep_start = day.replace(hour=23, minute=0, second=0, microsecond=0) - timedelta(days=1)
+        sleep_end = day.replace(hour=7, minute=0, second=0, microsecond=0)
+        sleep.append((sleep_start, sleep_end))
+        for m in range(24):
+            ts = day + timedelta(minutes=20 * m)
+            if day_idx < 65:
+                heart.append((ts, 62 + (m % 3)))
+                hrv.append((ts, 58 - (m % 2)))
+                resp.append((ts, 13.0))
+            else:
+                heart.append((ts, 72 + (m % 3)))
+                hrv.append((ts, 40 - (m % 2)))
+                resp.append((ts, 15.0))
+
+    baseline_temp = 36.1
+    wrist_temp_stable = []
+    for night_idx in range(16):
+        ts = now - timedelta(days=15 - night_idx, hours=3)
+        wrist_temp_stable.append((ts, baseline_temp))
+
+    with_veto = assess_illness_onset_risk(
+        heart,
+        hrv,
+        respiratory_rows=resp,
+        sleep_rows=sleep,
+        wrist_temp_rows=wrist_temp_stable,
+        window=TimeWindow.WEEK,
+    )
+    without_temp = assess_illness_onset_risk(
+        heart,
+        hrv,
+        respiratory_rows=resp,
+        sleep_rows=sleep,
+        window=TimeWindow.WEEK,
+    )
+
+    severity_order = {"none": 0, "low": 1, "medium": 2, "high": 3}
+    assert severity_order[with_veto.severity] < severity_order[without_temp.severity]
 
 
 def test_health_risk_analyzer_uses_extended_history_for_illness_onset():

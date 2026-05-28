@@ -8,11 +8,16 @@ from typing import Iterable
 
 from health_log.analysis.detectors.illness.constants import (
     BASELINE_MAX_DAYS,
+    HR_CONFIRM_DELTA_BPM,
+    HR_CONFIRM_DELTA_REL,
     HR_POINTS_PER_DAY_MIN,
+    HRV_CONFIRM_REL,
     HRV_POINTS_PER_DAY_MIN,
     MIN_RECENT_VALID_DAYS,
     MIN_VALID_DAYS_FOR_SIGNAL,
     RECENT_DAYS,
+    RR_CONFIRM_DELTA,
+    RR_CONFIRM_REL,
     TEMP_MAX_BASELINE_NIGHTS,
     TEMP_MIN_BASELINE_NIGHTS,
     TEMP_RECENT_NIGHTS,
@@ -204,10 +209,21 @@ def build_trend_snapshot(
         day_hr_v = day_hr.get(d)
         day_hrv_v = day_hrv.get(d)
         day_rr_v = day_rr.get(d)
-        hr_flag = day_hr_v is not None and day_hr_v >= baseline_rest_hr + 6
-        hrv_flag = day_hrv_v is not None and day_hrv_v <= baseline_hrv * 0.85
+        # HR flag requires BOTH absolute and relative bars to clear, so that a
+        # +7 bpm jump from a 50 bpm athlete (which is +14 %) still triggers,
+        # while a +7 bpm jump from a 75 bpm baseline (which is only +9 %) does
+        # not until consistent with another channel.
+        hr_flag = (
+            day_hr_v is not None
+            and day_hr_v >= baseline_rest_hr + HR_CONFIRM_DELTA_BPM
+            and day_hr_v >= baseline_rest_hr * (1.0 + HR_CONFIRM_DELTA_REL)
+        )
+        hrv_flag = day_hrv_v is not None and day_hrv_v <= baseline_hrv * HRV_CONFIRM_REL
         resp_flag = (
-            day_rr_v is not None and baseline_rr is not None and day_rr_v >= baseline_rr * 1.08
+            day_rr_v is not None
+            and baseline_rr is not None
+            and day_rr_v >= baseline_rr * RR_CONFIRM_REL
+            and day_rr_v >= baseline_rr + RR_CONFIRM_DELTA
         )
         if sum([hr_flag, hrv_flag, resp_flag]) >= 2:
             confirmed_days += 1
