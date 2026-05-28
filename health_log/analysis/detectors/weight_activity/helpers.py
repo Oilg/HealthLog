@@ -1,10 +1,14 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+import logging
+from datetime import datetime, timedelta, timezone
 from statistics import median
 from typing import TypeVar
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from health_log.analysis.utils import EventPoint
+
+logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
@@ -21,17 +25,43 @@ def daily_medians(points: list[EventPoint], start: datetime, end: datetime) -> l
     return [median(vals) for vals in by_day.values()]
 
 
-def latest_complete_day_end(now: datetime) -> datetime:
-    """Конец последнего полностью прошедшего дня UTC.
+def latest_complete_day_end(now: datetime, user_timezone: str | None = None) -> datetime:
+    """Конец последнего полностью прошедшего дня в зоне пользователя.
 
     Используется для отсечения незавершённого "сегодня" в детекторах, агрегирующих
-    суточные суммы (шаги). Возвращает полночь сегодняшнего дня UTC, что равно
-    точке, до которой включительно данные считаются полными.
+    суточные суммы (шаги). Возвращает naive UTC-datetime соответствующий полуночи
+    календарного дня в локальной зоне пользователя.
 
-    Известное ограничение: пользователи в восточных таймзонах (UTC+3..+10) могут
-    потерять последние часы предыдущего календарного дня в своей локальной зоне.
+    Например, пользователь в Europe/Moscow (UTC+3) в момент now=10:00 UTC находится
+    в 13:00 локального времени; его сегодняшняя полночь была в 21:00 UTC вчера,
+    что и возвращается.
+
+    При user_timezone = None / "" / "UTC" / невалидной IANA-строке — fallback на
+    UTC-полночь (прежнее поведение).
+
+    Возвращаемое значение — naive UTC datetime, чтобы корректно сравниваться со
+    значениями startDate в БД (там тоже naive UTC).
     """
-    return datetime(now.year, now.month, now.day, 0, 0, 0)
+    # Fallback на UTC, если зона не задана или равна UTC.
+    if not user_timezone or user_timezone.upper() == "UTC":
+        return datetime(now.year, now.month, now.day, 0, 0, 0)
+
+    try:
+        tz = ZoneInfo(user_timezone)
+    except (ZoneInfoNotFoundError, ValueError, OSError):
+        logger.warning(
+            "Невалидная IANA-зона '%s', fallback на UTC-полночь", user_timezone
+        )
+        return datetime(now.year, now.month, now.day, 0, 0, 0)
+
+    # now — naive UTC. Приводим к aware UTC, затем в зону пользователя.
+    now_aware = (
+        now.replace(tzinfo=timezone.utc) if now.tzinfo is None else now.astimezone(timezone.utc)
+    )
+    local_now = now_aware.astimezone(tz)
+    local_midnight = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    utc_midnight = local_midnight.astimezone(timezone.utc)
+    return utc_midnight.replace(tzinfo=None)
 
 
 def daily_totals(

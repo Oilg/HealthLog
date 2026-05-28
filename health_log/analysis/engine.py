@@ -63,6 +63,8 @@ class HealthRiskAnalyzer:
         self._user_sex: str | None = None
         self._user_dob: date | None = None
         self._user_dob_fetched: bool = False
+        self._user_timezone: str | None = None
+        self._user_timezone_fetched: bool = False
         self._records_repo = RecordsRepository(connection)
         self._reports_repo = AnalysisReportsRepository(connection)
 
@@ -113,6 +115,24 @@ class HealthRiskAnalyzer:
         self._user_dob = dob
         self._user_dob_fetched = True
         return self._user_dob
+
+    async def _fetch_user_timezone(self) -> str | None:
+        """Возвращает IANA-имя таймзоны пользователя или None.
+
+        None означает "использовать UTC" (fallback на прежнее поведение). Значение
+        "UTC" в БД также трактуется как None для согласованности с интерфейсом
+        latest_complete_day_end.
+        """
+        if self._user_timezone_fetched:
+            return self._user_timezone
+        query = select(tables.users.c.timezone).where(tables.users.c.id == self._user_id)
+        tz = (await self._connection.execute(query)).scalar_one_or_none()
+        if tz is None or not str(tz).strip() or str(tz).upper() == "UTC":
+            self._user_timezone = None
+        else:
+            self._user_timezone = str(tz)
+        self._user_timezone_fetched = True
+        return self._user_timezone
 
     @staticmethod
     def _compute_age(dob: date | None, now: datetime) -> int | None:
@@ -304,6 +324,7 @@ class HealthRiskAnalyzer:
         walking_hr_rows,
         user_sex: str,
         user_age: int | None,
+        user_timezone: str | None,
         window: TimeWindow,
         now: datetime,
     ) -> list[RiskAssessment]:
@@ -322,6 +343,7 @@ class HealthRiskAnalyzer:
                 window=window,
                 now=now,
                 age=user_age,
+                user_timezone=user_timezone,
             ),
             assess_high_body_fat_risk(
                 fat_rows,
@@ -357,12 +379,14 @@ class HealthRiskAnalyzer:
                 window=window,
                 now=now,
                 age=user_age,
+                user_timezone=user_timezone,
             ),
             assess_insufficient_activity_risk(
                 step_rows,
                 window=window,
                 now=now,
                 age=user_age,
+                user_timezone=user_timezone,
             ),
             assess_cardiometabolic_profile_risk(
                 body_mass_rows,
@@ -377,6 +401,7 @@ class HealthRiskAnalyzer:
                 window=window,
                 now=now,
                 age=user_age,
+                user_timezone=user_timezone,
             ),
             assess_metabolic_syndrome_risk(
                 waist_rows,
@@ -389,6 +414,7 @@ class HealthRiskAnalyzer:
                 window=window,
                 now=now,
                 age=user_age,
+                user_timezone=user_timezone,
             ),
             assess_cardiovascular_obesity_risk(
                 body_mass_rows,
@@ -403,6 +429,7 @@ class HealthRiskAnalyzer:
                 window=window,
                 now=now,
                 age=user_age,
+                user_timezone=user_timezone,
             ),
             assess_fitness_weight_gain_risk(
                 body_mass_rows,
@@ -422,6 +449,7 @@ class HealthRiskAnalyzer:
                 window=window,
                 now=now,
                 age=user_age,
+                user_timezone=user_timezone,
             ),
             assess_body_composition_trend_risk(
                 body_mass_rows,
@@ -482,6 +510,7 @@ class HealthRiskAnalyzer:
         user_sex = await self._fetch_user_sex()
         user_dob = await self._fetch_user_dob()
         user_age = self._compute_age(user_dob, now)
+        user_timezone = await self._fetch_user_timezone()
 
         # Window-bounded: used by window-specific detectors (sleep_apnea, tachycardia, bradycardia).
         heart_rows = await self._fetch_rows(tables.heart_rate, start, end)
@@ -629,6 +658,7 @@ class HealthRiskAnalyzer:
             walking_hr_rows=walking_hr_rows,
             user_sex=user_sex,
             user_age=user_age,
+            user_timezone=user_timezone,
             window=window,
             now=now,
         )

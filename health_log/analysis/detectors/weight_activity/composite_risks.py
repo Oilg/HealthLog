@@ -46,9 +46,10 @@ def assess_cardiometabolic_profile_risk(
     window: TimeWindow,
     now: datetime | None = None,
     age: int | None = None,
+    user_timezone: str | None = None,
 ) -> RiskAssessment:
     now = now or utcnow()
-    eval_end = latest_complete_day_end(now)
+    eval_end = latest_complete_day_end(now, user_timezone)
     cutoff = eval_end - timedelta(days=60)
     inactive_threshold = inactive_threshold_for_age(age)
 
@@ -175,9 +176,10 @@ def assess_metabolic_syndrome_risk(
     window: TimeWindow,
     now: datetime | None = None,
     age: int | None = None,
+    user_timezone: str | None = None,
 ) -> RiskAssessment:
     now = now or utcnow()
-    eval_end = latest_complete_day_end(now)
+    eval_end = latest_complete_day_end(now, user_timezone)
     cutoff = eval_end - timedelta(days=60)
     inactive_threshold = inactive_threshold_for_age(age)
 
@@ -323,9 +325,10 @@ def assess_cardiovascular_obesity_risk(
     window: TimeWindow,
     now: datetime | None = None,
     age: int | None = None,
+    user_timezone: str | None = None,
 ) -> RiskAssessment:
     now = now or utcnow()
-    eval_end = latest_complete_day_end(now)
+    eval_end = latest_complete_day_end(now, user_timezone)
     cutoff = eval_end - timedelta(days=60)
     inactive_threshold = inactive_threshold_for_age(age)
 
@@ -589,9 +592,10 @@ def assess_recovery_obesity_risk(
     window: TimeWindow,
     now: datetime | None = None,
     age: int | None = None,
+    user_timezone: str | None = None,
 ) -> RiskAssessment:
     now = now or utcnow()
-    eval_end = latest_complete_day_end(now)
+    eval_end = latest_complete_day_end(now, user_timezone)
     cutoff = eval_end - timedelta(days=60)
     recent_start = eval_end - timedelta(days=14)
     inactive_threshold = inactive_threshold_for_age(age)

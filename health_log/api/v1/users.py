@@ -8,7 +8,7 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-from health_log.api.v1.auth import _validate_date_of_birth
+from health_log.api.v1.auth import _validate_date_of_birth, _validate_timezone
 from health_log.dependencies import db_connect, get_current_user
 from health_log.repositories.auth import AuthTokenRepository, AuthUser, UsersRepository
 
@@ -25,6 +25,7 @@ class UserResponse(BaseModel):
     is_active: bool
     created_at: datetime
     date_of_birth: date | None = None
+    timezone: str | None = None
 
 
 class UpdateMeRequest(BaseModel):
@@ -34,6 +35,7 @@ class UpdateMeRequest(BaseModel):
     email: str | None = None
     phone: str | None = None
     date_of_birth: date | None = None
+    timezone: str | None = None
 
     @field_validator("first_name", "last_name")
     @classmethod
@@ -49,6 +51,11 @@ class UpdateMeRequest(BaseModel):
     @classmethod
     def validate_dob(cls, value: date | None) -> date | None:
         return _validate_date_of_birth(value)
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_tz(cls, value: str | None) -> str | None:
+        return _validate_timezone(value)
 
 
 def _normalize_email(value: str | None) -> str | None:
@@ -82,6 +89,7 @@ async def me(
         is_active=user.is_active,
         created_at=user.created_at,
         date_of_birth=user.date_of_birth,
+        timezone=user.timezone,
     )
 
 
@@ -96,6 +104,8 @@ async def update_me(
     # Поле date_of_birth подразумевает "установить" семантику: передавать только если есть значение.
     # Пустое значение (None) явно не обнуляет — для очистки нужно отдельное действие в будущем.
     update_dob = "date_of_birth" in payload.model_fields_set and payload.date_of_birth is not None
+    # Аналогично — timezone обновляется только если ключ был явно передан и не пуст.
+    update_tz = "timezone" in payload.model_fields_set and payload.timezone is not None
 
     try:
         user = await users_repo.update_me(
@@ -107,6 +117,8 @@ async def update_me(
             phone=_normalize_phone(payload.phone),
             date_of_birth=payload.date_of_birth if update_dob else None,
             update_date_of_birth=update_dob,
+            timezone=payload.timezone if update_tz else None,
+            update_timezone=update_tz,
         )
     except IntegrityError as exc:
         raise HTTPException(
@@ -123,6 +135,7 @@ async def update_me(
         is_active=user.is_active,
         created_at=user.created_at,
         date_of_birth=user.date_of_birth,
+        timezone=user.timezone,
     )
 
 

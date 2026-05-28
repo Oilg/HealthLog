@@ -519,6 +519,7 @@ def test_health_risk_analyzer_uses_extended_history_for_illness_onset():
     analyzer = HealthRiskAnalyzer(connection=None, user_id=1)  # type: ignore[arg-type]
     analyzer._user_sex = "female"
     analyzer._user_dob_fetched = True
+    analyzer._user_timezone_fetched = True
     call_ranges: list[tuple[str, datetime, datetime]] = []
 
     async def fake_fetch_rows(table, start: datetime, end: datetime):
@@ -554,6 +555,7 @@ def test_health_risk_analyzer_skips_menstrual_signal_for_male() -> None:
     analyzer = HealthRiskAnalyzer(connection=None, user_id=1)  # type: ignore[arg-type]
     analyzer._user_sex = "male"
     analyzer._user_dob_fetched = True
+    analyzer._user_timezone_fetched = True
 
     async def fake_fetch_rows(table, start: datetime, end: datetime):
         return []
@@ -579,6 +581,7 @@ def test_health_risk_analyzer_adds_menstrual_signal_for_female() -> None:
     analyzer = HealthRiskAnalyzer(connection=None, user_id=1)  # type: ignore[arg-type]
     analyzer._user_sex = "female"
     analyzer._user_dob_fetched = True
+    analyzer._user_timezone_fetched = True
 
     period_starts = [
         datetime(2025, 10, 1, 8, 0, 0),
@@ -630,11 +633,13 @@ def test_patch_me_sex_enables_menstrual_forecast(monkeypatch) -> None:
 
     class FakeConnection:
         async def execute(self, query):
-            # Возвращаем разные значения для запросов sex и date_of_birth.
+            # Возвращаем разные значения для запросов sex, date_of_birth и timezone.
             # Простейшая проверка по строковому представлению запроса.
             query_str = str(query).lower()
             value: object | None
             if "date_of_birth" in query_str:
+                value = None
+            elif "timezone" in query_str:
                 value = None
             else:
                 value = state["sex"]

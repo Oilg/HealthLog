@@ -74,6 +74,64 @@ async def send_silent_push(device_token: str) -> bool:
         return False
 
 
+async def send_dob_request_push(device_token: str) -> bool:
+    """Visible push с просьбой указать дату рождения.
+
+    Используется для разовой рассылки существующим пользователям, у которых
+    в БД отсутствует date_of_birth. Без DOB ряд порогов в детекторах падает на
+    дефолт (как для возраста < 60), что снижает точность для пожилых.
+    Возвращает True при успешной доставке APNs, False — при отказе или ошибке.
+    """
+    if not _apns_configured():
+        logger.warning("APNs не настроен — пропуск отправки dob-request push")
+        return False
+
+    try:
+        from aioapns import NotificationRequest, PushType
+
+        client = await _make_client()
+
+        request = NotificationRequest(
+            device_token=device_token,
+            message={
+                "aps": {
+                    "alert": {
+                        "title": "Уточните ваш возраст",
+                        "body": (
+                            "Для точного расчёта рисков здоровья необходим возраст. "
+                            "Укажите его в настройках приложения."
+                        ),
+                    },
+                    "sound": "default",
+                    "badge": 1,
+                },
+                "type": "dob_request",
+                "action": "open_profile",
+            },
+            push_type=PushType.ALERT,
+            priority=10,
+        )
+
+        result = await client.send_notification(request)
+        if result.is_successful:
+            logger.info("DOB-request push отправлен: device=%s", device_token[:8] + "…")
+            return True
+
+        logger.warning(
+            "APNs отклонил dob-request push: %s — %s",
+            device_token[:8] + "…",
+            result.description,
+        )
+        return False
+
+    except ImportError:
+        logger.error("aioapns не установлен.")
+        return False
+    except Exception as exc:
+        logger.exception("Ошибка отправки dob-request push: %s", exc)
+        return False
+
+
 async def send_analysis_ready_push(device_token: str) -> bool:
     """Send a visible push notification to tell the user new analysis results are ready."""
     if not _apns_configured():
