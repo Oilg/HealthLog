@@ -23,6 +23,9 @@ users = sqlalchemy.Table(
     sqlalchemy.Column("last_sync_records_count", sqlalchemy.Integer, nullable=True),
     sqlalchemy.Column("apns_device_token", sqlalchemy.String, nullable=True),
     sqlalchemy.Column(
+        "timezone", sqlalchemy.String, nullable=False, server_default="UTC"
+    ),
+    sqlalchemy.Column(
         "subscription_status",
         sqlalchemy.String,
         nullable=False,

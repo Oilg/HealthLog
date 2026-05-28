@@ -22,6 +22,7 @@ class AuthUser:
     password_hash: str
     is_active: bool
     date_of_birth: date | None = None
+    timezone: str | None = None
 
 
 @dataclass(slots=True)
@@ -35,6 +36,7 @@ class PublicUser:
     is_active: bool
     created_at: datetime
     date_of_birth: date | None = None
+    timezone: str | None = None
 
 
 class UsersRepository:
@@ -51,19 +53,25 @@ class UsersRepository:
         phone: str,
         password_hash: str,
         date_of_birth: date | None = None,
+        timezone: str | None = None,
     ) -> PublicUser:
+        values: dict[str, object] = dict(
+            first_name=first_name,
+            last_name=last_name,
+            sex=sex,
+            email=email,
+            phone=phone,
+            password_hash=password_hash,
+            is_active=True,
+            date_of_birth=date_of_birth,
+        )
+        # Если timezone не задан — позволяем server_default="UTC" подставить значение.
+        if timezone is not None:
+            values["timezone"] = timezone
+
         stmt = (
             pg_insert(tables.users)
-            .values(
-                first_name=first_name,
-                last_name=last_name,
-                sex=sex,
-                email=email,
-                phone=phone,
-                password_hash=password_hash,
-                is_active=True,
-                date_of_birth=date_of_birth,
-            )
+            .values(**values)
             .returning(
                 tables.users.c.id,
                 tables.users.c.first_name,
@@ -74,6 +82,7 @@ class UsersRepository:
                 tables.users.c.is_active,
                 tables.users.c.created_at,
                 tables.users.c.date_of_birth,
+                tables.users.c.timezone,
             )
         )
         row = (await self._connection.execute(stmt)).one()
@@ -87,6 +96,7 @@ class UsersRepository:
             is_active=row.is_active,
             created_at=row.created_at,
             date_of_birth=row.date_of_birth,
+            timezone=row.timezone,
         )
 
     async def _select_auth_user(
@@ -104,6 +114,7 @@ class UsersRepository:
                     tables.users.c.password_hash,
                     tables.users.c.is_active,
                     tables.users.c.date_of_birth,
+                    tables.users.c.timezone,
                 ).where(where_clause)
             )
         ).one_or_none()
@@ -121,6 +132,7 @@ class UsersRepository:
             password_hash=row.password_hash,
             is_active=row.is_active,
             date_of_birth=row.date_of_birth,
+            timezone=row.timezone,
         )
 
     async def get_auth_user_by_email_or_phone(
@@ -160,6 +172,7 @@ class UsersRepository:
                     tables.users.c.is_active,
                     tables.users.c.created_at,
                     tables.users.c.date_of_birth,
+                    tables.users.c.timezone,
                 ).where(tables.users.c.id == user_id)
             )
         ).one_or_none()
@@ -175,6 +188,7 @@ class UsersRepository:
             is_active=row.is_active,
             created_at=row.created_at,
             date_of_birth=row.date_of_birth,
+            timezone=row.timezone,
         )
 
     async def update_me(
@@ -188,6 +202,8 @@ class UsersRepository:
         phone: str | None = None,
         date_of_birth: date | None = None,
         update_date_of_birth: bool = False,
+        timezone: str | None = None,
+        update_timezone: bool = False,
     ) -> PublicUser:
         values: dict[str, object | None] = {}
         if first_name is not None:
@@ -202,6 +218,8 @@ class UsersRepository:
             values["phone"] = phone
         if update_date_of_birth:
             values["date_of_birth"] = date_of_birth
+        if update_timezone and timezone is not None:
+            values["timezone"] = timezone
 
         if values:
             await self._connection.execute(
@@ -233,21 +251,25 @@ class UsersRepository:
         phone: str,
         password_hash: str,
         date_of_birth: date | None = None,
+        timezone: str | None = None,
     ) -> PublicUser:
+        values: dict[str, object | None] = dict(
+            first_name=first_name,
+            last_name=last_name,
+            sex=sex,
+            email=email,
+            phone=phone,
+            password_hash=password_hash,
+            is_active=True,
+            date_of_birth=date_of_birth,
+            updated_at=utcnow(),
+        )
+        if timezone is not None:
+            values["timezone"] = timezone
         await self._connection.execute(
             update(tables.users)
             .where(tables.users.c.id == user_id)
-            .values(
-                first_name=first_name,
-                last_name=last_name,
-                sex=sex,
-                email=email,
-                phone=phone,
-                password_hash=password_hash,
-                is_active=True,
-                date_of_birth=date_of_birth,
-                updated_at=utcnow(),
-            )
+            .values(**values)
         )
         user = await self.get_public_user(user_id)
         if user is None:
@@ -377,6 +399,7 @@ class AuthTokenRepository:
                     tables.users.c.password_hash,
                     tables.users.c.is_active,
                     tables.users.c.date_of_birth,
+                    tables.users.c.timezone,
                 )
                 .select_from(
                     tables.auth_tokens.join(
@@ -407,4 +430,5 @@ class AuthTokenRepository:
             password_hash=row.password_hash,
             is_active=row.is_active,
             date_of_birth=row.date_of_birth,
+            timezone=row.timezone,
         )

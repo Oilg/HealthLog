@@ -118,9 +118,10 @@ def assess_obesity_risk(
     window: TimeWindow,
     now: datetime | None = None,
     age: int | None = None,
+    user_timezone: str | None = None,
 ) -> RiskAssessment:
     now = now or utcnow()
-    eval_end = latest_complete_day_end(now)
+    eval_end = latest_complete_day_end(now, user_timezone)
     cutoff = eval_end - timedelta(days=MIN_WEIGHT_DAYS)
     inactive_threshold = inactive_threshold_for_age(age)
 

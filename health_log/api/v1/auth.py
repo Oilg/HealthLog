@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from typing import Literal, cast
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field, field_validator
@@ -40,6 +41,25 @@ def _validate_date_of_birth(value: date | None) -> date | None:
     return value
 
 
+def _validate_timezone(value: str | None) -> str | None:
+    """Валидирует IANA-имя таймзоны. None / '' / 'UTC' разрешены без проверки.
+
+    Невалидное имя — ValueError (→ HTTP 422 благодаря Pydantic).
+    """
+    if value is None:
+        return None
+    cleaned = value.strip()
+    if not cleaned:
+        return None
+    if cleaned.upper() == "UTC":
+        return "UTC"
+    try:
+        ZoneInfo(cleaned)
+    except (ZoneInfoNotFoundError, ValueError, OSError) as exc:
+        raise ValueError(f"Невалидная IANA-таймзона: {cleaned}") from exc
+    return cleaned
+
+
 class RegisterRequest(BaseModel):
     first_name: str
     last_name: str
@@ -48,6 +68,7 @@ class RegisterRequest(BaseModel):
     phone: str
     password: str = Field(min_length=8, max_length=128)
     date_of_birth: date | None = None
+    timezone: str | None = None
 
     @field_validator("first_name", "last_name")
     @classmethod
@@ -61,6 +82,11 @@ class RegisterRequest(BaseModel):
     @classmethod
     def validate_dob(cls, value: date | None) -> date | None:
         return _validate_date_of_birth(value)
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_tz(cls, value: str | None) -> str | None:
+        return _validate_timezone(value)
 
 
 class LoginRequest(BaseModel):
@@ -82,6 +108,7 @@ class UserResponse(BaseModel):
     is_active: bool
     created_at: datetime
     date_of_birth: date | None = None
+    timezone: str | None = None
 
 
 class TokenResponse(BaseModel):
@@ -114,6 +141,7 @@ def _to_user_response(user: PublicUser) -> UserResponse:
         is_active=user.is_active,
         created_at=user.created_at,
         date_of_birth=user.date_of_birth,
+        timezone=user.timezone,
     )
 
 
@@ -155,6 +183,7 @@ async def register(
     last_name = payload.last_name.strip()
     sex = payload.sex
     date_of_birth = payload.date_of_birth
+    timezone_value = payload.timezone
 
     email_user = await users_repo.get_auth_user_by_email(email, include_inactive=True)
     phone_user = await users_repo.get_auth_user_by_phone(phone, include_inactive=True)
@@ -187,6 +216,7 @@ async def register(
                 phone=phone,
                 password_hash=password_hash,
                 date_of_birth=date_of_birth,
+                timezone=timezone_value,
             )
         else:
             public_user = await users_repo.create_user(
@@ -197,6 +227,7 @@ async def register(
                 phone=phone,
                 password_hash=password_hash,
                 date_of_birth=date_of_birth,
+                timezone=timezone_value,
             )
     except IntegrityError as exc:
         raise HTTPException(
@@ -213,6 +244,7 @@ async def register(
         password_hash=password_hash,
         is_active=public_user.is_active,
         date_of_birth=public_user.date_of_birth,
+        timezone=public_user.timezone,
     )
     tokens = await _issue_tokens(conn, auth_user)
     return AuthResponse(user=_to_user_response(public_user), tokens=tokens)

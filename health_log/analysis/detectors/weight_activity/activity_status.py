@@ -74,10 +74,11 @@ def assess_sedentary_lifestyle_risk(
     window: TimeWindow,
     now: datetime | None = None,
     age: int | None = None,
+    user_timezone: str | None = None,
 ) -> RiskAssessment:
     now = now or utcnow()
-    # Отсекаем незавершённый "сегодня" — берём данные до полуночи UTC текущего дня.
-    eval_end = latest_complete_day_end(now)
+    # Отсекаем незавершённый "сегодня" — берём данные до локальной полуночи пользователя.
+    eval_end = latest_complete_day_end(now, user_timezone)
     cutoff = eval_end - timedelta(days=MIN_ACTIVITY_DAYS)
     step_points = [p for p in to_points(step_rows) if cutoff <= p.timestamp < eval_end]
     exercise_points = [
@@ -174,9 +175,10 @@ def assess_insufficient_activity_risk(
     window: TimeWindow,
     now: datetime | None = None,
     age: int | None = None,
+    user_timezone: str | None = None,
 ) -> RiskAssessment:
     now = now or utcnow()
-    eval_end = latest_complete_day_end(now)
+    eval_end = latest_complete_day_end(now, user_timezone)
     cutoff = eval_end - timedelta(days=MIN_ACTIVITY_DAYS)
     step_points = [p for p in to_points(step_rows) if cutoff <= p.timestamp < eval_end]
 
