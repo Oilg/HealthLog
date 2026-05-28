@@ -2,7 +2,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from health_log.analysis.detectors.illness.constants import RECENT_DAYS
+from health_log.analysis.detectors.illness.constants import (
+    MIN_CONFIRMED_DAYS_FOR_SIGNAL,
+    RECENT_DAYS,
+    SEVERITY_HIGH_MIN,
+    SEVERITY_LOW_MIN,
+    SEVERITY_MEDIUM_MIN,
+    TEMP_STABLE_DELTA_THRESHOLD,
+    TEMP_STABLE_PENALTY,
+)
 from health_log.analysis.detectors.illness.features import TrendSnapshot
 
 
@@ -56,6 +64,18 @@ def calculate_score(snapshot: TrendSnapshot) -> ScoreResult:
             + consistency_component * 0.15,
         )
 
+    # Wrist-temp veto: when Watch 8+ data is available AND skin temperature is
+    # not elevated, an inflammatory process is physiologically unlikely.
+    # Downweight the score so HR/HRV-only signals from sleep deprivation,
+    # alcohol or post-training overreach do not surface as illness alerts.
+    # We deliberately apply this only when we have enough nights to compute a
+    # delta at all (delta is not None) and the delta is below the threshold.
+    if (
+        snapshot.wrist_temp_delta is not None
+        and snapshot.wrist_temp_delta <= TEMP_STABLE_DELTA_THRESHOLD
+    ):
+        score *= TEMP_STABLE_PENALTY
+
     valid_days_component = min(1.0, snapshot.valid_days_count / 63.0)
     hr_density_component = min(1.0, snapshot.total_hr_points / 500.0)
     hrv_density_component = min(1.0, snapshot.total_hrv_points / 180.0)
@@ -67,11 +87,18 @@ def calculate_score(snapshot: TrendSnapshot) -> ScoreResult:
         + 0.2 * sleep_coverage_component
     )
 
-    if score >= 0.7:
+    # Hard gate against transient noise: at least N of the last RECENT_DAYS
+    # must independently flag (>=2 simultaneous channel breaches) before we
+    # report anything but "none". A single bad night or two should not be
+    # surfaced to the user as an illness signal — that has been the dominant
+    # source of false positives in production.
+    if snapshot.confirmed_days < MIN_CONFIRMED_DAYS_FOR_SIGNAL:
+        severity = "none"
+    elif score >= SEVERITY_HIGH_MIN:
         severity = "high"
-    elif score >= 0.4:
+    elif score >= SEVERITY_MEDIUM_MIN:
         severity = "medium"
-    elif score >= 0.20:
+    elif score >= SEVERITY_LOW_MIN:
         severity = "low"
     else:
         severity = "none"
