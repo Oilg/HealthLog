@@ -92,6 +92,24 @@ class TestBuildSummaryWristTemp:
             "Противоречивые фразы не должны появляться одновременно"
         )
 
+    def test_large_negative_delta_is_not_labeled_stable(self):
+        """delta=-0.5 НЕ должна называться «стабильна» — это заметное снижение."""
+        snapshot = _make_snapshot(wrist_temp_delta=-0.5)
+        result = build_summary(snapshot)
+        assert "стабильна" not in result, (
+            "Большое отрицательное отклонение (-0.5) не должно называться «стабильна»"
+        )
+        assert _STABLE_PHRASE in result, (
+            "Но «снижает вероятность» должна присутствовать даже при большом снижении"
+        )
+
+    def test_small_negative_delta_still_labeled_stable(self):
+        """delta=-0.15 в зоне [-0.2, 0.0] — «стабильна» корректно."""
+        snapshot = _make_snapshot(wrist_temp_delta=-0.15)
+        result = build_summary(snapshot)
+        assert "стабильна" in result
+        assert _STABLE_PHRASE in result
+
 
 # ---------------------------------------------------------------------------
 # Bug 2 — assess_illness_onset_risk: summary пустой при severity == 'none'
@@ -280,11 +298,12 @@ class TestWristTempBoundary:
             f"При delta=0.1 ожидали else-ветку (score=0.12), получили {result.score:.6f}"
         )
 
-    def test_delta_011_scoring_uses_temp_branch(self):
-        """При delta == 0.11 scoring идёт по ветке с temp_component (> 0.1).
+    def test_delta_011_scoring_does_not_invert_at_boundary(self):
+        """delta == 0.11: temp-ветка входит, но max() защищает от инверсии.
 
-        temp_component = (0.11 - 0.1) / 0.5 = 0.02.
-        score = 0.02*0.30 + 0*0.25 + 0*0.25 + 0*0.10 + 0.8*0.10 = 0.006 + 0.08 = 0.086.
+        score_base = 0.8 * 0.15 = 0.12
+        score_with_temp = 0.02*0.30 + 0.8*0.10 = 0.086
+        max(0.12, 0.086) = 0.12
         """
         snapshot = _make_snapshot(
             wrist_temp_delta=0.11,
@@ -295,9 +314,45 @@ class TestWristTempBoundary:
             baseline_hrv=45.0,
         )
         result = calculate_score(snapshot)
-        expected = 0.02 * 0.30 + 0.8 * 0.10
+        expected = 0.8 * 0.15  # score_base wins via max()
         assert abs(result.score - expected) < 1e-9, (
-            f"При delta=0.11 ожидали temp-ветку (score={expected:.6f}), получили {result.score:.6f}"
+            f"При delta=0.11 max() защищает от инверсии, ожидали {expected:.6f}, получили {result.score:.6f}"
+        )
+
+    def test_neutral_zone_includes_no_impact_phrase(self):
+        """Нейтральная зона (0.0, 0.1]: сообщение явно указывает, что не влияет на оценку."""
+        snapshot = _make_snapshot(wrist_temp_delta=0.05)
+        result = build_summary(snapshot)
+        assert "не влияет на оценку" in result, (
+            "Нейтральная зона должна сообщать, что температура не влияет на оценку"
+        )
+
+    def test_score_monotone_at_temp_threshold(self):
+        """Пересечение порога 0.1°C не снижает скор (фикс инверсии).
+
+        При одинаковых HR/HRV: score(delta=0.099) <= score(delta=0.101).
+        """
+        base_snapshot = _make_snapshot(
+            wrist_temp_delta=0.099,
+            confirmed_days=4,
+            recent_rest_hr=75.0,
+            baseline_rest_hr=65.0,
+            recent_hrv=35.0,
+            baseline_hrv=45.0,
+        )
+        above_snapshot = _make_snapshot(
+            wrist_temp_delta=0.101,
+            confirmed_days=4,
+            recent_rest_hr=75.0,
+            baseline_rest_hr=65.0,
+            recent_hrv=35.0,
+            baseline_hrv=45.0,
+        )
+        score_below = calculate_score(base_snapshot).score
+        score_above = calculate_score(above_snapshot).score
+        assert score_above >= score_below - 1e-9, (
+            f"Пересечение порога 0.1°C не должно снижать скор: "
+            f"score(0.099)={score_below:.6f} > score(0.101)={score_above:.6f}"
         )
 
     def test_delta_01_with_hr_signal_uses_nottemp_weights(self):
