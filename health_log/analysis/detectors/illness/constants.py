@@ -41,6 +41,23 @@ SEVERITY_HIGH_MIN = 0.75
 TEMP_STABLE_DELTA_THRESHOLD = 0.0
 TEMP_STABLE_PENALTY = 0.6
 
+# Порог активации wrist-temp компонента: delta > TEMP_ELEVATED_DELTA_THRESHOLD
+# активирует temp_component в скоре и ветку «повышена» в сообщении.
+# Зона (TEMP_STABLE_DELTA_THRESHOLD, TEMP_ELEVATED_DELTA_THRESHOLD] = (0.0, 0.1]
+# считается нейтральной: temp_component не активируется, veto не применяется,
+# сообщение явно указывает «не влияет на оценку».
+TEMP_ELEVATED_DELTA_THRESHOLD = 0.1
+# Диапазон нормировки temp_component: +TEMP_ELEVATED_DELTA_THRESHOLD °C → 0,
+# +(TEMP_ELEVATED_DELTA_THRESHOLD + TEMP_ELEVATED_SCORE_RANGE) °C → 1.0 (насыщение).
+TEMP_ELEVATED_SCORE_RANGE = 0.5
+
+# Граница между «стабильна» и «заметно ниже» в сообщениях.
+# Scoring НЕ использует эту границу: TEMP_STABLE_PENALTY применяется
+# одинаково для всего диапазона delta <= TEMP_STABLE_DELTA_THRESHOLD.
+# delta == TEMP_NOTABLY_LOW_THRESHOLD включается в ветку «заметно ниже»
+# (строгое <=), потому что -0.2°C уже семантически — заметное отклонение.
+TEMP_NOTABLY_LOW_THRESHOLD = -0.2
+
 # Normalization denominators for HR/HRV score components.
 # HR: +15 bpm over baseline saturates the component at 1.0.
 # HRV: -35 % relative drop saturates the component at 1.0.

@@ -1,4 +1,10 @@
-from health_log.analysis.detectors.illness.constants import MIN_VALID_DAYS_FOR_SIGNAL, RECENT_DAYS
+from health_log.analysis.detectors.illness.constants import (
+    MIN_VALID_DAYS_FOR_SIGNAL,
+    RECENT_DAYS,
+    TEMP_ELEVATED_DELTA_THRESHOLD,
+    TEMP_NOTABLY_LOW_THRESHOLD,
+    TEMP_STABLE_DELTA_THRESHOLD,
+)
 from health_log.analysis.detectors.illness.features import TrendSnapshot
 
 
@@ -16,15 +22,29 @@ def build_summary(snapshot: TrendSnapshot) -> str:
         f"относительно baseline выше на {hr_delta:.1f} уд/мин; "
         f"HRV ниже относительного baseline; подтверждающих дней из {RECENT_DAYS}: {snapshot.confirmed_days}."
     )
-    if snapshot.wrist_temp_delta is not None and snapshot.wrist_temp_delta > 0.1:
+    if (
+        snapshot.wrist_temp_delta is not None
+        and snapshot.wrist_temp_delta > TEMP_ELEVATED_DELTA_THRESHOLD
+    ):
         base += f" Температура запястья во сне выше личного baseline на {snapshot.wrist_temp_delta:+.2f}°C."
         base += " Это может соответствовать изменению физиологии на фоне простуды или воспаления."
-    elif snapshot.wrist_temp_delta is not None and snapshot.wrist_temp_delta < -0.2:
+    elif (
+        snapshot.wrist_temp_delta is not None
+        and snapshot.wrist_temp_delta <= TEMP_NOTABLY_LOW_THRESHOLD
+    ):
+        # «Заметно ниже» и «стабильна» дают одинаковый эффект для оценки
+        # (scoring применяет TEMP_STABLE_PENALTY ко всему диапазону delta <= 0).
+        # Слово «аналогично» явно сигнализирует пользователю об эквивалентности
+        # эффекта, чтобы фраза не имплицировала более сильное подавление.
         base += (
             f" Температура запястья во сне заметно ниже личного baseline "
-            f"({snapshot.wrist_temp_delta:+.2f}°C) — это снижает вероятность воспалительного процесса."
+            f"({snapshot.wrist_temp_delta:+.2f}°C) — аналогично снижает вероятность "
+            f"воспалительного процесса."
         )
-    elif snapshot.wrist_temp_delta is not None and snapshot.wrist_temp_delta <= 0.0:
+    elif (
+        snapshot.wrist_temp_delta is not None
+        and snapshot.wrist_temp_delta <= TEMP_STABLE_DELTA_THRESHOLD
+    ):
         base += (
             f" Температура запястья во сне стабильна "
             f"({snapshot.wrist_temp_delta:+.2f}°C к baseline) — это снижает вероятность воспалительного процесса."
@@ -49,7 +69,6 @@ def build_recommendation() -> str:
 def build_data_quality_disclaimer() -> str:
     return (
         "Сигнал отражает изменение физиологических метрик относительно вашей обычной динамики. "
-        "Он может быть искажен недосыпом, алкоголем, стрессом, текущей инфекцией, сменой часового пояса "
-        "или неполными данными. Сигнал может быть искажен текущей болезнью, стрессом, алкоголем, "
-        "сменой часового пояса или нерегулярным сном."
+        "Он может быть искажен недосыпом, алкоголем, стрессом, текущей инфекцией, сменой часового пояса, "
+        "нерегулярным сном или неполными данными."
     )
