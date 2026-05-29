@@ -194,9 +194,7 @@ class TestCompositeRisksAgeDependent:
     def test_cardiometabolic_inactive_threshold_default(self) -> None:
         # 14 дней по 4800 шагов, без возраста → 4800 < 5000 → компонент гиподинамии активен
         rows = _step_rows([4800.0] * 14)
-        result = assess_cardiometabolic_profile_risk(
-            step_rows=rows, window=_WINDOW, now=_NOW
-        )
+        result = assess_cardiometabolic_profile_risk(step_rows=rows, window=_WINDOW, now=_NOW)
         assert "inactivity" in result.supporting_metrics["components_used"]
         assert result.supporting_metrics["inactive_threshold"] == STEP_INACTIVE_DEFAULT
 
@@ -209,15 +207,19 @@ class TestCompositeRisksAgeDependent:
         assert result.supporting_metrics["inactive_threshold"] == STEP_INACTIVE_ELDERLY
 
     def test_metabolic_syndrome_inactivity_criterion_senior(self) -> None:
-        # 14 дней по 3500 шагов + ИМТ 32 (ожирение), age=65 → порог 4000, 3500 < 4000
-        # → критерий "низкая активность" сработал. ИМТ→второй критерий. 2 критерия → low.
+        # 14 дней по 3500 шагов + ИМТ 32 (ожирение) + талия 96 см (abdominal), age=65
+        # → порог гиподинамии 4000, 3500 < 4000 → low_activity=True (supporting factor, не критерий).
+        # ИМТ → критерий "ожирение", талия → критерий "абдоминальное ожирение".
+        # 2 критерия → low severity, inactive_threshold присутствует в supporting_metrics.
         from datetime import timedelta as td
 
         end = latest_complete_day_end(_NOW)
         bmi_rows = [(end - td(days=i), 32.0) for i in range(1, 5)]
+        waist_rows = [(end - td(days=i), 96.0) for i in range(1, 5)]
         step_rows = _step_rows([3500.0] * 14)
         result = assess_metabolic_syndrome_risk(
             bmi_rows=bmi_rows,
+            waist_rows=waist_rows,
             step_rows=step_rows,
             window=_WINDOW,
             now=_NOW,
@@ -225,6 +227,7 @@ class TestCompositeRisksAgeDependent:
         )
         assert result.supporting_metrics["inactive_threshold"] == STEP_INACTIVE_SENIOR
         assert result.supporting_metrics["criteria_count"] >= 2
+        assert result.supporting_metrics["low_activity"] is True
 
     def test_metabolic_syndrome_inactivity_not_triggered_for_elderly(self) -> None:
         # Та же 3500 шагов, но age=80 → порог 3000, 3500 > 3000 → "низкая активность" НЕ срабатывает

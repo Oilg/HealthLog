@@ -211,13 +211,13 @@ def assess_metabolic_syndrome_risk(
             met_criteria.append(f"повышенное АД ({sbp_val:.0f}/{dbp_val:.0f} мм рт.ст.)")
 
     steps_val: float | None = None
+    low_activity = False
     if step_points:
         daily_steps = daily_step_totals(step_points, cutoff, eval_end, exclude_zero=True)
         if daily_steps:
             steps_val = median(daily_steps)
             if steps_val < inactive_threshold:
-                criteria_count += 1
-                met_criteria.append(f"низкая активность ({steps_val:.0f} шагов/день)")
+                low_activity = True
 
     mass_kg_val: float | None = median([p.value for p in mass_points]) if mass_points else None
     bmi_val_meta: float | None
@@ -267,15 +267,23 @@ def assess_metabolic_syndrome_risk(
     labs_note = (
         ""
         if (has_abnormal_glucose or has_abnormal_lipids)
-        else " Оценка предварительная — данные анализов отсутствуют."
+        else " Оценка предварительная — отсутствуют лабораторные данные о глюкозе и липидах."
     )
     confidence = round(min(1.0, criteria_count / 5.0), 3)
+    if low_activity:
+        # Физическая активность не входит в критерии IDF/NCEP ATP III,
+        # но низкая активность увеличивает уверенность в оценке.
+        confidence = round(min(1.0, confidence + 0.1), 3)
+
+    supporting_factors: list[str] = []
+    if low_activity:
+        supporting_factors.append(f"низкая активность ({steps_val:.0f} шагов/день)")
 
     recs = build_weight_activity_recommendations(
         {
             "weight_issue": "ожирение" in str(met_criteria),
             "metabolic_risk": True,
-            "low_activity": "активность" in str(met_criteria),
+            "low_activity": low_activity,
             "persistent_weight_gain": True,
         }
     )
@@ -290,20 +298,23 @@ def assess_metabolic_syndrome_risk(
             "Метаболический синдром — сочетание факторов, значительно повышающих риск диабета 2 типа "
             "и сердечно-сосудистых заболеваний." + labs_note
         ),
-        summary=f"Подозрение на метаболический синдром: {criteria_count} из 5+ критериев. "
+        summary=f"Подозрение на метаболический синдром: {criteria_count} из 5+ критериев (IDF/NCEP ATP III). "
         + "; ".join(met_criteria)
+        + ("" if not supporting_factors else f". Дополнительно: {'; '.join(supporting_factors)}")
         + ".",
         recommendation="Обратись к терапевту или эндокринологу. Проверь глюкозу, липиды и давление.",
         clinical_safety_note=CLINICAL_SAFETY_NOTE,
         supporting_metrics={
             "criteria_count": criteria_count,
             "criteria_met": met_criteria,
+            "supporting_factors": supporting_factors,
             "bmi": round(bmi_val_meta, 1) if bmi_val_meta is not None else None,
             "mass_kg": round(mass_kg_val, 1) if mass_kg_val is not None else None,
             "waist_cm": round(waist_cm_val, 0) if waist_cm_val is not None else None,
             "sbp": round(sbp_val, 0) if sbp_val is not None else None,
             "dbp": round(dbp_val, 0) if dbp_val is not None else None,
             "steps_per_day": round(steps_val, 0) if steps_val is not None else None,
+            "low_activity": low_activity,
             "inactive_threshold": inactive_threshold,
         },
         lifestyle_recommendations=recs,

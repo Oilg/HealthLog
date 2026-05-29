@@ -328,15 +328,18 @@ class TestMetabolicSyndromeRisk:
         assert result.severity == "unknown"
 
     def test_single_criterion_returns_none(self):
-        steps = [(_ts(i), 3000.0) for i in range(15)]
-        result = assess_metabolic_syndrome_risk(step_rows=steps, window=_WINDOW, now=_NOW)
+        # Шаги больше не считаются клиническим критерием МС (IDF/NCEP ATP III).
+        # Только талия — 1 критерий → ниже порога сигнала → "none".
+        waist = [(_ts(i), 96.0) for i in range(5)]
+        result = assess_metabolic_syndrome_risk(waist_rows=waist, sex="male", window=_WINDOW, now=_NOW)
         assert result.severity == "none"
 
     def test_two_criteria_returns_low(self):
+        # Талия + АД = 2 настоящих клинических критерия → low.
         waist = [(_ts(i), 96.0) for i in range(5)]
-        steps = [(_ts(i), 3000.0) for i in range(15)]
+        sbp = [(_ts(i * 3), 135.0) for i in range(5)]
         result = assess_metabolic_syndrome_risk(
-            waist_rows=waist, step_rows=steps, sex="male", window=_WINDOW, now=_NOW
+            waist_rows=waist, sbp_rows=sbp, sex="male", window=_WINDOW, now=_NOW
         )
         assert result.severity in {"low", "medium", "high"}
 
@@ -369,9 +372,11 @@ class TestMetabolicSyndromeRisk:
             assert "предварительная" in result.interpretation.lower()
 
     def test_supporting_metrics_includes_numeric_values(self):
+        # Талия (1 критерий) + масса 92 кг при росте 1.75 м → BMI=30.1 (ожирение, 2-й критерий).
+        # Шаги остаются supporting factor (не критерий), но добавляют low_activity в метрики.
         waist = [(_ts(i), 96.0) for i in range(5)]
         steps = [(_ts(i), 3000.0) for i in range(15)]
-        mass = [(_ts(i * 5), 90.0) for i in range(5)]
+        mass = [(_ts(i * 5), 92.0) for i in range(5)]  # BMI≈30.1 → obesity criterion
         result = assess_metabolic_syndrome_risk(
             waist_rows=waist,
             step_rows=steps,

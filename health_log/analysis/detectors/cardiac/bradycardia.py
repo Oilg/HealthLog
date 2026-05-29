@@ -39,17 +39,13 @@ def _fallback_rest_points(heart: list[EventPoint]) -> list[EventPoint]:
 
 
 def _build_bradycardia_episodes(rest_points: list[EventPoint]) -> list[dict]:
-    low_points = [
-        p
-        for p in sorted(rest_points, key=lambda p: p.timestamp)
-        if p.value < _BRADYCARDIA_THRESHOLD
-    ]
-    if not low_points:
+    sorted_points = sorted(rest_points, key=lambda p: p.timestamp)
+    if not sorted_points:
         return []
 
     clusters: list[list[EventPoint]] = []
-    cur: list[EventPoint] = [low_points[0]]
-    for p in low_points[1:]:
+    cur: list[EventPoint] = [sorted_points[0]]
+    for p in sorted_points[1:]:
         gap = (p.timestamp - cur[-1].timestamp).total_seconds()
         if gap <= _EPISODE_MAX_GAP_SEC:
             cur.append(p)
@@ -64,6 +60,10 @@ def _build_bradycardia_episodes(rest_points: list[EventPoint]) -> list[dict]:
             continue
         duration = (cl[-1].timestamp - cl[0].timestamp).total_seconds()
         if duration < _EPISODE_MIN_DURATION_SEC:
+            continue
+        cluster_median = median(p.value for p in cl)
+        low_fraction = sum(1 for p in cl if p.value < _BRADYCARDIA_THRESHOLD) / len(cl)
+        if cluster_median >= _BRADYCARDIA_THRESHOLD or low_fraction < 0.7:
             continue
         min_hr = min(p.value for p in cl)
         episodes.append({"min_hr": min_hr, "point_count": len(cl), "duration_sec": duration})

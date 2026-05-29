@@ -31,24 +31,30 @@ class TestVo2MaxDecline:
 
     def test_5_pct_decline_returns_none(self):
         """5% is within Apple Watch measurement noise (~10-15%) — should not flag."""
-        rows = [(_ts(i * 15 + 5), 42.0) for i in range(5)] + [(_ts(0), 39.8)]  # ~5.2%
+        # Baseline: 3 points at 42.0. Recent 3: all ~39.8 (5.2% below baseline).
+        rows = [(_ts(i * 15 + 10), 42.0) for i in range(3)] + [(_ts(i * 5), 39.8) for i in range(3)]
         result = assess_vo2max_decline_risk(rows, window=_WINDOW, now=_NOW)
         assert result.severity == "none"
 
     def test_8_pct_decline_returns_low(self):
-        """8% is above noise floor — should be flagged as low risk."""
-        rows = [(_ts(i * 15 + 5), 42.0) for i in range(5)] + [(_ts(0), 38.6)]  # ~8.1%
+        """8% is above noise floor — should be flagged as low risk.
+        recent_val = median(last 3): all 3 recent points must reflect the decline.
+        """
+        # Baseline: 3 points at 42.0. Recent 3: all 38.6 (~8.1% decline).
+        rows = [(_ts(i * 15 + 10), 42.0) for i in range(3)] + [(_ts(i * 5), 38.6) for i in range(3)]
         result = assess_vo2max_decline_risk(rows, window=_WINDOW, now=_NOW)
         assert result.severity in {"low", "medium"}
         assert result.score > 0
 
     def test_10_pct_decline_returns_medium(self):
-        rows = [(_ts(i * 15 + 5), 42.0) for i in range(5)] + [(_ts(0), 37.8)]
+        # Baseline: 3 at 42.0. Recent 3: all 37.8 (~10% decline).
+        rows = [(_ts(i * 15 + 10), 42.0) for i in range(3)] + [(_ts(i * 5), 37.8) for i in range(3)]
         result = assess_vo2max_decline_risk(rows, window=_WINDOW, now=_NOW)
         assert result.severity in {"medium", "high"}
 
     def test_15_pct_decline_returns_high(self):
-        rows = [(_ts(i * 15 + 5), 42.0) for i in range(5)] + [(_ts(0), 35.0)]
+        # Baseline: 3 at 42.0. Recent 3: all 35.0 (~16.7% decline).
+        rows = [(_ts(i * 15 + 10), 42.0) for i in range(3)] + [(_ts(i * 5), 35.0) for i in range(3)]
         result = assess_vo2max_decline_risk(rows, window=_WINDOW, now=_NOW)
         assert result.severity == "high"
 

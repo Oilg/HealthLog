@@ -43,7 +43,7 @@ def _rest_like_daytime_points(
     outside = [p for p in heart if not _in_sleep(p.timestamp, segments)]
     if not outside:
         return []
-    thr = _percentile_20_threshold([p.value for p in heart])
+    thr = _percentile_20_threshold([p.value for p in heart if p.value <= 120])
     if thr is None:
         return []
     candidates = [p for p in outside if p.value <= thr]
@@ -135,7 +135,7 @@ def _build_episodes(
         peak_hr = max(p.value for p in ep)
         med_hr = float(median([p.value for p in ep]))
         delta = med_hr - rest_baseline_hr
-        if delta < 15 or peak_hr < 105:
+        if delta < 15:
             continue
         episodes.append(
             {

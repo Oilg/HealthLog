@@ -47,6 +47,29 @@ def assess_atrial_fibrillation_risk(
     avg_burden = sum(burden_values) / len(burden_values) if burden_values else 0.0
     max_burden = max(burden_values) if burden_values else 0.0
 
+    if has_burden and avg_burden < 0.5 and ecg_afib_count == 0 and events_30d == 0:
+        has_burden = False
+        if not has_events:
+            return RiskAssessment(
+                condition="atrial_fibrillation_risk",
+                window=window,
+                score=0.0,
+                confidence=0.0,
+                severity="none",
+                interpretation="Значения AFib burden ниже порога значимости (< 0.5%), подтверждающих событий нет.",
+                summary="Признаков фибрилляции предсердий не выявлено по текущим данным.",
+                recommendation="Для оценки риска ФП необходима ЭКГ или наличие значимого AFib burden из Apple Watch.",
+                clinical_safety_note=CLINICAL_SAFETY_NOTE,
+                supporting_metrics={
+                    "afib_burden_records": len(burden_values),
+                    "avg_burden_pct": round(avg_burden, 2),
+                    "max_burden_pct": round(max_burden, 2),
+                    "irregular_events_total": 0,
+                    "irregular_events_30d": 0,
+                    "ecg_afib_count": 0,
+                },
+            )
+
     if has_burden:
         if avg_burden > 5.0:
             base_score, severity = 0.85, "high"

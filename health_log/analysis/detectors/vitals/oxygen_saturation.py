@@ -63,8 +63,15 @@ def assess_low_oxygen_saturation_risk(
         )
 
     count_below_94 = sum(1 for p in points if p.value < 94)
-    count_below_92 = sum(1 for p in points if p.value < 92)
-    count_below_90 = sum(1 for p in points if p.value < 90)
+    # При наличии ночных сегментов считаем критичные пороги только по ночным точкам,
+    # чтобы исключить дневные артефакты (движение, тёмный цвет кожи и Apple Watch).
+    if segments:
+        night_points = [p for p in points if _in_sleep(p.timestamp, segments)]
+        count_below_92 = sum(1 for p in night_points if p.value < 92)
+        count_below_90 = sum(1 for p in night_points if p.value < 90)
+    else:
+        count_below_92 = sum(1 for p in points if p.value < 92)
+        count_below_90 = sum(1 for p in points if p.value < 90)
     min_spo2 = min(p.value for p in points)
     med_spo2 = median([p.value for p in points])
 
@@ -128,7 +135,9 @@ def assess_low_oxygen_saturation_risk(
         severity=severity,
         interpretation=(
             "Это не диагноз; снижение SpO2 требует клинической оценки. "
-            "При хроническом снижении возможны заболевания лёгких, апноэ или другие состояния."
+            "При хроническом снижении возможны заболевания лёгких, апноэ или другие состояния. "
+            "Обрати внимание: Apple Watch может систематически занижать SpO2 у людей с тёмным цветом кожи "
+            "из-за особенностей оптического датчика — единичные низкие значения могут быть артефактом."
         ),
         summary=summary,
         recommendation=(

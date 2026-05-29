@@ -76,8 +76,54 @@ def assess_hypertension_risk(
     if n_measurements < _MIN_MEASUREMENTS or _distinct_days(sbp) < _MIN_DISTINCT_DAYS:
         return _insufficient_bp("hypertension_risk", window, n_measurements)
 
+    # TODO: avg_sbp вычисляется как простое среднее всех измерений.
+    # Один стрессовый день с многократными измерениями перевешивает спокойные дни.
+    # Данные EventPoint содержат timestamp, но группировка по дневным медианам
+    # не реализована: _days_with_condition использует медианы внутри, однако
+    # avg_sbp/avg_dbp здесь — простое среднее. Для корректного взвешивания
+    # следует заменить на среднее дневных медиан аналогично логике в _days_with_condition.
     avg_sbp = sum(p.value for p in sbp) / len(sbp)
     avg_dbp = sum(p.value for p in dbp) / len(dbp) if dbp else 0.0
+
+    if avg_sbp >= 180 or avg_dbp >= 120:
+        severity = "high"
+        score_base = 0.95
+        sbp_thr, dbp_thr = 180.0, 120.0
+        confirmed_days_crisis = _days_with_condition(sbp, dbp, sbp_thr, dbp_thr, above=True)
+        if confirmed_days_crisis >= 1:
+            score = round(min(1.0, score_base + confirmed_days_crisis * 0.02), 3)
+            confidence = round(
+                min(1.0, n_measurements / 20.0) * 0.7
+                + min(1.0, confirmed_days_crisis / 5.0) * 0.3,
+                3,
+            )
+            return RiskAssessment(
+                condition="hypertension_risk",
+                window=window,
+                score=score,
+                confidence=confidence,
+                severity=severity,
+                interpretation=(
+                    "АД ≥ 180/120 мм рт.ст. соответствует критерию гипертонического криза "
+                    "по классификации AHA/ESC. Это не диагноз, но требует немедленной оценки."
+                ),
+                summary=(
+                    f"Гипертонический криз: среднее АД {avg_sbp:.0f}/{avg_dbp:.0f} мм рт.ст., "
+                    f"подтверждено в {confirmed_days_crisis} дня(ей)."
+                ),
+                recommendation=(
+                    "НЕМЕДЛЕННО вызови скорую помощь (103 / 112). "
+                    "Не жди планового визита к врачу — гипертонический криз требует "
+                    "экстренной медицинской помощи."
+                ),
+                clinical_safety_note=CLINICAL_SAFETY_NOTE,
+                supporting_metrics={
+                    "avg_sbp": round(avg_sbp, 1),
+                    "avg_dbp": round(avg_dbp, 1),
+                    "measurements": n_measurements,
+                    "confirmed_days": confirmed_days_crisis,
+                },
+            )
 
     if avg_sbp >= 160 or avg_dbp >= 100:
         severity = "high"
@@ -181,6 +227,13 @@ def assess_hypotension_risk(
     avg_hr = sum(p.value for p in hr_points) / len(hr_points) if hr_points else None
 
     days_sbp_below_90 = _days_with_condition(sbp, [], 90.0, None, above=False)
+
+    # TODO: high_hr_concurrent использует avg_hr за весь период наблюдения,
+    # а не только по дням с низким АД. Хроническая фоновая тахикардия + случайное
+    # снижение АД может давать ложный «шоковый паттерн». Для корректной оценки
+    # нужно вычислять среднее ЧСС только по дням, где медианное SBP < 90 мм рт.ст.,
+    # однако hr_points и sbp имеют разные источники и группировка по пересечению дней
+    # требует дополнительной логики. До реализации — снижаем уверенность на 15%.
     high_hr_concurrent = avg_hr is not None and avg_hr > 90
 
     if avg_sbp < 90 and days_sbp_below_90 >= 2 and high_hr_concurrent:
@@ -209,6 +262,10 @@ def assess_hypotension_risk(
     confidence = round(
         min(1.0, n_measurements / 20.0) * 0.8 + (0.2 if days_sbp_below_90 >= 2 else 0.0), 3
     )
+    if high_hr_concurrent:
+        # Снижаем уверенность на 15%: avg_hr не синхронизирован с днями низкого АД,
+        # возможен ложный «шоковый паттерн» при хронической фоновой тахикардии.
+        confidence = round(confidence * 0.85, 3)
 
     summary = f"Подозрение на сниженное АД: среднее {avg_sbp:.0f} мм рт.ст."
     if high_hr_concurrent:

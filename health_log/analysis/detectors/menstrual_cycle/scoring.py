@@ -29,7 +29,8 @@ def menstrual_confidence(model: MenstrualModel) -> float:
     cycle_count = len(model.cycle_lengths)
     cycle_count_component = min(1.0, cycle_count / 6.0)
     variability_component = max(0.0, 1.0 - model.variability / 12.0)
-    recency_component = 1.0 if model.last_cycle_start_age_days <= 45 else 0.5
+    _RECENCY_THRESHOLD_DAYS = 60
+    recency_component = 1.0 if model.last_cycle_start_age_days <= _RECENCY_THRESHOLD_DAYS else 0.5
     return min(
         1.0,
         0.45 * cycle_count_component + 0.4 * variability_component + 0.15 * recency_component,

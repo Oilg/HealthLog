@@ -40,8 +40,8 @@ def assess_vo2max_decline_risk(
             supporting_metrics={"measurements_count": len(points)},
         )
 
-    baseline_val = median([p.value for p in points])
-    recent_val = points[-1].value
+    baseline_val = median([p.value for p in points[:max(1, len(points) // 2)]])
+    recent_val = median([p.value for p in points[-3:]])
     decline_pct = (baseline_val - recent_val) / baseline_val * 100 if baseline_val > 0 else 0.0
 
     if decline_pct >= 15:

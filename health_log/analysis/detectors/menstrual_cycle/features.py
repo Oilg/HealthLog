@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+import statistics
 from statistics import median
 from typing import Iterable
 
@@ -44,7 +45,7 @@ def build_period_starts(flow_days: list[date]) -> list[date]:
     starts = [flow_days[0]]
     prev = flow_days[0]
     for day in flow_days[1:]:
-        if (day - prev).days > 2:
+        if (day - prev).days > 3:
             starts.append(day)
         prev = day
     return starts
@@ -77,7 +78,7 @@ def prediction_band_from_variability(variability: int) -> int:
 
 def cycle_variability_last_six(lengths: list[int]) -> int:
     recent = lengths[-6:]
-    return max(recent) - min(recent)
+    return int(round(statistics.stdev(recent))) if len(recent) >= 2 else 0
 
 
 @dataclass(slots=True)
