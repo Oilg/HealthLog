@@ -506,6 +506,65 @@ def test_illness_onset_risk_stable_wrist_temp_downweights_score():
     assert "стабильна" in with_stable_temp.summary
 
 
+def test_illness_onset_risk_penalty_path_severity_none_has_empty_summary():
+    """Path B: TEMP_STABLE_PENALTY × score < SEVERITY_LOW_MIN при confirmed_days >= 3.
+
+    Граничный HR/HRV-сигнал: 3 из 5 последних дней подтверждены (confirmed_days=3,
+    проходит hard gate), но base score ≈ 0.46 → после штрафа ×0.6 ≈ 0.28 < 0.30.
+    Регрессия: при severity=="none" через штрафной путь summary == "" по дизайну.
+
+    Расчёт:
+      recent_rest_hr  = median([60,60,67,67,67]) = 67 → hr_component  = 7/15  ≈ 0.467
+      recent_hrv      = median([60,60,47,47,47]) = 47 → hrv_component = 13/60/0.35 ≈ 0.619
+      consistency     = 3/5 = 0.60
+      base_score      = 0.40×0.467 + 0.30×0.619 + 0.15×0.60 ≈ 0.463
+      penalized_score = 0.463 × 0.6 ≈ 0.278 < SEVERITY_LOW_MIN=0.30 → "none"
+    """
+    now = datetime(2026, 2, 26, 10, 0, 0)
+    heart = []
+    hrv = []
+    sleep = []
+
+    for day_idx in range(70):
+        day = now - timedelta(days=69 - day_idx)
+        sleep_start = day.replace(hour=23, minute=0, second=0, microsecond=0) - timedelta(days=1)
+        sleep_end = day.replace(hour=7, minute=0, second=0, microsecond=0)
+        sleep.append((sleep_start, sleep_end))
+        for m in range(24):
+            ts = day + timedelta(minutes=20 * m)
+            # Last 3 of 5 recent days: HR=67 (+7 bpm, +11.7%), HRV=47 (78.3% of baseline 60).
+            # HR_CONFIRM_DELTA_BPM=7: 67 >= 60+7 ✓; HR_CONFIRM_DELTA_REL=0.10: 67/60=1.117 ✓
+            # HRV_CONFIRM_REL=0.80: 47/60=0.783 <= 0.80 ✓ → both flags fire → confirmed_days=3
+            if day_idx >= 67:
+                heart.append((ts, 67.0))
+                hrv.append((ts, 47.0))
+            else:
+                heart.append((ts, 60.0))
+                hrv.append((ts, 60.0))
+
+    # Wrist temp at exactly baseline every night (delta = 0.0) → TEMP_STABLE_PENALTY fires
+    baseline_temp = 36.2
+    wrist_temp = [
+        (now - timedelta(days=13 - i, hours=3), baseline_temp)
+        for i in range(14)
+    ]
+
+    assessment = assess_illness_onset_risk(
+        heart,
+        hrv,
+        respiratory_rows=None,
+        sleep_rows=sleep,
+        wrist_temp_rows=wrist_temp,
+        window=TimeWindow.WEEK,
+    )
+
+    assert assessment.severity == "none", (
+        f"Ожидали severity='none' (Path B), получили '{assessment.severity}' "
+        f"(score={assessment.score:.4f})"
+    )
+    assert assessment.summary == ""
+
+
 def test_illness_onset_risk_ignores_two_day_overreaching_spike():
     """Посттренировочный overreaching: 2 ночи подряд +8 уд/мин и −22 % HRV,
     остальные 3 дня окна — норма. Это типичный спортивный паттерн (тяжёлая
