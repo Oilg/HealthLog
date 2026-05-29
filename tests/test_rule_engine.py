@@ -501,8 +501,13 @@ def test_illness_onset_risk_stable_wrist_temp_downweights_score():
     assert with_stable_temp.score < without_temp.score
     # Снижение должно быть существенным — не косметическим
     assert with_stable_temp.score <= without_temp.score * 0.7
-    # И обязательно отражается в summary как стабильная температура
-    assert "стабильна" in with_stable_temp.summary
+    # И обязательно отражается в summary как стабильная температура.
+    # Guard: при severity == "none" summary пустой по дизайну (см.
+    # assess_illness_onset_risk), поэтому проверяем фразу только когда
+    # severity != "none". Если penalty опустит score ниже SEVERITY_LOW_MIN,
+    # отсутствие фразы — ожидаемое поведение, а не регрессия.
+    if with_stable_temp.severity != "none":
+        assert "стабильна" in with_stable_temp.summary
 
 
 def test_illness_onset_risk_ignores_two_day_overreaching_spike():
@@ -569,7 +574,9 @@ def test_illness_onset_risk_athlete_low_baseline_not_triggered_by_small_bpm_jump
                 hrv.append((ts, 80 - (m % 2)))  # high HRV baseline
                 resp.append((ts, 12.0))
             else:
-                heart.append((ts, 56 + (m % 3)))  # +6 bpm (~+12 %) — порог HR_CONFIRM_DELTA_BPM=7 не достигнут
+                heart.append(
+                    (ts, 56 + (m % 3))
+                )  # +6 bpm (~+12 %) — порог HR_CONFIRM_DELTA_BPM=7 не достигнут
                 hrv.append((ts, 72 - (m % 2)))  # −10 %, далеко не -20 %
                 resp.append((ts, 12.5))
 

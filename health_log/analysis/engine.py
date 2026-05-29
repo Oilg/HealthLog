@@ -1027,10 +1027,13 @@ def _build_data_points(condition: str, metrics: dict) -> list[dict]:
 
 def serialize_assessment(assessment: RiskAssessment) -> dict[str, object]:
     condition_label = _CONDITION_LABELS.get(assessment.condition, assessment.condition)
+    # Условно добавляем recommendation, чтобы избежать trailing space, когда
+    # recommendation == "" (severity == "none" по правилам illness detector).
+    rec_part = f" {assessment.recommendation}" if assessment.recommendation else ""
     final_message = (
         f"{condition_label}. Уровень риска: {assessment.score:.2f}, "
         f"достоверность сигнала: {assessment.confidence:.2f}. "
-        f"{assessment.interpretation} {assessment.recommendation}"
+        f"{assessment.interpretation}{rec_part}"
     )
 
     result: dict[str, object] = {
