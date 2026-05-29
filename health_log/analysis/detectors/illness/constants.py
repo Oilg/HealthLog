@@ -40,3 +40,9 @@ SEVERITY_HIGH_MIN = 0.75
 # inflammatory process is physiologically unlikely; downweight the score.
 TEMP_STABLE_DELTA_THRESHOLD = 0.0
 TEMP_STABLE_PENALTY = 0.6
+
+# Normalization denominators for HR/HRV score components.
+# HR: +15 bpm over baseline saturates the component at 1.0.
+# HRV: -35 % relative drop saturates the component at 1.0.
+HR_SCORE_NORM = 15.0
+HRV_SCORE_REL_NORM = 0.35

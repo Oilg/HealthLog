@@ -502,12 +502,11 @@ def test_illness_onset_risk_stable_wrist_temp_downweights_score():
     # Снижение должно быть существенным — не косметическим
     assert with_stable_temp.score <= without_temp.score * 0.7
     # И обязательно отражается в summary как стабильная температура.
-    # Guard: при severity == "none" summary пустой по дизайну (см.
-    # assess_illness_onset_risk), поэтому проверяем фразу только когда
-    # severity != "none". Если penalty опустит score ниже SEVERITY_LOW_MIN,
-    # отсутствие фразы — ожидаемое поведение, а не регрессия.
     if with_stable_temp.severity != "none":
         assert "стабильна" in with_stable_temp.summary
+    else:
+        # При severity == "none" summary пустой по дизайну.
+        assert with_stable_temp.summary == ""
 
 
 def test_illness_onset_risk_ignores_two_day_overreaching_spike():
