@@ -199,60 +199,95 @@ class TestAssessIllnessOnsetSeverityNone:
 
 
 # ---------------------------------------------------------------------------
-# Bug 3 — порог wrist_temp_delta унифицирован между scoring.py и messages.py
+# Граничные случаи wrist_temp_delta — согласованность messages.py и scoring.py
 # ---------------------------------------------------------------------------
 
 
-class TestCalculateScoreWristTempThreshold:
-    """При wrist_temp_delta == 0.1 messages.py говорит "температура повышена".
+_COLD_PHRASE = "Это может соответствовать изменению физиологии на фоне простуды или воспаления."
+_ELEVATED_PHRASE = "Температура запястья во сне выше"
+_NEUTRAL_PHRASE = "незначительно отклоняется от baseline"
 
-    До фикса scoring использовал строгий `> 0.1` и игнорировал temp_component
-    ровно на этом значении, поэтому пользователь видел противоречивые сигналы:
-    summary упоминал повышенную температуру, а score её не учитывал.
+
+class TestWristTempBoundary:
+    """Тесты граничных значений wrist_temp_delta для messages.py и scoring.py.
+
+    Оба модуля используют строгий порог > 0.1°C для ветки «повышена».
+    Зона (0.0, 0.1) — нейтральная (scorer не применяет ни temp_component,
+    ни TEMP_STABLE_PENALTY; messages не делает утверждений о риске).
     """
 
-    def test_threshold_boundary_activates_temp_branch(self):
-        """При delta == 0.1 scoring должен пойти по ветке с temp_component.
+    def test_delta_01_is_stable_not_elevated(self):
+        """delta == 0.1: ветка «stable», НЕ содержит фразу о простуде и «выше baseline»."""
+        snapshot = _make_snapshot(wrist_temp_delta=0.1)
+        result = build_summary(snapshot)
+        assert _COLD_PHRASE not in result, "При delta=0.1 фраза о простуде не должна появляться"
+        assert _ELEVATED_PHRASE not in result, (
+            "При delta=0.1 фраза 'выше baseline' не должна появляться"
+        )
 
-        Проверяем активацию ветки косвенно через сравнение с явно-низкой
-        дельтой 0.05: при 0.05 работает veto (score *= TEMP_STABLE_PENALTY),
-        при 0.1 — нет (порог veto = TEMP_STABLE_DELTA_THRESHOLD = 0.0, проверим
-        ниже отдельно). Главное: формула на границе 0.1 должна перейти в
-        temp-ветку, где temp_component = (0.1 - 0.1) / 0.5 = 0.0 ровно.
+    def test_delta_005_neutral_phrase(self):
+        """delta == 0.05: нейтральная фраза (не «снижает вероятность», не фраза о простуде)."""
+        snapshot = _make_snapshot(wrist_temp_delta=0.05)
+        result = build_summary(snapshot)
+        assert _COLD_PHRASE not in result, "При delta=0.05 фраза о простуде не должна появляться"
+        assert _STABLE_PHRASE not in result, (
+            "При delta=0.05 фраза 'снижает вероятность' не должна появляться"
+        )
+        assert _NEUTRAL_PHRASE in result, "При delta=0.05 ожидается нейтральная фраза об отклонении"
 
-        Сравнивать со значением 0.11 нельзя (там temp_component уже > 0),
-        поэтому фиксируем точный расчёт.
+    def test_delta_minus_01_contains_stable_phrase(self):
+        """delta == -0.1: содержит «снижает вероятность воспалительного процесса»."""
+        snapshot = _make_snapshot(wrist_temp_delta=-0.1)
+        result = build_summary(snapshot)
+        assert _STABLE_PHRASE in result, (
+            "При delta=-0.1 ожидается фраза о снижении вероятности воспаления"
+        )
+        assert _COLD_PHRASE not in result
+
+    def test_delta_015_contains_cold_phrase(self):
+        """delta == 0.15: содержит фразу о простуде (ветка «повышенная»)."""
+        snapshot = _make_snapshot(wrist_temp_delta=0.15)
+        result = build_summary(snapshot)
+        assert _ELEVATED_PHRASE in result, "При delta=0.15 ожидается фраза 'выше baseline'"
+        assert _COLD_PHRASE in result, "При delta=0.15 ожидается фраза о простуде"
+
+    def test_delta_01_scoring_uses_no_temp_branch(self):
+        """При delta == 0.1 scoring идёт по ветке без temp_component.
+
+        scoring.py использует строгий > 0.1, поэтому delta=0.1 попадает в
+        else-ветку. score = consistency_component * 0.15 = (4/5) * 0.15 = 0.12.
+        Veto не применяется (delta > TEMP_STABLE_DELTA_THRESHOLD = 0.0).
         """
-        # HR и HRV дельты равны 0 — score должен быть равен confirmed/RECENT*0.10
-        # в temp-ветке (без veto, т.к. delta > TEMP_STABLE_DELTA_THRESHOLD = 0.0).
         snapshot = _make_snapshot(
             wrist_temp_delta=0.1,
             confirmed_days=4,
-            recent_rest_hr=65.0,  # = baseline → hr_component=0
+            recent_rest_hr=65.0,
             baseline_rest_hr=65.0,
-            recent_hrv=45.0,  # = baseline_hrv → hrv_component=0
+            recent_hrv=45.0,
             baseline_hrv=45.0,
         )
         result = calculate_score(snapshot)
-        # confirmed_days=4, RECENT_DAYS=5 → consistency_component=0.8.
-        # В temp-ветке (>= 0.1): 0*0.30 + 0*0.25 + 0*0.25 + 0*0.10 + 0.8*0.10 = 0.08.
-        # В ветке без temp (> 0.1, старое): 0*0.40 + 0*0.30 + 0*0.15 + 0.8*0.15 = 0.12.
-        # Это значение ОДНОЗНАЧНО определяет какая ветка сработала на границе.
-        assert abs(result.score - 0.08) < 1e-9, (
-            f"При delta=0.1 ожидали активацию temp-ветки (score=0.08), "
-            f"получили {result.score:.6f} — порог в scoring всё ещё > 0.1"
+        # else-ветка: 0*0.40 + 0*0.30 + 0*0.15 + 0.8*0.15 = 0.12
+        assert abs(result.score - 0.12) < 1e-9, (
+            f"При delta=0.1 ожидали else-ветку (score=0.12), получили {result.score:.6f}"
         )
 
-    def test_threshold_boundary_score_matches_messages_phrase(self):
-        """Согласованность: на границе 0.1 messages и scoring обрабатывают сигнал одинаково.
+    def test_delta_011_scoring_uses_temp_branch(self):
+        """При delta == 0.11 scoring идёт по ветке с temp_component (> 0.1).
 
-        messages.build_summary использует `>= 0.1` ("температура повышена"),
-        scoring после фикса тоже использует `>= 0.1` (включает temp_component).
-        Этот тест фиксирует контракт.
+        temp_component = (0.11 - 0.1) / 0.5 = 0.02.
+        score = 0.02*0.30 + 0*0.25 + 0*0.25 + 0*0.10 + 0.8*0.10 = 0.006 + 0.08 = 0.086.
         """
-        snapshot = _make_snapshot(wrist_temp_delta=0.1)
-        summary = build_summary(snapshot)
-        # messages.py: при delta >= 0.1 в summary упоминается повышение температуры
-        assert "Температура запястья во сне выше" in summary
-        # scoring.py: temp_component активен, фраза о стабильной температуре отсутствует
-        assert "стабильна" not in summary
+        snapshot = _make_snapshot(
+            wrist_temp_delta=0.11,
+            confirmed_days=4,
+            recent_rest_hr=65.0,
+            baseline_rest_hr=65.0,
+            recent_hrv=45.0,
+            baseline_hrv=45.0,
+        )
+        result = calculate_score(snapshot)
+        expected = 0.02 * 0.30 + 0.8 * 0.10
+        assert abs(result.score - expected) < 1e-9, (
+            f"При delta=0.11 ожидали temp-ветку (score={expected:.6f}), получили {result.score:.6f}"
+        )
