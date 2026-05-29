@@ -109,6 +109,11 @@ async def _send_daily_10am_pushes() -> None:
         try:
             tz = ZoneInfo(row.timezone)
         except ZoneInfoNotFoundError:
+            logger.warning(
+                "Невалидная IANA-зона '%s' у user_id=%d, fallback на UTC",
+                row.timezone,
+                row.id,
+            )
             tz = ZoneInfo("UTC")
 
         local_now = utc_now.astimezone(tz)
