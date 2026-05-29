@@ -501,12 +501,9 @@ def test_illness_onset_risk_stable_wrist_temp_downweights_score():
     assert with_stable_temp.score < without_temp.score
     # Снижение должно быть существенным — не косметическим
     assert with_stable_temp.score <= without_temp.score * 0.7
-    # И обязательно отражается в summary как стабильная температура.
-    if with_stable_temp.severity != "none":
-        assert "стабильна" in with_stable_temp.summary
-    else:
-        # При severity == "none" summary пустой по дизайну.
-        assert with_stable_temp.summary == ""
+    # Для этой фикстуры penalty даёт score ≈ 0.43 (≥ SEVERITY_LOW_MIN=0.30),
+    # поэтому severity всегда "low" и стабильная температура отражается в summary.
+    assert "стабильна" in with_stable_temp.summary
 
 
 def test_illness_onset_risk_ignores_two_day_overreaching_spike():
@@ -547,6 +544,8 @@ def test_illness_onset_risk_ignores_two_day_overreaching_spike():
     )
 
     assert assessment.severity == "none"
+    # При severity=="none" summary должен быть пустой строкой по дизайну детектора.
+    assert assessment.summary == ""
 
 
 def test_illness_onset_risk_athlete_low_baseline_not_triggered_by_small_bpm_jump():
