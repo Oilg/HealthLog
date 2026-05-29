@@ -41,10 +41,11 @@ def calculate_score(snapshot: TrendSnapshot) -> ScoreResult:
         )
     consistency_component = snapshot.confirmed_days / RECENT_DAYS
 
-    if snapshot.wrist_temp_delta is not None and snapshot.wrist_temp_delta > 0.1:
+    if snapshot.wrist_temp_delta is not None and snapshot.wrist_temp_delta >= 0.1:
         # Температура запястья — самый прямой физиологический сигнал.
-        # Активируем только при реальном повышении (>0.1°C): иначе Watch 8+
-        # пользователь получил бы сниженные веса HR/HRV без компенсации от temp.
+        # Активируем при повышении ≥0.1°C (включительно): порог согласован
+        # с messages.py, где при том же значении формируется фраза
+        # "температура запястья выше baseline".
         # +0.1°C → начало вклада; +0.6°C → максимальный компонент.
         temp_component = _clamp01((snapshot.wrist_temp_delta - 0.1) / 0.5)
         score = min(

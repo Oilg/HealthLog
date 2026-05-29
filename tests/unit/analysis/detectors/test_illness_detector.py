@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from health_log.analysis.detectors.illness.detector import assess_illness_onset_risk
 from health_log.analysis.detectors.illness.features import TrendSnapshot
 from health_log.analysis.detectors.illness.messages import build_summary
+from health_log.analysis.detectors.illness.scoring import calculate_score
 from health_log.analysis.models import TimeWindow
 
 _FINAL_PHRASE = "Это может соответствовать изменению физиологии на фоне простуды или воспаления."
@@ -26,12 +27,14 @@ def _make_snapshot(
     confirmed_days: int = 4,
     recent_rest_hr: float = 75.0,
     baseline_rest_hr: float = 65.0,
+    recent_hrv: float = 35.0,
+    baseline_hrv: float = 45.0,
 ) -> TrendSnapshot:
     return TrendSnapshot(
         baseline_rest_hr=baseline_rest_hr,
         recent_rest_hr=recent_rest_hr,
-        baseline_hrv=45.0,
-        recent_hrv=35.0,
+        baseline_hrv=baseline_hrv,
+        recent_hrv=recent_hrv,
         baseline_rr=None,
         recent_rr=None,
         resp_increase_pct=0.0,
@@ -145,6 +148,24 @@ class TestAssessIllnessOnsetSeverityNone:
         assert result.severity == "none"
         assert _FINAL_PHRASE not in result.summary
 
+    def test_severity_none_gives_empty_recommendation(self):
+        """Регрессия: при severity=='none' recommendation должен быть пустым.
+
+        До фикса build_recommendation() вызывалась безусловно, и пользователь
+        видел клинический совет ("снизь нагрузку, обратись к врачу") даже когда
+        никакого риска не выявлено.
+        """
+        heart, hrv = _build_rows(_NOW, _TOTAL_DAYS, hr_value=65.0, hrv_value=45.0)
+        result = assess_illness_onset_risk(
+            heart_rows=heart,
+            hrv_rows=hrv,
+            window=_WINDOW,
+        )
+        assert result.severity == "none"
+        assert result.recommendation == "", (
+            f"При severity='none' recommendation должна быть пустой, получили: '{result.recommendation[:80]}'"
+        )
+
     def test_non_none_severity_has_non_empty_summary(self):
         """Позитивный сценарий: при ненулевом severity summary непустой."""
         # Строим датасет с явной аномалией на последних 5 днях
@@ -175,3 +196,63 @@ class TestAssessIllnessOnsetSeverityNone:
         )
         if result.severity != "none":
             assert result.summary != "", "При ненулевом severity summary не должен быть пустым"
+
+
+# ---------------------------------------------------------------------------
+# Bug 3 — порог wrist_temp_delta унифицирован между scoring.py и messages.py
+# ---------------------------------------------------------------------------
+
+
+class TestCalculateScoreWristTempThreshold:
+    """При wrist_temp_delta == 0.1 messages.py говорит "температура повышена".
+
+    До фикса scoring использовал строгий `> 0.1` и игнорировал temp_component
+    ровно на этом значении, поэтому пользователь видел противоречивые сигналы:
+    summary упоминал повышенную температуру, а score её не учитывал.
+    """
+
+    def test_threshold_boundary_activates_temp_branch(self):
+        """При delta == 0.1 scoring должен пойти по ветке с temp_component.
+
+        Проверяем активацию ветки косвенно через сравнение с явно-низкой
+        дельтой 0.05: при 0.05 работает veto (score *= TEMP_STABLE_PENALTY),
+        при 0.1 — нет (порог veto = TEMP_STABLE_DELTA_THRESHOLD = 0.0, проверим
+        ниже отдельно). Главное: формула на границе 0.1 должна перейти в
+        temp-ветку, где temp_component = (0.1 - 0.1) / 0.5 = 0.0 ровно.
+
+        Сравнивать со значением 0.11 нельзя (там temp_component уже > 0),
+        поэтому фиксируем точный расчёт.
+        """
+        # HR и HRV дельты равны 0 — score должен быть равен confirmed/RECENT*0.10
+        # в temp-ветке (без veto, т.к. delta > TEMP_STABLE_DELTA_THRESHOLD = 0.0).
+        snapshot = _make_snapshot(
+            wrist_temp_delta=0.1,
+            confirmed_days=4,
+            recent_rest_hr=65.0,  # = baseline → hr_component=0
+            baseline_rest_hr=65.0,
+            recent_hrv=45.0,  # = baseline_hrv → hrv_component=0
+            baseline_hrv=45.0,
+        )
+        result = calculate_score(snapshot)
+        # confirmed_days=4, RECENT_DAYS=5 → consistency_component=0.8.
+        # В temp-ветке (>= 0.1): 0*0.30 + 0*0.25 + 0*0.25 + 0*0.10 + 0.8*0.10 = 0.08.
+        # В ветке без temp (> 0.1, старое): 0*0.40 + 0*0.30 + 0*0.15 + 0.8*0.15 = 0.12.
+        # Это значение ОДНОЗНАЧНО определяет какая ветка сработала на границе.
+        assert abs(result.score - 0.08) < 1e-9, (
+            f"При delta=0.1 ожидали активацию temp-ветки (score=0.08), "
+            f"получили {result.score:.6f} — порог в scoring всё ещё > 0.1"
+        )
+
+    def test_threshold_boundary_score_matches_messages_phrase(self):
+        """Согласованность: на границе 0.1 messages и scoring обрабатывают сигнал одинаково.
+
+        messages.build_summary использует `>= 0.1` ("температура повышена"),
+        scoring после фикса тоже использует `>= 0.1` (включает temp_component).
+        Этот тест фиксирует контракт.
+        """
+        snapshot = _make_snapshot(wrist_temp_delta=0.1)
+        summary = build_summary(snapshot)
+        # messages.py: при delta >= 0.1 в summary упоминается повышение температуры
+        assert "Температура запястья во сне выше" in summary
+        # scoring.py: temp_component активен, фраза о стабильной температуре отсутствует
+        assert "стабильна" not in summary

@@ -66,9 +66,13 @@ async def _check_and_send_pushes() -> None:
 async def _send_daily_10am_pushes() -> None:
     """Send a silent push to every active user at 10:00 AM in their local timezone.
 
-    Uses each user's timezone from sync_schedules if configured; falls back to UTC.
+    Timezone resolution order:
+        1) users.sync_schedules.timezone (if any schedule exists),
+        2) users.timezone (per-user profile timezone),
+        3) "UTC" as a last-resort fallback.
+
     This runs independently of custom sync_schedules so users without a configured
-    schedule still receive a daily sync trigger.
+    schedule still receive a daily sync trigger at 10:00 local time.
     """
     utc_now = datetime.now(timezone.utc)
 
@@ -89,7 +93,9 @@ async def _send_daily_10am_pushes() -> None:
                 select(
                     tables.users.c.id,
                     tables.users.c.apns_device_token,
-                    func.coalesce(tz_subq.c.timezone, "UTC").label("timezone"),
+                    func.coalesce(
+                        tz_subq.c.timezone, tables.users.c.timezone, "UTC"
+                    ).label("timezone"),
                 )
                 .outerjoin(tz_subq, tables.users.c.id == tz_subq.c.user_id)
                 .where(
@@ -103,6 +109,11 @@ async def _send_daily_10am_pushes() -> None:
         try:
             tz = ZoneInfo(row.timezone)
         except ZoneInfoNotFoundError:
+            logger.warning(
+                "Невалидная IANA-зона '%s' у user_id=%d, fallback на UTC",
+                row.timezone,
+                row.id,
+            )
             tz = ZoneInfo("UTC")
 
         local_now = utc_now.astimezone(tz)

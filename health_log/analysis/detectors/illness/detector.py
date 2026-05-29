@@ -76,6 +76,7 @@ def assess_illness_onset_risk(
         f"{build_score_confidence_interpretation(score_result.score, score_result.confidence)}"
     )
     summary = build_summary(snapshot) if score_result.severity != "none" else ""
+    recommendation = build_recommendation() if score_result.severity != "none" else ""
     return RiskAssessment(
         condition="illness_onset_risk",
         window=window,
@@ -84,6 +85,6 @@ def assess_illness_onset_risk(
         severity=score_result.severity,
         interpretation=interpretation,
         summary=summary,
-        recommendation=build_recommendation(),
+        recommendation=recommendation,
         clinical_safety_note=CLINICAL_SAFETY_NOTE,
     )
