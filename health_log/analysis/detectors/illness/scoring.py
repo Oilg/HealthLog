@@ -43,13 +43,25 @@ def calculate_score(snapshot: TrendSnapshot) -> ScoreResult:
         )
     consistency_component = snapshot.confirmed_days / RECENT_DAYS
 
+    # Base score (без учёта температуры) считаем всегда. Это защищает от
+    # инверсии скора при пересечении порога 0.1°C: temp-веса понижают вес
+    # HR/HRV, и при малом temp_component score_with_temp может оказаться
+    # ниже score_base. Берём max() — пользователь с реальным HR/HRV-сигналом
+    # не должен терять severity только из-за того, что температура чуть выше 0.1°C.
+    score_base = min(
+        1.0,
+        hr_component * 0.40
+        + hrv_component * 0.30
+        + resp_component * 0.15
+        + consistency_component * 0.15,
+    )
     if snapshot.wrist_temp_delta is not None and snapshot.wrist_temp_delta > 0.1:
         # Температура запястья — самый прямой физиологический сигнал.
         # Активируем только при строгом превышении (>0.1°C): порог согласован
         # с messages.py, где та же граница отделяет «повышена» от нейтральной зоны.
         # +0.1°C → начало вклада; +0.6°C → максимальный компонент.
         temp_component = _clamp01((snapshot.wrist_temp_delta - 0.1) / 0.5)
-        score = min(
+        score_with_temp = min(
             1.0,
             temp_component * 0.30
             + hr_component * 0.25
@@ -57,14 +69,9 @@ def calculate_score(snapshot: TrendSnapshot) -> ScoreResult:
             + resp_component * 0.10
             + consistency_component * 0.10,
         )
+        score = max(score_base, score_with_temp)
     else:
-        score = min(
-            1.0,
-            hr_component * 0.40
-            + hrv_component * 0.30
-            + resp_component * 0.15
-            + consistency_component * 0.15,
-        )
+        score = score_base
 
     # Wrist-temp veto: when Watch 8+ data is available AND skin temperature is
     # not elevated, an inflammatory process is physiologically unlikely.

@@ -19,6 +19,11 @@ def build_summary(snapshot: TrendSnapshot) -> str:
     if snapshot.wrist_temp_delta is not None and snapshot.wrist_temp_delta > 0.1:
         base += f" Температура запястья во сне выше личного baseline на {snapshot.wrist_temp_delta:+.2f}°C."
         base += " Это может соответствовать изменению физиологии на фоне простуды или воспаления."
+    elif snapshot.wrist_temp_delta is not None and snapshot.wrist_temp_delta < -0.2:
+        base += (
+            f" Температура запястья во сне заметно ниже личного baseline "
+            f"({snapshot.wrist_temp_delta:+.2f}°C) — это снижает вероятность воспалительного процесса."
+        )
     elif snapshot.wrist_temp_delta is not None and snapshot.wrist_temp_delta <= 0.0:
         base += (
             f" Температура запястья во сне стабильна "
@@ -27,7 +32,7 @@ def build_summary(snapshot: TrendSnapshot) -> str:
     elif snapshot.wrist_temp_delta is not None:
         base += (
             f" Температура запястья во сне незначительно отклоняется от baseline "
-            f"({snapshot.wrist_temp_delta:+.2f}°C)."
+            f"({snapshot.wrist_temp_delta:+.2f}°C) и не влияет на оценку."
         )
     else:
         base += " Это может соответствовать изменению физиологии на фоне простуды или воспаления."
