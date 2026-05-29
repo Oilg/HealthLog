@@ -503,6 +503,16 @@ def test_illness_onset_risk_stable_wrist_temp_downweights_score():
     assert with_stable_temp.score <= without_temp.score * 0.7
     # Для этой фикстуры penalty даёт score ≈ 0.43 (≥ SEVERITY_LOW_MIN=0.30),
     # поэтому severity всегда "low" и стабильная температура отражается в summary.
+    # delta ≈ -0.1°C попадает в ветку (TEMP_NOTABLY_LOW_THRESHOLD, 0.0] → «стабильна».
+    # Если TEMP_NOTABLY_LOW_THRESHOLD сдвинется выше -0.1, тест намеренно упадёт —
+    # это сигнал обновить фикстуру или формулировку, а не сам assert.
+    from health_log.analysis.detectors.illness.constants import TEMP_NOTABLY_LOW_THRESHOLD
+
+    assert -0.1 > TEMP_NOTABLY_LOW_THRESHOLD, (
+        "Фикстура с delta ≈ -0.1°C вышла за пределы зоны «стабильна» — "
+        "обнови тест: либо подбери delta строго в (TEMP_NOTABLY_LOW_THRESHOLD, 0.0], "
+        "либо смени ожидаемое слово в summary"
+    )
     assert "стабильна" in with_stable_temp.summary
 
 

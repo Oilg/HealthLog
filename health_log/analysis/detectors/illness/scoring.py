@@ -10,6 +10,8 @@ from health_log.analysis.detectors.illness.constants import (
     SEVERITY_HIGH_MIN,
     SEVERITY_LOW_MIN,
     SEVERITY_MEDIUM_MIN,
+    TEMP_ELEVATED_DELTA_THRESHOLD,
+    TEMP_ELEVATED_SCORE_RANGE,
     TEMP_STABLE_DELTA_THRESHOLD,
     TEMP_STABLE_PENALTY,
 )
@@ -55,12 +57,20 @@ def calculate_score(snapshot: TrendSnapshot) -> ScoreResult:
         + resp_component * 0.15
         + consistency_component * 0.15,
     )
-    if snapshot.wrist_temp_delta is not None and snapshot.wrist_temp_delta > 0.1:
+    if (
+        snapshot.wrist_temp_delta is not None
+        and snapshot.wrist_temp_delta > TEMP_ELEVATED_DELTA_THRESHOLD
+    ):
         # Температура запястья — самый прямой физиологический сигнал.
-        # Активируем только при строгом превышении (>0.1°C): порог согласован
-        # с messages.py, где та же граница отделяет «повышена» от нейтральной зоны.
-        # +0.1°C → начало вклада; +0.6°C → максимальный компонент.
-        temp_component = _clamp01((snapshot.wrist_temp_delta - 0.1) / 0.5)
+        # Активируем только при строгом превышении (>TEMP_ELEVATED_DELTA_THRESHOLD):
+        # порог согласован с messages.py, где та же граница отделяет «повышена»
+        # от нейтральной зоны.
+        # +TEMP_ELEVATED_DELTA_THRESHOLD °C → начало вклада;
+        # +(TEMP_ELEVATED_DELTA_THRESHOLD + TEMP_ELEVATED_SCORE_RANGE) °C → максимальный компонент.
+        temp_component = _clamp01(
+            (snapshot.wrist_temp_delta - TEMP_ELEVATED_DELTA_THRESHOLD)
+            / TEMP_ELEVATED_SCORE_RANGE
+        )
         score_with_temp = min(
             1.0,
             temp_component * 0.30

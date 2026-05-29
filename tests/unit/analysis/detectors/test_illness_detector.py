@@ -298,6 +298,57 @@ class TestWristTempBoundary:
             f"При delta=0.1 ожидали else-ветку (score=0.12), получили {result.score:.6f}"
         )
 
+    def test_temp_branch_boosts_score_when_hr_hrv_weak(self):
+        """Когда HR/HRV сигнал слабый (=0), но delta большой — temp-ветка должна
+        реально увеличить score выше score_base.
+
+        Без этого теста ветка `> TEMP_ELEVATED_DELTA_THRESHOLD` могла бы быть
+        полностью сломана (например, если бы её случайно удалили), а тест
+        test_delta_011_scoring_does_not_invert_at_boundary всё равно бы проходил,
+        потому что max() возвращает score_base.
+
+        hr_component=0, hrv_component=0, delta=0.6:
+          score_with_temp = 1.0*0.30 + 0*0.25 + 0*0.25 + 0*0.10 + 0.8*0.10 = 0.38
+          score_base      = 0*0.40  + 0*0.30 + 0*0.15 + 0.8*0.15           = 0.12
+          max(0.12, 0.38) = 0.38  →  temp-ветка реально победила
+        """
+        snapshot = _make_snapshot(
+            wrist_temp_delta=0.6,
+            confirmed_days=4,
+            recent_rest_hr=65.0,
+            baseline_rest_hr=65.0,
+            recent_hrv=45.0,
+            baseline_hrv=45.0,
+        )
+        result = calculate_score(snapshot)
+        expected_with_temp = 1.0 * 0.30 + 0.8 * 0.10  # = 0.38
+        expected_base = 0.8 * 0.15  # = 0.12
+        assert result.score > expected_base + 1e-6, (
+            f"При delta=0.6 и нулевом HR/HRV score должен превышать score_base "
+            f"({expected_base:.6f}), получили {result.score:.6f} — это значит, что "
+            f"temp-ветка не активировалась"
+        )
+        assert abs(result.score - expected_with_temp) < 1e-9, (
+            f"При delta=0.6 ожидали score_with_temp={expected_with_temp:.6f}, "
+            f"получили {result.score:.6f}"
+        )
+
+    def test_delta_minus_02_is_notably_low(self):
+        """Граничное delta == -0.2 включается в ветку «заметно ниже» (строгое <=).
+
+        -0.2°C — уже семантически заметное отклонение, поэтому граница
+        делается включающей. Регрессия на TEMP_NOTABLY_LOW_THRESHOLD.
+        """
+        snapshot = _make_snapshot(wrist_temp_delta=-0.2)
+        result = build_summary(snapshot)
+        assert "заметно ниже" in result, (
+            "При delta=-0.2 ожидается ветка «заметно ниже» (граница включающая)"
+        )
+        assert "стабильна" not in result, (
+            "При delta=-0.2 ветка «стабильна» НЕ должна срабатывать"
+        )
+        assert _STABLE_PHRASE in result
+
     def test_delta_011_scoring_does_not_invert_at_boundary(self):
         """delta == 0.11: temp-ветка входит, но max() защищает от инверсии.
 
