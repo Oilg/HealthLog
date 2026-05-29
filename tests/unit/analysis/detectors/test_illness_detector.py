@@ -217,12 +217,19 @@ class TestWristTempBoundary:
     """
 
     def test_delta_01_is_stable_not_elevated(self):
-        """delta == 0.1: ветка «stable», НЕ содержит фразу о простуде и «выше baseline»."""
+        """delta == 0.1: нейтральная зона. НЕ содержит фразу о простуде и «выше baseline»,
+        зато содержит нейтральную фразу об отклонении от baseline."""
         snapshot = _make_snapshot(wrist_temp_delta=0.1)
         result = build_summary(snapshot)
         assert _COLD_PHRASE not in result, "При delta=0.1 фраза о простуде не должна появляться"
         assert _ELEVATED_PHRASE not in result, (
             "При delta=0.1 фраза 'выше baseline' не должна появляться"
+        )
+        # Позитивная проверка: подтверждаем, что messages.py относит delta=0.1
+        # к нейтральной зоне и выдаёт соответствующую фразу. Без этого assert
+        # тест проходил бы и при сценарии «summary не содержит ничего о temp».
+        assert _NEUTRAL_PHRASE in result, (
+            "При delta=0.1 ожидается нейтральная фраза об отклонении от baseline"
         )
 
     def test_delta_005_neutral_phrase(self):
@@ -290,4 +297,61 @@ class TestWristTempBoundary:
         expected = 0.02 * 0.30 + 0.8 * 0.10
         assert abs(result.score - expected) < 1e-9, (
             f"При delta=0.11 ожидали temp-ветку (score={expected:.6f}), получили {result.score:.6f}"
+        )
+
+    def test_delta_01_with_hr_signal_uses_nottemp_weights(self):
+        """delta == 0.1 с реальным HR/HRV-сигналом использует else-веса
+        (hr*0.40, hrv*0.30), а не temp-веса (hr*0.25, hrv*0.25).
+
+        Регрессия: после возврата к строгому `> 0.1` (вместо `>= 0.1`) delta=0.1
+        попадает в else-ветку. Это означает, что граничный пользователь с
+        небольшим повышением температуры запястья (ровно +0.1°C) получит
+        более высокий score, чем при temp-весах. Зафиксировано как
+        задокументированное поведение: нейтральная зона (0.0, 0.1] не
+        активирует temp_component, но при ненулевых HR/HRV-сигналах score
+        считается по else-весам, где вес HR/HRV выше.
+
+        Также подтверждаем, что veto не применяется (delta=0.1 > 0.0 =
+        TEMP_STABLE_DELTA_THRESHOLD), то есть нейтральная зона выше нуля
+        НЕ считается «стабильной температурой» с точки зрения подавления
+        ложноположительных срабатываний.
+
+        Расчёт:
+          hr_component  = (75-65)/15      = 0.6667
+          hrv_component = (45-35)/45/0.35 = 0.6349
+          consistency   = 4/5             = 0.8
+          else_score = 0.6667*0.40 + 0.6349*0.30 + 0 + 0.8*0.15 ≈ 0.5771
+          temp_score = 0.0*0.30 + 0.6667*0.25 + 0.6349*0.25 + 0 + 0.8*0.10 ≈ 0.4054
+        """
+        snapshot = _make_snapshot(
+            wrist_temp_delta=0.1,
+            confirmed_days=4,
+            recent_rest_hr=75.0,
+            baseline_rest_hr=65.0,
+            recent_hrv=35.0,
+            baseline_hrv=45.0,
+        )
+        result = calculate_score(snapshot)
+
+        hr_component = (75.0 - 65.0) / 15.0
+        hrv_component = (45.0 - 35.0) / 45.0 / 0.35
+        consistency = 4 / 5
+        expected_else = hr_component * 0.40 + hrv_component * 0.30 + consistency * 0.15
+        expected_temp = (
+            0.0 * 0.30 + hr_component * 0.25 + hrv_component * 0.25 + consistency * 0.10
+        )
+
+        assert abs(result.score - expected_else) < 1e-9, (
+            f"При delta=0.1 ожидали else-веса (score={expected_else:.6f}), "
+            f"получили {result.score:.6f}"
+        )
+        # И явно: score должен НЕ совпадать с temp-весами — фиксируем,
+        # что nittle delta в нейтральной зоне трактуется по else-весам.
+        assert abs(result.score - expected_temp) > 1e-3, (
+            "delta=0.1 не должна давать score, как при temp-весах"
+        )
+        # Veto не применён (penalty не сработал) — без неё score > 0.55,
+        # severity = medium. Фиксируем для регрессии.
+        assert result.severity == "medium", (
+            f"При delta=0.1 + реальный HR/HRV-сигнал severity=medium, получили {result.severity}"
         )
