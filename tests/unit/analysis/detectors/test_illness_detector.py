@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+from health_log.analysis.detectors.illness.constants import HR_SCORE_NORM, HRV_SCORE_REL_NORM
 from health_log.analysis.detectors.illness.detector import assess_illness_onset_risk
 from health_log.analysis.detectors.illness.features import TrendSnapshot
 from health_log.analysis.detectors.illness.messages import build_summary
@@ -333,12 +334,22 @@ class TestWristTempBoundary:
         )
         result = calculate_score(snapshot)
 
-        hr_component = (75.0 - 65.0) / 15.0
-        hrv_component = (45.0 - 35.0) / 45.0 / 0.35
+        hr_component = (75.0 - 65.0) / HR_SCORE_NORM
+        hrv_component = (45.0 - 35.0) / 45.0 / HRV_SCORE_REL_NORM
+        resp_component = 0.0  # no RR data in snapshot
         consistency = 4 / 5
-        expected_else = hr_component * 0.40 + hrv_component * 0.30 + consistency * 0.15
+        expected_else = (
+            hr_component * 0.40
+            + hrv_component * 0.30
+            + resp_component * 0.15
+            + consistency * 0.15
+        )
         expected_temp = (
-            0.0 * 0.30 + hr_component * 0.25 + hrv_component * 0.25 + consistency * 0.10
+            0.0 * 0.30
+            + hr_component * 0.25
+            + hrv_component * 0.25
+            + resp_component * 0.10
+            + consistency * 0.10
         )
 
         assert abs(result.score - expected_else) < 1e-9, (

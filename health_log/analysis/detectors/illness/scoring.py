@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from health_log.analysis.detectors.illness.constants import (
+    HR_SCORE_NORM,
+    HRV_SCORE_REL_NORM,
     MIN_CONFIRMED_DAYS_FOR_SIGNAL,
     RECENT_DAYS,
     SEVERITY_HIGH_MIN,
@@ -26,9 +28,9 @@ class ScoreResult:
 
 
 def calculate_score(snapshot: TrendSnapshot) -> ScoreResult:
-    hr_component = _clamp01((snapshot.recent_rest_hr - snapshot.baseline_rest_hr) / 15.0)
+    hr_component = _clamp01((snapshot.recent_rest_hr - snapshot.baseline_rest_hr) / HR_SCORE_NORM)
     hrv_component = _clamp01(
-        (snapshot.baseline_hrv - snapshot.recent_hrv) / snapshot.baseline_hrv / 0.35
+        (snapshot.baseline_hrv - snapshot.recent_hrv) / snapshot.baseline_hrv / HRV_SCORE_REL_NORM
     )
     resp_component = 0.0
     if (
