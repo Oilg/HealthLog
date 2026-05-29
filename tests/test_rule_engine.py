@@ -514,11 +514,11 @@ def test_illness_onset_risk_penalty_path_severity_none_has_empty_summary():
     Регрессия: при severity=="none" через штрафной путь summary == "" по дизайну.
 
     Расчёт:
-      recent_rest_hr  = median([60,60,67,67,67]) = 67 → hr_component  = 7/15  ≈ 0.467
+      recent_rest_hr  = median([60,60,68,68,68]) = 68 → hr_component  = 8/15  ≈ 0.533
       recent_hrv      = median([60,60,47,47,47]) = 47 → hrv_component = 13/60/0.35 ≈ 0.619
       consistency     = 3/5 = 0.60
-      base_score      = 0.40×0.467 + 0.30×0.619 + 0.15×0.60 ≈ 0.463
-      penalized_score = 0.463 × 0.6 ≈ 0.278 < SEVERITY_LOW_MIN=0.30 → "none"
+      base_score      = 0.40×0.533 + 0.30×0.619 + 0.15×0.60 ≈ 0.489
+      penalized_score = 0.489 × 0.6 ≈ 0.293 < SEVERITY_LOW_MIN=0.30 → "none"
     """
     now = datetime(2026, 2, 26, 10, 0, 0)
     heart = []
@@ -532,11 +532,11 @@ def test_illness_onset_risk_penalty_path_severity_none_has_empty_summary():
         sleep.append((sleep_start, sleep_end))
         for m in range(24):
             ts = day + timedelta(minutes=20 * m)
-            # Last 3 of 5 recent days: HR=67 (+7 bpm, +11.7%), HRV=47 (78.3% of baseline 60).
-            # HR_CONFIRM_DELTA_BPM=7: 67 >= 60+7 ✓; HR_CONFIRM_DELTA_REL=0.10: 67/60=1.117 ✓
+            # Last 3 of 5 recent days: HR=68 (+8 bpm, +13.3%), HRV=47 (78.3% of baseline 60).
+            # HR_CONFIRM_DELTA_BPM=7: 68 >= 60+7=67 ✓ (1 bpm margin); 68/60=1.133 >= 1.10 ✓
             # HRV_CONFIRM_REL=0.80: 47/60=0.783 <= 0.80 ✓ → both flags fire → confirmed_days=3
             if day_idx >= 67:
-                heart.append((ts, 67.0))
+                heart.append((ts, 68.0))
                 hrv.append((ts, 47.0))
             else:
                 heart.append((ts, 60.0))
