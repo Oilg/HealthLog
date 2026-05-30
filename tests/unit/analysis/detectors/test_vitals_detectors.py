@@ -116,6 +116,18 @@ class TestHypertensionRisk:
         result = assess_hypertension_risk(sbp, dbp, window=_WINDOW)
         assert result.severity == "none"
 
+    def test_many_measurements_one_day_does_not_dominate(self):
+        # 9 спокойных дней (118) + 1 стрессовый день с 10 измерениями по 175.
+        # Простое среднее дало бы ~148 (medium/high). Дневное взвешивание — ~123 (none).
+        calm_sbp = [(_ts(i * 2 + 2), 118.0) for i in range(9)]
+        stressed_sbp = [(_NOW - timedelta(hours=h), 175.0) for h in range(10)]
+        sbp = [(ts, v) for ts, v in calm_sbp] + [(ts, v) for ts, v in stressed_sbp]
+        dbp = [(_ts(i * 2 + 2), 76.0) for i in range(9)] + [
+            (_NOW - timedelta(hours=h), 95.0) for h in range(10)
+        ]
+        result = assess_hypertension_risk(sbp, dbp, window=_WINDOW)
+        assert result.severity == "none"
+
 
 class TestHypotensionRisk:
     def test_insufficient_returns_unknown(self):

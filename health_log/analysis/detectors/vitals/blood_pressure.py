@@ -48,6 +48,14 @@ def _distinct_days(points: list[EventPoint]) -> int:
     return len({p.timestamp.toordinal() for p in points})
 
 
+def _daily_median_mean(points: list[EventPoint]) -> float:
+    by_day: dict[int, list[float]] = {}
+    for p in points:
+        by_day.setdefault(p.timestamp.toordinal(), []).append(p.value)
+    daily_medians = [median(vals) for vals in by_day.values()]
+    return sum(daily_medians) / len(daily_medians)
+
+
 def _insufficient_bp(condition: str, window: TimeWindow, n: int) -> RiskAssessment:
     return RiskAssessment(
         condition=condition,
@@ -76,14 +84,8 @@ def assess_hypertension_risk(
     if n_measurements < _MIN_MEASUREMENTS or _distinct_days(sbp) < _MIN_DISTINCT_DAYS:
         return _insufficient_bp("hypertension_risk", window, n_measurements)
 
-    # TODO: avg_sbp вычисляется как простое среднее всех измерений.
-    # Один стрессовый день с многократными измерениями перевешивает спокойные дни.
-    # Данные EventPoint содержат timestamp, но группировка по дневным медианам
-    # не реализована: _days_with_condition использует медианы внутри, однако
-    # avg_sbp/avg_dbp здесь — простое среднее. Для корректного взвешивания
-    # следует заменить на среднее дневных медиан аналогично логике в _days_with_condition.
-    avg_sbp = sum(p.value for p in sbp) / len(sbp)
-    avg_dbp = sum(p.value for p in dbp) / len(dbp) if dbp else 0.0
+    avg_sbp = _daily_median_mean(sbp)
+    avg_dbp = _daily_median_mean(dbp) if dbp else 0.0
 
     if avg_sbp >= 180 or avg_dbp >= 120:
         severity = "high"
