@@ -52,13 +52,13 @@ def assess_noise_exposure_risk(
 
     peak = max(max_db_7d, max_db_30d)
 
-    if peak >= 90 or avg_db_7d >= 90:
+    if avg_db_7d >= 90 or (peak >= 100 and avg_db_7d >= 80):
         severity = "high"
         score = 0.85
-    elif peak >= 85 or avg_db_7d >= 85:
+    elif avg_db_7d >= 85 or (peak >= 90 and avg_db_7d >= 75):
         severity = "medium"
         score = 0.60
-    elif peak >= 80 or avg_db_7d >= 80:
+    elif avg_db_7d >= 80:
         severity = "low"
         score = 0.35
     else:

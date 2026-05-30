@@ -187,9 +187,11 @@ def build_trend_snapshot(
         if rr is not None:
             day_rr[d] = rr
 
-    baseline_rest_hr = float(median([day_hr[d] for d in baseline_days if d in day_hr]))
+    baseline_hr_vals = sorted([day_hr[d] for d in baseline_days if d in day_hr])
+    baseline_rest_hr = float(median(baseline_hr_vals[: max(1, int(len(baseline_hr_vals) * 0.8))]))
     recent_rest_hr = float(median([day_hr[d] for d in recent_days if d in day_hr]))
-    baseline_hrv = float(median([day_hrv[d] for d in baseline_days if d in day_hrv]))
+    baseline_hrv_vals = sorted([day_hrv[d] for d in baseline_days if d in day_hrv])
+    baseline_hrv = float(median(baseline_hrv_vals[: max(1, int(len(baseline_hrv_vals) * 0.8))]))
     recent_hrv = float(median([day_hrv[d] for d in recent_days if d in day_hrv]))
 
     baseline_rr_list = [day_rr[d] for d in baseline_days if d in day_rr]

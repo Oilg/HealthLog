@@ -13,6 +13,8 @@ from health_log.analysis.detectors.weight_activity.constants import (
     BMI_OBESITY_MEDIUM,
     BMI_OVERWEIGHT_HIGH,
     BMI_OVERWEIGHT_LOW,
+    BMI_UNDERWEIGHT,
+    BMI_UNDERWEIGHT_SEVERE,
     BODY_FAT_THRESHOLDS_FEMALE,
     BODY_FAT_THRESHOLDS_MALE,
     MIN_FAT_MEASUREMENTS,
@@ -63,6 +65,34 @@ def assess_overweight_risk(
 
     if bmi_val is None:
         return _insufficient("overweight_risk", window, 0, "нет данных роста или ИМТ")
+
+    if bmi_val < BMI_UNDERWEIGHT_SEVERE:
+        return RiskAssessment(
+            condition="overweight_risk",
+            window=window,
+            score=0.7,
+            confidence=round(min(1.0, len(mass_points) / 10.0), 3),
+            severity="medium",
+            interpretation="ИМТ значительно ниже нормы. Возможна недостаточность питания. Рекомендуется консультация врача.",
+            summary=f"ИМТ {bmi_val:.1f} — значительный дефицит массы тела.",
+            recommendation="Обратись к терапевту для оценки состояния питания и возможных причин дефицита веса.",
+            clinical_safety_note=CLINICAL_SAFETY_NOTE,
+            supporting_metrics={"bmi": round(bmi_val, 1)},
+        )
+
+    if bmi_val < BMI_UNDERWEIGHT:
+        return RiskAssessment(
+            condition="overweight_risk",
+            window=window,
+            score=0.4,
+            confidence=round(min(1.0, len(mass_points) / 10.0), 3),
+            severity="low",
+            interpretation="ИМТ ниже нормы. Рекомендуется консультация терапевта или диетолога.",
+            summary=f"ИМТ {bmi_val:.1f} — дефицит массы тела.",
+            recommendation="Проконсультируйся с терапевтом или диетологом.",
+            clinical_safety_note=CLINICAL_SAFETY_NOTE,
+            supporting_metrics={"bmi": round(bmi_val, 1)},
+        )
 
     if bmi_val >= BMI_OVERWEIGHT_HIGH:
         return RiskAssessment(

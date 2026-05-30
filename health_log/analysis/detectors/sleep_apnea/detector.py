@@ -174,8 +174,9 @@ def _analyze_sleep_apnea(
         drops.append(baseline_rr - med_rr)
     median_resp_drop = float(median(drops)) if drops else 0.0
 
-    episode_density = valid_count / sleep_hours if sleep_hours > 0 else 0.0
-    density_component = min(1.0, episode_density / 5.0)
+    medium_count = valid_count - strong_count
+    weighted_count = strong_count * 1.0 + medium_count * 0.5
+    density_component = min(1.0, weighted_count / sleep_hours) if sleep_hours > 0 else 0.0
     support_component = min(1.0, strong_count / max(1, valid_count))
     depth_component = min(1.0, max(0.0, median_resp_drop) / 6.0)
     score = 0.5 * density_component + 0.3 * support_component + 0.2 * depth_component
