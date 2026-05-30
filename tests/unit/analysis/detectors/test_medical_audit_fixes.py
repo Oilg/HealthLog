@@ -6,8 +6,6 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-import pytest
-
 from health_log.analysis.detectors.cardiac.atrial_fibrillation import (
     assess_atrial_fibrillation_risk,
 )

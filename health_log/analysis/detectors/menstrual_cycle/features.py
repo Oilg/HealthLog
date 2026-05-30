@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import statistics
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-import statistics
 from statistics import median
 from typing import Iterable
 
