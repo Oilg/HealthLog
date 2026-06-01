@@ -95,7 +95,7 @@ class TestBuildDataPoints:
         assert len(points) == 3
 
     def test_cardiometabolic_profile(self):
-        metrics = {"bmi": 28.5, "median_steps": 4200.0}
+        metrics = {"bmi": 28.5, "median_steps_60d": 4200.0}
         points = _build_data_points("cardiometabolic_profile_risk", metrics)
         labels = [p["label"] for p in points]
         assert "ИМТ" in labels
@@ -103,7 +103,7 @@ class TestBuildDataPoints:
 
     def test_cardiometabolic_profile_without_steps(self):
         points = _build_data_points(
-            "cardiometabolic_profile_risk", {"bmi": 28.5, "median_steps": None}
+            "cardiometabolic_profile_risk", {"bmi": 28.5, "median_steps_60d": None}
         )
         assert len(points) == 1
         assert points[0]["label"] == "ИМТ"

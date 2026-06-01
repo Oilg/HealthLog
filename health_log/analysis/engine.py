@@ -405,6 +405,7 @@ class HealthRiskAnalyzer:
                 vo2max_rows=vo2max_rows,
                 heart_rows=heart_rows,
                 sbp_rows=sbp_rows,
+                resting_heart_rows=resting_heart_rows,
                 sex=user_sex,
                 window=window,
                 now=now,
@@ -551,6 +552,7 @@ class HealthRiskAnalyzer:
         )
         illness_sleep_segments = await self._fetch_sleep_segments(illness_start, end)
 
+        resting_heart_rows = await self._fetch_rows(tables.resting_heart_rate, extended_start, end)
         spo2_rows = await self._fetch_rows(tables.oxygen_saturation, end - timedelta(days=30), end)
         sbp_rows = await self._fetch_rows(tables.blood_pressure_systolic, start, end)
         dbp_rows = await self._fetch_rows(tables.blood_pressure_diastolic, start, end)
@@ -882,7 +884,7 @@ def _build_data_points(condition: str, metrics: dict) -> list[dict]:
 
     elif condition == "cardiometabolic_profile_risk":
         _add("ИМТ", metrics.get("bmi"), "{:.1f}", ref="18.5–24.9")
-        _add("Шагов в день", metrics.get("median_steps"), "{:.0f}", ref="≥7 500")
+        _add("Шагов в день", metrics.get("median_steps_60d"), "{:.0f}", ref="≥7 500")
 
     elif condition == "cardiovascular_obesity_risk":
         _add("ИМТ", metrics.get("bmi"), "{:.1f}", ref="18.5–24.9")

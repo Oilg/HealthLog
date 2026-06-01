@@ -41,6 +41,7 @@ def assess_cardiometabolic_profile_risk(
     vo2max_rows: Iterable[tuple] | None = None,
     heart_rows: Iterable[tuple] | None = None,
     sbp_rows: Iterable[tuple] | None = None,
+    resting_heart_rows: Iterable[tuple] | None = None,
     *,
     sex: str = "male",
     window: TimeWindow,
@@ -57,6 +58,7 @@ def assess_cardiometabolic_profile_risk(
     fat_points = [p for p in to_points(body_fat_rows or []) if p.timestamp >= cutoff]
     step_points = [p for p in to_points(step_rows or []) if cutoff <= p.timestamp < eval_end]
     hr_points = [p for p in to_points(heart_rows or []) if p.timestamp >= cutoff]
+    resting_hr_points = [p for p in to_points(resting_heart_rows or []) if p.timestamp >= cutoff]
     sbp_points = [p for p in to_points(sbp_rows or []) if p.timestamp >= cutoff]
     bmi_points = [p for p in to_points(bmi_rows or []) if p.timestamp >= cutoff]
     vo2_points = [p for p in to_points(vo2max_rows or []) if p.timestamp >= cutoff]
@@ -99,7 +101,12 @@ def assess_cardiometabolic_profile_risk(
         components.append(comp)
         component_names.append("low_fitness")
 
-    if hr_points:
+    if resting_hr_points:
+        resting_hr = median([p.value for p in resting_hr_points])
+        comp = min(1.0, max(0.0, (resting_hr - 55) / 25))
+        components.append(comp)
+        component_names.append("elevated_hr")
+    elif hr_points:
         rest_hr = sorted([p.value for p in hr_points])
         low_20 = rest_hr[: max(1, int(len(rest_hr) * 0.2))]
         resting_hr = median(low_20)
@@ -154,7 +161,7 @@ def assess_cardiometabolic_profile_risk(
             "components_used": component_names,
             "component_scores": [round(c, 2) for c in components],
             "bmi": round(bmi_val, 1) if bmi_val else None,
-            "median_steps": round(med_steps, 0) if med_steps is not None else None,
+            "median_steps_60d": round(med_steps, 0) if med_steps is not None else None,
             "inactive_threshold": inactive_threshold,
         },
         lifestyle_recommendations=recs,
