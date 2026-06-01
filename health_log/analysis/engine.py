@@ -886,7 +886,7 @@ def _build_data_points(condition: str, metrics: dict) -> list[dict]:
 
     elif condition == "cardiometabolic_profile_risk":
         _add("ИМТ", metrics.get("bmi"), "{:.1f}", ref="18.5–24.9")
-        _add("Шагов в день", metrics.get("median_steps_60d"), "{:.0f}", ref="≥7 500")
+        _add("Шагов/день (медиана, 60 дн.)", metrics.get("median_steps_60d"), "{:.0f}", ref="≥7 500")
 
     elif condition == "cardiovascular_obesity_risk":
         _add("ИМТ", metrics.get("bmi"), "{:.1f}", ref="18.5–24.9")
