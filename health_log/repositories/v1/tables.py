@@ -326,6 +326,7 @@ apple_sleeping_wrist_temperature = _quantity_table(
 walking_heart_rate_average = _quantity_table(
     "walking_heart_rate_average", "uq_walking_heart_rate_average_record"
 )
+resting_heart_rate = _quantity_table("resting_heart_rate", "uq_resting_heart_rate_record")
 walking_speed = _quantity_table("walking_speed", "uq_walking_speed_record")
 walking_step_length = _quantity_table("walking_step_length", "uq_walking_step_length_record")
 walking_double_support_percentage = _quantity_table(
@@ -432,6 +433,7 @@ TYPE_TABLE_MAP = {
     "HKQuantityTypeIdentifierBloodPressureDiastolic": blood_pressure_diastolic,
     "HKQuantityTypeIdentifierAppleSleepingWristTemperature": apple_sleeping_wrist_temperature,
     "HKQuantityTypeIdentifierWalkingHeartRateAverage": walking_heart_rate_average,
+    "HKQuantityTypeIdentifierRestingHeartRate": resting_heart_rate,
     "HKQuantityTypeIdentifierWalkingSpeed": walking_speed,
     "HKQuantityTypeIdentifierWalkingStepLength": walking_step_length,
     "HKQuantityTypeIdentifierWalkingDoubleSupportPercentage": walking_double_support_percentage,

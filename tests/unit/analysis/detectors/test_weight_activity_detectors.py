@@ -321,6 +321,47 @@ class TestCardiometabolicProfileRisk:
         if result.severity not in {"none", "unknown"}:
             assert len(result.lifestyle_recommendations) > 0
 
+    def test_resting_heart_rows_used_directly_when_provided(self):
+        # When resting_heart_rows is provided, it should be used instead of heart_rows fallback.
+        # resting_heart_rows has a high value (90 bpm) → elevated_hr should appear.
+        resting_hr = [(_ts(i), 90.0) for i in range(10)]
+        result = assess_cardiometabolic_profile_risk(
+            resting_heart_rows=resting_hr, window=_WINDOW, now=_NOW
+        )
+        assert result.severity != "unknown"
+        assert "elevated_hr" in result.supporting_metrics["components_used"]
+
+    def test_resting_heart_rows_preferred_over_heart_rows(self):
+        # resting_heart_rows = 60 bpm (low), heart_rows = 90 bpm (high).
+        # The detector should use resting_heart_rows (60), yielding a lower component score.
+        resting_hr = [(_ts(i), 60.0) for i in range(20)]
+        heart_hr = [(_ts(i), 90.0) for i in range(20)]
+        result_with_resting = assess_cardiometabolic_profile_risk(
+            resting_heart_rows=resting_hr, heart_rows=heart_hr, window=_WINDOW, now=_NOW
+        )
+        result_fallback = assess_cardiometabolic_profile_risk(
+            heart_rows=heart_hr, window=_WINDOW, now=_NOW
+        )
+        # With resting_heart_rows (60 bpm) the score should be lower than fallback via heart_rows
+        assert result_with_resting.score < result_fallback.score
+
+    def test_fallback_to_heart_rows_when_resting_empty(self):
+        # No resting_heart_rows → fallback to bottom 20% of heart_rows.
+        heart_hr = [(_ts(i), 90.0) for i in range(10)]
+        result = assess_cardiometabolic_profile_risk(
+            heart_rows=heart_hr, window=_WINDOW, now=_NOW
+        )
+        assert result.severity != "unknown"
+        assert "elevated_hr" in result.supporting_metrics["components_used"]
+
+    def test_supporting_metrics_uses_median_steps_60d_key(self):
+        steps = [(_ts(i), 8000.0) for i in range(10)]
+        result = assess_cardiometabolic_profile_risk(
+            step_rows=steps, window=_WINDOW, now=_NOW
+        )
+        assert "median_steps_60d" in result.supporting_metrics
+        assert "median_steps" not in result.supporting_metrics
+
 
 class TestMetabolicSyndromeRisk:
     def test_no_data_returns_unknown(self):
