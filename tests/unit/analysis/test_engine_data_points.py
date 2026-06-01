@@ -99,7 +99,7 @@ class TestBuildDataPoints:
         points = _build_data_points("cardiometabolic_profile_risk", metrics)
         labels = [p["label"] for p in points]
         assert "ИМТ" in labels
-        assert "Шагов в день" in labels
+        assert "Шагов/день (медиана, 60 дн.)" in labels
 
     def test_cardiometabolic_profile_without_steps(self):
         points = _build_data_points(
