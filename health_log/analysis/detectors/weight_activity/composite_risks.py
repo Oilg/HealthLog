@@ -80,7 +80,8 @@ def assess_cardiometabolic_profile_risk(
 
     if fat_points:
         thresholds = BODY_FAT_THRESHOLDS_FEMALE if sex == "female" else BODY_FAT_THRESHOLDS_MALE
-        fat_pct = median([p.value for p in fat_points])
+        # HealthKit stores body fat as a fraction (0.0–1.0); convert to percentage for threshold comparison.
+        fat_pct = median([p.value for p in fat_points]) * 100
         comp = min(1.0, max(0.0, (fat_pct - thresholds["low"]) / 10))
         components.append(comp)
         component_names.append("body_fat")
@@ -163,7 +164,7 @@ def assess_cardiometabolic_profile_risk(
             "bmi": round(bmi_val, 1) if bmi_val else None,
             "median_steps_60d": round(med_steps, 0) if med_steps is not None else None,
             "inactive_threshold": inactive_threshold,
-            "body_fat_pct": round(median([p.value for p in fat_points]), 1) if fat_points else None,
+            "body_fat_pct": round(median([p.value for p in fat_points]) * 100, 1) if fat_points else None,
             "vo2max": round(vo2_points[-1].value, 1) if vo2_points else None,
             "resting_hr": round(median([p.value for p in resting_hr_points]), 0) if resting_hr_points else (
                 round(median(sorted([p.value for p in hr_points])[: max(1, int(len(hr_points) * 0.2))]), 0)
