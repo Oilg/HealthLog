@@ -163,6 +163,13 @@ def assess_cardiometabolic_profile_risk(
             "bmi": round(bmi_val, 1) if bmi_val else None,
             "median_steps_60d": round(med_steps, 0) if med_steps is not None else None,
             "inactive_threshold": inactive_threshold,
+            "body_fat_pct": round(median([p.value for p in fat_points]), 1) if fat_points else None,
+            "vo2max": round(vo2_points[-1].value, 1) if vo2_points else None,
+            "resting_hr": round(median([p.value for p in resting_hr_points]), 0) if resting_hr_points else (
+                round(median(sorted([p.value for p in hr_points])[: max(1, int(len(hr_points) * 0.2))]), 0)
+                if hr_points else None
+            ),
+            "sbp": round(median([p.value for p in sbp_points]), 0) if sbp_points else None,
         },
         lifestyle_recommendations=recs,
     )
