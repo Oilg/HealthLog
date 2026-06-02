@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import pytest
 from datetime import datetime, timedelta
+
+import pytest
 
 from health_log.analysis.detectors.weight_activity import (
     assess_abdominal_obesity_risk,
