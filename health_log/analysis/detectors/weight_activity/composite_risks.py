@@ -155,7 +155,7 @@ def assess_cardiometabolic_profile_risk(
             "Составной кардиометаболический сигнал объединяет компоненты ИМТ, жировой массы, "
             "активности, фитнеса и сердечно-сосудистых показателей."
         ),
-        summary=f"Подозрение на ухудшение кардиометаболического профиля: score {score:.2f} по {len(components)} компонентам ({', '.join(component_names)}).",
+        summary=f"Подозрение на повышенный кардиометаболический риск: score {score:.2f} по {len(components)} компонентам ({', '.join(component_names)}).",
         recommendation="Проверь давление, глюкозу и липиды. При выраженном сигнале обратись к терапевту.",
         clinical_safety_note=CLINICAL_SAFETY_NOTE,
         supporting_metrics={
