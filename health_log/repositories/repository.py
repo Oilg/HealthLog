@@ -19,6 +19,7 @@ UPSERT_KEYS: dict[str, list[str]] = {
     "sleep_analysis": _STANDARD_UPSERT_COLS,
     "sleep_duration_goal": _STANDARD_UPSERT_COLS,
     "heart_rate": _STANDARD_UPSERT_COLS,
+    "resting_heart_rate": _STANDARD_UPSERT_COLS,
     "heart_rate_variability": _STANDARD_UPSERT_COLS,
     "heart_rate_variability_bpm": ["hr_variability_id", "time"],
     "respiratory_rate": _STANDARD_UPSERT_COLS,
