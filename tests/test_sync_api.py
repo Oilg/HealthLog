@@ -103,6 +103,16 @@ def test_sync_request_over_limit_raises():
         SyncRequest(sync_from="2024-01-01", sync_to="2024-01-02", records=records)
 
 
+def test_sync_request_app_version_optional():
+    req = SyncRequest(sync_from="2024-01-01", sync_to="2024-01-02", records=[])
+    assert req.app_version is None
+
+
+def test_sync_request_app_version_stored():
+    req = SyncRequest(sync_from="2024-01-01", sync_to="2024-01-02", records=[], app_version="2.3.1")
+    assert req.app_version == "2.3.1"
+
+
 # ─── DaySchedule / ScheduleRequest validation ───────────────────────────────
 
 

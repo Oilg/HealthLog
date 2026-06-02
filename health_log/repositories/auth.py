@@ -292,16 +292,19 @@ class UsersRepository:
         return row is not None
 
     async def update_sync_status(
-        self, user_id: int, *, last_sync_at: datetime, records_count: int
+        self, user_id: int, *, last_sync_at: datetime, records_count: int, app_version: str | None = None
     ) -> None:
+        values: dict = {
+            "last_sync_at": last_sync_at,
+            "last_sync_records_count": records_count,
+            "updated_at": utcnow(),
+        }
+        if app_version is not None:
+            values["app_version"] = app_version
         await self._connection.execute(
             update(tables.users)
             .where(tables.users.c.id == user_id)
-            .values(
-                last_sync_at=last_sync_at,
-                last_sync_records_count=records_count,
-                updated_at=utcnow(),
-            )
+            .values(**values)
         )
 
     async def get_sync_status(self, user_id: int) -> dict | None:
