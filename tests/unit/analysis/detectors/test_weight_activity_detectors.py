@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from datetime import datetime, timedelta
 
 from health_log.analysis.detectors.weight_activity import (
@@ -353,6 +354,19 @@ class TestCardiometabolicProfileRisk:
         )
         assert result.severity != "unknown"
         assert "elevated_hr" in result.supporting_metrics["components_used"]
+
+    def test_body_fat_fraction_converted_to_percent(self):
+        # HealthKit stores body fat as fraction (0.0–1.0). Detector must multiply by 100
+        # before comparing against percentage thresholds and before storing in supporting_metrics.
+        fat_rows = [(_ts(i), 0.32) for i in range(10)]  # 32% fat in HealthKit fraction format
+        result = assess_cardiometabolic_profile_risk(
+            body_fat_rows=fat_rows, window=_WINDOW, now=_NOW
+        )
+        assert "body_fat" in result.supporting_metrics["components_used"]
+        assert result.supporting_metrics["body_fat_pct"] == pytest.approx(32.0, abs=0.2)
+        # Component score should be > 0 (32% > threshold 25%)
+        fat_idx = result.supporting_metrics["components_used"].index("body_fat")
+        assert result.supporting_metrics["component_scores"][fat_idx] > 0
 
     def test_supporting_metrics_uses_median_steps_60d_key(self):
         steps = [(_ts(i), 8000.0) for i in range(10)]
