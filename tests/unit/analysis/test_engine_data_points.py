@@ -108,6 +108,35 @@ class TestBuildDataPoints:
         assert len(points) == 1
         assert points[0]["label"] == "ИМТ"
 
+    def test_cardiometabolic_profile_extended_fields(self):
+        metrics = {
+            "bmi": 27.0,
+            "median_steps_60d": 5000.0,
+            "body_fat_pct": 24.5,
+            "vo2max": 38.2,
+            "resting_hr": 68.0,
+            "sbp": 128.0,
+        }
+        points = _build_data_points("cardiometabolic_profile_risk", metrics)
+        labels = [p["label"] for p in points]
+        assert "Процент жира" in labels
+        assert "VO₂ max" in labels
+        assert "ЧСС в покое" in labels
+        assert "Систолическое АД" in labels
+
+    def test_cardiometabolic_profile_extended_fields_none_omitted(self):
+        metrics = {
+            "bmi": 27.0,
+            "median_steps_60d": None,
+            "body_fat_pct": None,
+            "vo2max": None,
+            "resting_hr": None,
+            "sbp": None,
+        }
+        points = _build_data_points("cardiometabolic_profile_risk", metrics)
+        labels = [p["label"] for p in points]
+        assert labels == ["ИМТ"]
+
     def test_cardiovascular_obesity(self):
         metrics = {"bmi": 32.0, "median_steps": 3800.0}
         points = _build_data_points("cardiovascular_obesity_risk", metrics)
