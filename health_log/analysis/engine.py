@@ -246,6 +246,7 @@ class HealthRiskAnalyzer:
         respiratory_rows,
         spo2_rows,
         step_rows,
+        resting_heart_rows,
         window: TimeWindow,
         now: datetime,
     ) -> list[RiskAssessment]:
@@ -265,6 +266,7 @@ class HealthRiskAnalyzer:
                 sleep_segments,
                 heart_rows=heart_rows,
                 hrv_rows=hrv_rows,
+                resting_heart_rows=resting_heart_rows,
                 window=window,
                 now=now,
             ),
@@ -639,6 +641,7 @@ class HealthRiskAnalyzer:
             respiratory_rows=respiratory_rows_74d,
             spo2_rows=spo2_rows,
             step_rows=step_rows,
+            resting_heart_rows=resting_heart_rows,
             window=window,
             now=now,
         )
