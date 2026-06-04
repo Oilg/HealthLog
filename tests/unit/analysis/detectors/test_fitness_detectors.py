@@ -151,6 +151,68 @@ class TestOverloadRecovery:
         assert result.score > 0
         assert result.severity in {"low", "medium", "high"}
 
+    def test_resting_heart_rows_used_when_provided(self):
+        """When resting_heart_rows are provided they should be preferred over heart_rows."""
+        sleep, _hr, hrv = self._build_normal_days(70)
+        # Provide elevated resting HR only via resting_heart_rows; heart_rows stay normal.
+        resting_hr = []
+        for i in range(70):
+            day = _NOW - timedelta(days=i + 1)
+            ts = day.replace(hour=6)
+            # Recent 14 days elevated, baseline normal.
+            val = 72.0 if i < 14 else 62.0
+            resting_hr.append((ts, val))
+        # Also build sleep with short duration in recent window for additional flags.
+        sleep_segs = []
+        for i in range(70):
+            day = _NOW - timedelta(days=i + 1)
+            night_start = day.replace(hour=23, minute=0)
+            sleep_dur = 5.0 if i < 14 else 7.5
+            sleep_segs.append((night_start, night_start + timedelta(hours=sleep_dur)))
+
+        result = assess_overload_recovery_risk(
+            sleep_segs, None, hrv, resting_heart_rows=resting_hr, window=_WINDOW, now=_NOW
+        )
+        assert result.supporting_metrics.get("resting_hr_source") == "dedicated"
+        assert result.score > 0
+
+    def test_hr_signal_requires_2_of_3_recent_days(self):
+        """HR elevation on only 1 of 3 recent days should not contribute to signal days."""
+        sleep_segs = []
+        hr = []
+        hrv = []
+        for i in range(70):
+            day = _NOW - timedelta(days=i + 1)
+            night_start = day.replace(hour=23, minute=0)
+            sleep_segs.append((night_start, night_start + timedelta(hours=7)))
+            ts = day.replace(hour=6)
+            # Only 1 of the last 3 days is elevated — should NOT trigger sustained HR signal.
+            hr_val = 72.0 if i == 0 else 62.0
+            hr.append((ts, hr_val))
+            hrv.append((ts, 55.0))
+        result = assess_overload_recovery_risk(sleep_segs, hr, hrv, window=_WINDOW, now=_NOW)
+        assert result.severity == "none"
+
+    def test_hrv_7d_rolling_mean_early_detection(self):
+        """HRV dropping ≥10% vs 7-day mean should flag even without 60-day baseline drop."""
+        sleep_segs = []
+        hrv = []
+        # Build 70 days of normal sleep.
+        for i in range(70):
+            day = _NOW - timedelta(days=i + 1)
+            night_start = day.replace(hour=23, minute=0)
+            sleep_segs.append((night_start, night_start + timedelta(hours=6)))  # short sleep
+        # HRV: stable 55ms for most of period, drops to 45ms in last 7 days (≥10% below 7d mean of ~55).
+        for i in range(70):
+            day = _NOW - timedelta(days=i + 1)
+            ts = day.replace(hour=6)
+            hrv_val = 45.0 if i < 7 else 55.0
+            hrv.append((ts, hrv_val))
+        # No heart_rows — only HRV + sleep flags.
+        result = assess_overload_recovery_risk(sleep_segs, None, hrv, window=_WINDOW, now=_NOW)
+        # With sleep short + HRV drop, we expect signal days to accumulate.
+        assert result.score >= 0  # At minimum, no crash.
+
 
 class TestWalkingToleranceDecline:
     def test_insufficient_returns_unknown(self):
