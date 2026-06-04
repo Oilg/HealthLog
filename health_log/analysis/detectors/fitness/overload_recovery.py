@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from statistics import median
+from statistics import mean, median
 from typing import Iterable
 
 from health_log.analysis.constants import CLINICAL_SAFETY_NOTE
@@ -15,6 +15,7 @@ _MIN_VALID_DAYS = 7
 _SLEEP_DROP_MINUTES = 60
 _HR_RISE_BPM = 5
 _HRV_DROP_PCT = 0.15
+_HRV_7D_DROP_PCT = 0.10  # Early-stage threshold for 7-day rolling mean comparison
 
 
 def _sleep_hours_per_day(segments: list[tuple[datetime, datetime]]) -> dict[int, float]:
@@ -38,10 +39,18 @@ def _daily_median_for_points(
     return {day: median(vals) for day, vals in by_day.items()}
 
 
+def _resting_hr_from_all(hr_points: list[EventPoint]) -> list[EventPoint]:
+    """Approximate resting HR as the lower 20% of all HR measurements."""
+    sorted_vals = sorted(hr_points, key=lambda p: p.value)
+    n = max(1, int(len(sorted_vals) * 0.2))
+    return sorted_vals[:n]
+
+
 def assess_overload_recovery_risk(
     sleep_segments: list[tuple[datetime, datetime]] | None = None,
     heart_rows: Iterable[tuple] | None = None,
     hrv_rows: Iterable[tuple] | None = None,
+    resting_heart_rows: Iterable[tuple] | None = None,
     *,
     window: TimeWindow,
     now: datetime | None = None,
@@ -51,8 +60,20 @@ def assess_overload_recovery_risk(
     baseline_start = now - timedelta(days=_LOOKBACK_DAYS + _BASELINE_DAYS)
 
     segments = list(sleep_segments or [])
-    hr_points = to_points(heart_rows or [])
+    all_hr_points = to_points(heart_rows or [])
+    resting_hr_points = to_points(resting_heart_rows or [])
     hrv_points = to_points(hrv_rows or [])
+
+    # Use dedicated resting HR points if available; fall back to lower-20% approximation.
+    if resting_hr_points:
+        hr_points = resting_hr_points
+        using_resting_hr = True
+    elif all_hr_points:
+        hr_points = _resting_hr_from_all(all_hr_points)
+        using_resting_hr = False
+    else:
+        hr_points = []
+        using_resting_hr = False
 
     recent_sleep_by_day = _sleep_hours_per_day([(s, e) for s, e in segments if e >= recent_start])
     baseline_sleep_by_day = _sleep_hours_per_day(
@@ -85,9 +106,34 @@ def assess_overload_recovery_risk(
     baseline_hr_med = median(baseline_hr_by_day.values()) if baseline_hr_by_day else None
     baseline_hrv_med = median(baseline_hrv_by_day.values()) if baseline_hrv_by_day else None
 
+    # 7-day rolling mean of HRV for early-stage detection.
+    # Compute per-day HRV medians over [baseline_start..now], then build rolling average.
+    all_hrv_by_day = _daily_median_for_points(hrv_points, baseline_start, now)
+    hrv_7d_mean_by_day: dict[int, float] = {}
+    if all_hrv_by_day:
+        sorted_hrv_days = sorted(all_hrv_by_day.keys())
+        for i, day in enumerate(sorted_hrv_days):
+            # Collect up to the 7 days immediately preceding this day (not including it).
+            window_vals = [
+                all_hrv_by_day[d]
+                for d in sorted_hrv_days[max(0, i - 7) : i]
+            ]
+            if window_vals:
+                hrv_7d_mean_by_day[day] = mean(window_vals)
+
     signal_days = 0
     recent_all_days = set(recent_sleep_by_day) | set(recent_hr_by_day) | set(recent_hrv_by_day)
     recent_all_days_sorted = sorted(recent_all_days)
+
+    # For HR signal: require 2 of the 3 most-recent days with data to show elevation.
+    recent_hr_days_sorted = sorted(recent_hr_by_day.keys())
+    last_3_hr_days = recent_hr_days_sorted[-3:] if len(recent_hr_days_sorted) >= 2 else []
+    hr_elevated_in_last3 = 0
+    if baseline_hr_med is not None:
+        for day in last_3_hr_days:
+            if recent_hr_by_day[day] >= baseline_hr_med + _HR_RISE_BPM:
+                hr_elevated_in_last3 += 1
+    hr_signal_sustained = hr_elevated_in_last3 >= 2
 
     for day in recent_all_days_sorted:
         flags = 0
@@ -95,14 +141,28 @@ def assess_overload_recovery_risk(
             sleep_h = recent_sleep_by_day[day]
             if baseline_sleep_med - sleep_h >= _SLEEP_DROP_MINUTES / 60.0:
                 flags += 1
-        if baseline_hr_med is not None and day in recent_hr_by_day:
-            if recent_hr_by_day[day] >= baseline_hr_med + _HR_RISE_BPM:
+        # HR flag: use sustained signal (not per-day) — only count on days where the
+        # overall sustained criterion is met.
+        if hr_signal_sustained and day in recent_hr_by_day:
+            if baseline_hr_med is not None and recent_hr_by_day[day] >= baseline_hr_med + _HR_RISE_BPM:
                 flags += 1
+        # HRV flag: 60-day baseline OR 7-day rolling mean drop ≥10% (early-stage detection).
+        hrv_flag = False
         if baseline_hrv_med is not None and day in recent_hrv_by_day:
             if recent_hrv_by_day[day] <= baseline_hrv_med * (1 - _HRV_DROP_PCT):
-                flags += 1
+                hrv_flag = True
+        if not hrv_flag and day in recent_hrv_by_day and day in hrv_7d_mean_by_day:
+            if recent_hrv_by_day[day] <= hrv_7d_mean_by_day[day] * (1 - _HRV_7D_DROP_PCT):
+                hrv_flag = True
+        if hrv_flag:
+            flags += 1
         if flags >= 2:
             signal_days += 1
+
+    # Compute actual resting HR value for supporting_metrics.
+    recent_resting_hr_val: float | None = None
+    if recent_hr_by_day:
+        recent_resting_hr_val = median(recent_hr_by_day.values())
 
     if signal_days >= 6:
         severity = "high"
@@ -153,8 +213,10 @@ def assess_overload_recovery_risk(
         supporting_metrics={
             "signal_days_14d": signal_days,
             "recent_valid_days": recent_days_count,
-            "baseline_sleep_hours": round(baseline_sleep_med, 2) if baseline_sleep_med else None,
-            "baseline_resting_hr": round(baseline_hr_med, 1) if baseline_hr_med else None,
-            "baseline_hrv": round(baseline_hrv_med, 1) if baseline_hrv_med else None,
+            "baseline_sleep_hours": round(baseline_sleep_med, 2) if baseline_sleep_med is not None else None,
+            "recent_resting_hr": round(recent_resting_hr_val, 1) if recent_resting_hr_val is not None else None,
+            "baseline_resting_hr": round(baseline_hr_med, 1) if baseline_hr_med is not None else None,
+            "baseline_hrv": round(baseline_hrv_med, 1) if baseline_hrv_med is not None else None,
+            "resting_hr_source": "dedicated" if using_resting_hr else "approximated",
         },
     )
