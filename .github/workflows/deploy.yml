@@ -22,5 +22,18 @@ jobs:
             /root/.local/bin/poetry run alembic upgrade head
             systemctl restart healthlog
             docker compose up -d --force-recreate prometheus grafana
+
+            # Generate self-signed TLS certificate if not present
+            if [ ! -f /etc/ssl/healthlog/server.crt ]; then
+              mkdir -p /etc/ssl/healthlog
+              openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+                -keyout /etc/ssl/healthlog/server.key \
+                -out /etc/ssl/healthlog/server.crt \
+                -subj "/C=RU/ST=Moscow/L=Moscow/O=HealthLog/CN=5.129.199.50" \
+                -addext "subjectAltName=IP:5.129.199.50"
+              chmod 600 /etc/ssl/healthlog/server.key
+              chmod 644 /etc/ssl/healthlog/server.crt
+            fi
+
             cp monitoring/nginx-healthlog.conf /etc/nginx/sites-enabled/healthlog
             nginx -t && systemctl reload nginx
