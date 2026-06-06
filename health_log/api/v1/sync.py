@@ -72,6 +72,7 @@ class SyncRequest(BaseModel):
     sync_to: str
     records: list[SyncRecord]
     app_version: str | None = None
+    platform: str | None = None
 
     @field_validator("records")
     @classmethod
@@ -218,6 +219,7 @@ async def sync_health_data(
         last_sync_at=utcnow(),
         records_count=synced_count,
         app_version=body.app_version,
+        platform=body.platform,
     )
 
     return {
