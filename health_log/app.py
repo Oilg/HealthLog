@@ -11,6 +11,7 @@ from health_log.api.v1.analysis import router as analysis_router
 from health_log.api.v1.auth import router as auth_router
 from health_log.api.v1.error_handler import ErrorResponse, error_handler
 from health_log.api.v1.handlers import request_exception_handler
+from health_log.api.v1.health import router as health_router
 from health_log.api.v1.sync import router as sync_router
 from health_log.api.v1.users import router as users_router
 from health_log.errors import BaseError
@@ -36,6 +37,7 @@ def create_app() -> FastAPI:
     app.include_router(auth_router)
     app.include_router(users_router)
     app.include_router(sync_router)
+    app.include_router(health_router)
     app.include_router(analysis_router)
 
     Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
