@@ -4,12 +4,9 @@ Tests are structured to avoid importing DB-dependent modules at module level
 so they can be collected even without asyncpg installed locally.
 """
 
-from __future__ import annotations
-
 from datetime import datetime
 
 import pytest
-
 
 # ─── Fakes ────────────────────────────────────────────────────────────────────
 
