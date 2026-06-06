@@ -144,12 +144,18 @@
             "properties": [
               { "id": "custom.width", "value": 100 }
             ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Platform" },
+            "properties": [
+              { "id": "custom.width", "value": 90 }
+            ]
           }
         ]
       },
       "targets": [
         {
-          "rawSql": "SELECT\n  u.id AS \"User ID\",\n  u.first_name || ' ' || u.last_name AS \"Username\",\n  u.email AS \"Email\",\n  u.subscription_status AS \"Status\",\n  u.app_version AS \"App Version\",\n  COALESCE(MAX(t.created_at), u.created_at) AS \"Last Seen\",\n  u.created_at AS \"Registered\"\nFROM users u\nLEFT JOIN auth_tokens t ON t.user_id = u.id\nWHERE u.is_active = true\nGROUP BY u.id, u.first_name, u.last_name, u.email, u.subscription_status, u.app_version, u.created_at\nORDER BY \"Last Seen\" DESC",
+          "rawSql": "SELECT\n  u.id AS \"User ID\",\n  u.first_name || ' ' || u.last_name AS \"Username\",\n  u.email AS \"Email\",\n  u.subscription_status AS \"Status\",\n  u.app_version AS \"App Version\",\n  u.platform AS \"Platform\",\n  COALESCE(MAX(t.created_at), u.created_at) AS \"Last Seen\",\n  u.created_at AS \"Registered\"\nFROM users u\nLEFT JOIN auth_tokens t ON t.user_id = u.id\nWHERE u.is_active = true\nGROUP BY u.id, u.first_name, u.last_name, u.email, u.subscription_status, u.app_version, u.platform, u.created_at\nORDER BY \"Last Seen\" DESC",
           "format": "table",
           "refId": "A"
         }

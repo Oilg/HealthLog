@@ -113,6 +113,21 @@ def test_sync_request_app_version_stored():
     assert req.app_version == "2.3.1"
 
 
+def test_sync_request_platform_optional():
+    req = SyncRequest(sync_from="2024-01-01", sync_to="2024-01-02", records=[])
+    assert req.platform is None
+
+
+def test_sync_request_platform_stored():
+    req = SyncRequest(sync_from="2024-01-01", sync_to="2024-01-02", records=[], platform="iOS")
+    assert req.platform == "iOS"
+
+
+def test_sync_request_platform_android():
+    req = SyncRequest(sync_from="2024-01-01", sync_to="2024-01-02", records=[], platform="Android")
+    assert req.platform == "Android"
+
+
 # ─── DaySchedule / ScheduleRequest validation ───────────────────────────────
 
 
