@@ -325,6 +325,26 @@ class UsersRepository:
             "last_sync_records_count": row.last_sync_records_count,
         }
 
+    async def get_health_sync_status(self, user_id: int) -> dict | None:
+        """Return has_data and last_sync_at for a user.
+
+        has_data is True when the user has previously completed at least one sync
+        (i.e. last_sync_at IS NOT NULL), meaning health records exist on the server.
+        """
+        row = (
+            await self._connection.execute(
+                select(
+                    tables.users.c.last_sync_at,
+                ).where(tables.users.c.id == user_id)
+            )
+        ).one_or_none()
+        if row is None:
+            return None
+        return {
+            "has_data": row.last_sync_at is not None,
+            "last_sync_at": row.last_sync_at,
+        }
+
     async def update_apns_token(self, user_id: int, token: str) -> None:
         import re
 
